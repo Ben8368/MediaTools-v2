@@ -66,7 +66,7 @@
 | Cursor | `Co-authored-by: Cursor <cursoragent@cursor.com>` |
 | Codex / Copilot | `Co-Authored-By: Codex <codex@openai.com>` |
 | OpenCode | `Co-Authored-By: opencode <opencode@noreply.local>` |
-| WorkBuddy | `Co-Authored-By: WorkBuddy <workbuddy@noreply.local>` |
+| OpenClaw | `Co-Authored-By: openclaw <openclaw@noreply.local>` |
 
 **自动化方式**：
 - 安装 Git hook：`.git-hooks/install.ps1`（Windows）或 `cp .git-hooks/prepare-commit-msg .git/hooks/`（Linux/macOS）
