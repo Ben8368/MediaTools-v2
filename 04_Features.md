@@ -248,6 +248,31 @@
 - **降级/回滚策略：** 若前端工程引入风险过大，保留 CLI 下载增强作为主路径；轻前端只作为可选本地入口。
 - **状态：** [待评估] - 已建立 `docs/UI_COMPAT.md` 作为准入基线，下一步需考古 Legacy 技术栈
 
+### Feature-012：下载格式控制与原语言探测 — Phase 3-A+
+- **提交时间：** 2026-06-24
+- **类型：** 核心功能增强 / Phase 3 P0+
+- **描述：** 在 `fetch` 中加入格式与原语言控制能力：`--preset mp4`（等同于 `-t mp4`，强制 H264+AAC+MP4）；`--merge-format`/`--remux-video` 细粒度控制容器格式；`--convert-subs` 自动转换字幕格式（支持 srt/vtt/ass/lrc）；`--sub-langs original` 魔术值，自动探测视频原语言并只下载原语言字幕（探测失败时降级到 `all`）。
+- **用户价值：** 用户下载视频后不再需要手动转码或手动转字幕格式；`--preset mp4` 一行命令满足"最佳画质+H264+AAC+MP4"的普遍需求；`--sub-langs original` 避免下载数十种机器翻译字幕。
+- **前置依赖检查：**
+  - 技术依赖：复用系统 `yt-dlp`；`--preset mp4` 和 `--convert-subs srt` 均为 yt-dlp 原生参数，无需额外工具。
+  - 环境依赖：语言探测需要网络（`yt-dlp --print language`），仅在网络下载流程中触发；测试用 mock，不联网。
+  - 安全影响：探测仅下载元数据，不执行下载内容；格式参数为 yt-dlp 已有功能，行为可控。
+  - 跨平台兼容性：字幕文件名含语言码（如 `en-US`、`ja`），无平台特定问题。
+- **预计影响模块：**
+  - 源码：`src/mediatools/core/fetch.py` — `FetchOptions` 扩展字段、`probe_language()`、`_resolve_sub_langs()`、`build_fetch_args` 追加新参数。
+  - CLI：`src/mediatools/cli.py` — `fetch` 命令新增 `--preset`/`--merge-format`/`--remux-video`/`--convert-subs`/`--format-sort` 参数。
+  - 测试：`tests/test_fetch.py` — 新增 11 个测试覆盖新参数与语言解析逻辑。
+  - 文档：`03_Context.md`、`04_Features.md`、`05_Lessons.md`。
+- **验收思路：**
+  - mock 测试：新参数构建、`original` 解析为探测结果、探测失败降级为 `all`、`probe_language` 错误处理、`make_fetch_options` 字段透传。
+  - 本地真实验收命令示例：
+    ```
+    mediatools fetch <URL> <DIR> --preset mp4 --write-subs --write-auto-subs \
+      --sub-langs original --convert-subs srt --write-info-json
+    ```
+- **降级/回滚策略：** 所有新参数完全可选；不指定时行为与 Feature-010 完全一致；`original` 探测失败自动降级到 `all`；不影响现有用户工作流。
+- **状态：** [已完成] - 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕；tr/en-US/pt-BR/ar 全部正确）；发现并修复 3 个 Bug（UnicodeDecodeError、--sub-langs 重复、locale 字幕标签不匹配）；最终验证 76 passed, 6 skipped；ruff 通过；doctor 通过
+
 ## 3. 首批 MVP 优先级矩阵
 
 > **决策状态：** 用户已确认首批 MVP = A/B/C/D/E（2026-06-24），对应 Feature-005~009。
@@ -286,6 +311,7 @@
 | 代号 | 功能 | 优先级 | 依赖 | 说明 | Feature |
 | --- | --- | --- | --- | --- | --- |
 | P3-A | 下载工作流增强 | P0 | yt-dlp | 批量、字幕、dry-run、结果摘要、失败清单 | Feature-010 |
+| P3-A+ | 下载格式控制与原语言探测 | P0+ | yt-dlp | preset mp4、convert-subs、sub-langs original | Feature-012 |
 | P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | 待 Legacy 考古 | 先兼容布局和用户路径，再选技术栈 | Feature-011 |
 | P3-C | 视频切片 | P2 | ffmpeg | 下载落地后再评估 | 待补 |
 | P3-D | 资产扫描 / 搜索 / 统计 | P3 | 标准库优先 | 服务批处理和前端结果管理 | 待补 |

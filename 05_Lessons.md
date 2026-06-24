@@ -108,3 +108,39 @@
 - **背景：** 用户要求单文件超过 500 行必须作为硬性拆分要求，而不是仅靠治理文档提醒。
 - **经验：** 将 Python 文件行数检查放入 `scripts/verify.py`，覆盖 `src/`、`tests/`、`scripts/`。超过 500 行直接失败，开发者必须先按真实职责边界拆分再继续。
 - **状态：** 已采纳
+
+### L-017：yt-dlp `-t mp4` 预设已覆盖 H264+AAC+MP4，无需额外转码步骤
+- **时间：** 2026-06-24 21:50:00 +08:00
+- **背景：** 用户提出下载视频后需要 H264+AAC+MP4 格式；初步计划是先下载再用 `mediatools encode` 重编码。
+- **经验：** yt-dlp 的 `-t mp4`（或 `--preset-alias mp4`）等同于 `--merge-output-format mp4 --remux-video mp4 -S vcodec:h264,...,acodec:aac`，已能优先选择 H264+AAC 流并封装为 MP4。只需在 `fetch` 中暴露 `--preset` 参数即可，无需额外调用 ffmpeg。
+- **状态：** 已采纳
+
+### L-018：yt-dlp 无原语言关键字，需先探测 `--print language` 字段
+- **时间：** 2026-06-24 21:50:00 +08:00
+- **背景：** 用户要求只下载视频原语言字幕；yt-dlp `--sub-langs` 只支持 `all` 和语言代码，无 `original` 或 `default` 关键字。
+- **经验：** 实测发现 yt-dlp 的 `--print language` 字段（如 `en-US`、`pt-BR`）可靠；自动字幕中带有 `<lang>-orig` 后缀（如 `en-orig`）才是原语言字幕，其他语言都是机器翻译。在 `fetch.py` 中实现 `_resolve_sub_langs()` 函数，把 `--sub-langs original` 在运行时替换为 `yt-dlp --print language` 的探测结果，失败时降级为 `all`。
+- **状态：** 已采纳
+
+### L-019：`--convert-subs` 是 yt-dlp 原生参数，可直接透传
+- **时间：** 2026-06-24 21:50:00 +08:00
+- **背景：** 用户要求字幕保存为 SRT 格式；yt-dlp 默认下载 VTT 格式（YouTube 原生格式）。
+- **经验：** yt-dlp 的 `--convert-subs srt` 会在下载后自动将 VTT 转为 SRT，支持 `srt/vtt/ass/lrc`；这是内置后处理能力，无需额外调用 `mediatools subtitle convert`。在 `fetch` 中直接透传 `--convert-subs` 参数即可。
+- **状态：** 已采纳
+
+### L-020：`subprocess.run(encoding="utf-8")` 在 Windows 上会崩溃
+- **时间：** 2026-06-25 01:30:00 +08:00
+- **背景：** 批量真实下载验收时，yt-dlp 在 Windows 上输出土耳其语、葡萄牙语等非 ASCII 字符时抛出 `UnicodeDecodeError`，导致后续 URL 全部跳过。
+- **经验：** Windows 控制台默认代码页（CP936 / CP850）与 `encoding="utf-8"` 不匹配；必须在 `subprocess.run` 中加 `errors="replace"`，以 Unicode 替换字符兜底非 UTF-8 字节。已在 `run_tool` (core/ffmpeg.py) 加入。
+- **状态：** 已采纳
+
+### L-021：`--write-subs` 与 `--write-auto-subs` 同时使用会重复追加 `--sub-langs`
+- **时间：** 2026-06-25 01:30:00 +08:00
+- **背景：** `build_fetch_args` 中 `if write_subtitles` 和 `if write_auto_subtitles` 两个独立分支各自追加 `--sub-langs`，导致参数重复（功能正确但冗余）。
+- **经验：** 当两个条件共用同一参数时，让第二个条件只在第一个未设时才追加该参数；或在构建参数时收集一次去重再统一 append。
+- **状态：** 已采纳
+
+### L-022：yt-dlp `--print language` 返回带 locale 的代码，但字幕标签不含 locale
+- **时间：** 2026-06-25 01:30:00 +08:00
+- **背景：** `--print language` 返回 `pt-BR`、`en-US` 等带 locale 的 ISO 代码，但 YouTube 自动字幕的 base 标签是 `pt-orig`/`pt`、`en-orig`/`en`（不含 locale），导致 `--sub-langs pt-BR-orig` 不匹配任何字幕。
+- **经验：** `_resolve_sub_langs` 在探测到 `-` 分隔的 locale 代码时（如 `pt-BR`），同时生成 `pt-BR-orig,pt-BR,pt-orig,pt`，覆盖带 locale 和不带 locale 的两种标签；探测结果不含 `-` 时（如 `ar`），保持 `<lang>-orig,<lang>` 即可。
+- **状态：** 已采纳

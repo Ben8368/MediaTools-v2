@@ -133,6 +133,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print the plan without downloading.",
     )
     fetch_parser.add_argument("--summary-json", help="Write a JSON summary to this path.")
+    fetch_parser.add_argument(
+        "--preset",
+        help="yt-dlp format preset (e.g. mp4, mkv, aac).",
+    )
+    fetch_parser.add_argument(
+        "--merge-format",
+        help="Container format for stream merging (e.g. mp4, mkv).",
+    )
+    fetch_parser.add_argument(
+        "--remux-video",
+        help="Remux to container format without re-encoding.",
+    )
+    fetch_parser.add_argument(
+        "--convert-subs",
+        choices=["srt", "vtt", "ass", "lrc"],
+        help="Convert downloaded subtitles to this format.",
+    )
+    fetch_parser.add_argument(
+        "--format-sort",
+        help="yt-dlp format sort expression (e.g. 'vcodec:h264,res,fps').",
+    )
     return parser
 
 
@@ -238,6 +259,11 @@ def run_fetch_command(args: argparse.Namespace) -> int:
         overwrite=args.overwrite,
         write_info_json=args.write_info_json,
         download_archive=Path(args.download_archive) if args.download_archive else None,
+        preset=args.preset,
+        merge_format=args.merge_format,
+        remux_video=args.remux_video,
+        convert_subs=args.convert_subs,
+        format_sort=args.format_sort,
     )
     result = fetch_many(options, dry_run=args.dry_run)
     if args.summary_json:

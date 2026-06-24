@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-24 17:05:23 +08:00
+> **更新时间：** 2026-06-25 02:15:00 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流落地与 Legacy 风格轻前端准备
-> **验证状态：** 下载增强客观验证通过；`python scripts/verify.py` 通过（500 行硬限制检查通过；63 passed, 6 skipped；ruff 通过；doctor 通过）；CI 待推送后复核
+> **当前阶段：** Phase 3 - 真实批量下载验收通过
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；`python scripts/verify.py` 通过（76 passed, 6 skipped；ruff 通过；doctor 通过）；CI 待推送后复核
 
 ## 2. 本轮阻断项
 
@@ -85,11 +85,16 @@
 - [x] 启动下载工作流增强：批量 URL 输入、dry-run、summary JSON、info JSON、download archive
 - [x] 下载增强局部验证通过：`tests/test_fetch.py tests/test_cli.py` 共 18 passed，ruff 通过
 - [x] 下载增强标准验证通过：`python scripts/verify.py`（500 行硬限制检查通过；63 passed, 6 skipped；ruff 通过；doctor 通过）
+- [x] 实现 Feature-012（下载格式控制与原语言探测）：`--preset`、`--merge-format`、`--remux-video`、`--convert-subs`、`--format-sort`、`--sub-langs original` 自动探测原语言
+- [x] 格式控制与原语言探测客观验证通过：73 passed, 6 skipped；ruff 通过；doctor 通过
+- [x] 真实 7 URL 批量下载体验验收通过：H264+AAC+MP4 + SRT 原语言字幕（tr/en-US/pt-BR/ar 四种语言全部正确）
+- [x] 真实验收发现并修复 3 个 Bug：① `UnicodeDecodeError`（`errors="replace"`）；② `--sub-langs` 重复追加；③ locale 字幕标签不匹配（`pt-BR` → 扩展为 `pt-BR-orig,pt-BR,pt-orig,pt`）
+- [x] Bug 修复后复验通过：76 passed, 6 skipped；ruff 通过；doctor 通过
 
 ## 6. 下一步建议
 
 Phase 3 当前优先级：
-1. **下载工作流增强体验验收**：客观验证已通过，下一步可用真实下载任务体验批量、归档、summary JSON 等新参数。
+1. **下载工作流真实体验验收**：格式控制与原语言探测已就绪，可用真实批量任务验收完整流程（`--preset mp4 --convert-subs srt --sub-langs original`）。
 2. **Legacy UI 兼容基线**：考古 Legacy 前端技术栈、布局、视觉规则和下载工作流，再启动 v2 轻前端工程。
 3. **轻前端 MVP**：优先做下载工作台，让项目能边开发边使用；前端只提交任务和展示状态，不复制媒体业务逻辑。
 4. **后续功能评估**：下载与轻前端稳定后，再评估视频切片、资产扫描 / 搜索 / 统计。
