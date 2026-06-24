@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 
 from mediatools.core.errors import ExternalToolError, MediaToolsError
+from mediatools.core.fetch_naming import (
+    AUTO_FILENAME_LANGUAGE,
+    DEFAULT_FILENAME_TEMPLATE,
+    build_output_template,
+    template_uses_language,
+    to_filename_language_code,
+)
 from mediatools.core.ffmpeg import ProcessRunner, ToolResult, run_ytdlp
 from mediatools.core.paths import normalize
-
-SAFE_TEMPLATE_RE = re.compile(r"[^A-Za-z0-9._%()/-]+")
 
 
 @dataclass(frozen=True)
@@ -21,7 +25,7 @@ class FetchOptions:
 
     url: str
     output_dir: Path
-    output_template: str = "%(title).200B.%(ext)s"
+    output_template: str | None = None
     write_subtitles: bool = False
     write_auto_subtitles: bool = False
     subtitles_only: bool = False
@@ -36,6 +40,9 @@ class FetchOptions:
     format_sort: str | None = None
     cookies: Path | None = None
     cookies_from_browser: str | None = None
+    filename_template: str | None = DEFAULT_FILENAME_TEMPLATE
+    filename_language: str | None = AUTO_FILENAME_LANGUAGE
+    windows_filenames: bool = True
 
 
 FetchStatus = Literal["planned", "succeeded", "failed"]
@@ -148,17 +155,39 @@ def _resolve_sub_langs(options: FetchOptions) -> FetchOptions:
     return _copy_options(options, subtitle_languages=resolved)
 
 
+def _resolve_filename_language(
+    options: FetchOptions,
+    *,
+    runner: ProcessRunner | None = None,
+) -> FetchOptions:
+    """Replace the automatic filename language marker with a probed short code."""
+    if (options.filename_language or "").lower() != AUTO_FILENAME_LANGUAGE:
+        return options
+    if not template_uses_language(options.filename_template):
+        return options
+    lang = probe_language(
+        options.url,
+        cookies=options.cookies,
+        cookies_from_browser=options.cookies_from_browser,
+        runner=runner,
+    )
+    return _copy_options(options, filename_language=to_filename_language_code(lang) or "UN")
+
+
 def _copy_options(options: FetchOptions, **overrides: object) -> FetchOptions:
     """Return a new FetchOptions with the given field overrides."""
-    import dataclasses
-    return dataclasses.replace(options, **overrides)
+    return replace(options, **overrides)
 
 
 def build_fetch_args(options: FetchOptions) -> list[str]:
     """Build yt-dlp arguments for a controlled download."""
     validate_url(options.url)
     output_dir = normalize(options.output_dir)
-    template = sanitize_output_template(options.output_template)
+    template = build_output_template(
+        options.output_template,
+        filename_template=options.filename_template,
+        filename_language=options.filename_language,
+    )
 
     args = [
         "--paths",
@@ -167,6 +196,8 @@ def build_fetch_args(options: FetchOptions) -> list[str]:
         template,
         "--no-overwrites" if not options.overwrite else "--force-overwrites",
     ]
+    if options.windows_filenames:
+        args.append("--windows-filenames")
     args.extend(
         _build_auth_args(
             cookies=options.cookies,
@@ -220,7 +251,7 @@ def make_fetch_options(
     urls: list[str],
     *,
     output_dir: Path,
-    output_template: str = "%(title).200B.%(ext)s",
+    output_template: str | None = None,
     write_subtitles: bool = False,
     write_auto_subtitles: bool = False,
     subtitles_only: bool = False,
@@ -235,6 +266,9 @@ def make_fetch_options(
     format_sort: str | None = None,
     cookies: Path | None = None,
     cookies_from_browser: str | None = None,
+    filename_template: str | None = DEFAULT_FILENAME_TEMPLATE,
+    filename_language: str | None = AUTO_FILENAME_LANGUAGE,
+    windows_filenames: bool = True,
 ) -> list[FetchOptions]:
     """Create per-URL fetch options from shared CLI settings."""
     if not urls:
@@ -258,6 +292,9 @@ def make_fetch_options(
             format_sort=format_sort,
             cookies=cookies,
             cookies_from_browser=cookies_from_browser,
+            filename_template=filename_template,
+            filename_language=filename_language,
+            windows_filenames=windows_filenames,
         )
         for url in urls
     ]
@@ -284,25 +321,7 @@ def fetch_media(
     """Run yt-dlp for a single download operation."""
     output_dir = normalize(options.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    normalized_options = FetchOptions(
-        url=options.url,
-        output_dir=output_dir,
-        output_template=options.output_template,
-        write_subtitles=options.write_subtitles,
-        write_auto_subtitles=options.write_auto_subtitles,
-        subtitles_only=options.subtitles_only,
-        subtitle_languages=options.subtitle_languages,
-        overwrite=options.overwrite,
-        write_info_json=options.write_info_json,
-        download_archive=options.download_archive,
-        preset=options.preset,
-        merge_format=options.merge_format,
-        remux_video=options.remux_video,
-        convert_subs=options.convert_subs,
-        format_sort=options.format_sort,
-        cookies=options.cookies,
-        cookies_from_browser=options.cookies_from_browser,
-    )
+    normalized_options = _copy_options(options, output_dir=output_dir)
     kwargs = {"runner": runner} if runner is not None else {}
     return run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
 
@@ -320,11 +339,12 @@ def fetch_many(
 
     results: list[FetchItemResult] = []
     for options in options_list:
-        options = _resolve_sub_langs(options)
         if dry_run:
             results.append(dry_run_fetch(options))
             continue
         try:
+            options = _resolve_sub_langs(options)
+            options = _resolve_filename_language(options, runner=runner)
             result = fetch_media(options, runner=runner, timeout=timeout)
             results.append(
                 FetchItemResult(
@@ -334,6 +354,17 @@ def fetch_many(
                     command=result.command,
                 ),
             )
+        except KeyboardInterrupt:
+            results.append(
+                FetchItemResult(
+                    url=options.url,
+                    status="failed",
+                    output_dir=normalize(options.output_dir),
+                    command=("yt-dlp", *build_fetch_args(options)),
+                    error="Interrupted by user. Partial download files may remain.",
+                ),
+            )
+            break
         except MediaToolsError as exc:
             results.append(
                 FetchItemResult(
@@ -354,16 +385,6 @@ def validate_url(url: str) -> None:
         raise MediaToolsError("Fetch URL must be an absolute http or https URL.")
 
 
-def sanitize_output_template(template: str) -> str:
-    """Remove characters that are invalid or awkward across common filesystems."""
-    cleaned = template.replace("\\", "/").replace(":", "_")
-    cleaned = SAFE_TEMPLATE_RE.sub("_", cleaned)
-    cleaned = cleaned.strip(" /.")
-    if not cleaned:
-        return "%(title).200B.%(ext)s"
-    return cleaned
-
-
 def _build_auth_args(
     *,
     cookies: Path | None,
@@ -379,22 +400,4 @@ def _build_auth_args(
 
 
 def _replace_output_dir(options: FetchOptions, output_dir: Path) -> FetchOptions:
-    return FetchOptions(
-        url=options.url,
-        output_dir=output_dir,
-        output_template=options.output_template,
-        write_subtitles=options.write_subtitles,
-        write_auto_subtitles=options.write_auto_subtitles,
-        subtitles_only=options.subtitles_only,
-        subtitle_languages=options.subtitle_languages,
-        overwrite=options.overwrite,
-        write_info_json=options.write_info_json,
-        download_archive=options.download_archive,
-        preset=options.preset,
-        merge_format=options.merge_format,
-        remux_video=options.remux_video,
-        convert_subs=options.convert_subs,
-        format_sort=options.format_sort,
-        cookies=options.cookies,
-        cookies_from_browser=options.cookies_from_browser,
-    )
+    return _copy_options(options, output_dir=output_dir)

@@ -273,6 +273,47 @@
 - **降级/回滚策略：** 所有新参数完全可选；不指定时行为与 Feature-010 完全一致；`original` 探测失败自动降级到 `all`；不影响现有用户工作流。
 - **状态：** [已完成] - 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕；tr/en-US/pt-BR/ar 全部正确）；发现并修复 3 个 Bug（UnicodeDecodeError、--sub-langs 重复、locale 字幕标签不匹配）；playlist 原语言探测已处理多行输出并透传 cookie 来源；当前标准验证 84 passed, 3 skipped；ruff 通过；doctor 通过；CI #28096484531 三平台绿灯
 
+### Feature-013：macOS 兼容性补强 — Phase 3-A Hardening
+- **提交时间：** 2026-06-25
+- **类型：** 兼容性 / 开发体验 / 下载工作流硬化
+- **描述：** 针对 macOS 常见环境与真实下载体验补强：`verify.py` 提前检查 Python 3.11+ 并对 Homebrew PEP 668 环境给出 venv 提示；README 增加 macOS venv 验证路径；`fetch --dry-run --sub-langs original` 不再触发 yt-dlp 语言探测或浏览器 cookie 读取；批量下载中 Ctrl-C 会记录中断项并允许 CLI 写出 partial summary；macOS 默认配置目录改为 `~/Library/Application Support` 与 `~/Library/Caches`。
+- **用户价值：** 降低 macOS 初次验证和日常下载的摩擦，减少 dry-run 意外联网、登录态读取和中断后无摘要的问题。
+- **前置依赖检查：**
+  - 技术依赖：无新增运行时依赖；继续使用标准库与系统外部工具。
+  - 环境依赖：macOS 推荐 Python 3.11+ 虚拟环境；媒体能力仍依赖 PATH 中的 ffmpeg/ffprobe/yt-dlp。
+  - 安全影响：dry-run 不再为了 `original` 读取浏览器 cookie；中断摘要不执行或清理下载内容。
+  - 跨平台兼容性：Linux/Unix 仍保留 XDG 默认目录，Windows 仍使用 LOCALAPPDATA，macOS 单独使用原生 Library 路径。
+- **预计影响模块：**
+  - 源码：`scripts/verify.py`、`src/mediatools/core/fetch.py`、`src/mediatools/core/config.py`。
+  - 测试：`tests/test_fetch.py`、`tests/test_config.py`。
+  - 文档：`README.md`、`03_Context.md`、`04_Features.md`、`05_Lessons.md`。
+- **验收思路：**
+  - 单元测试覆盖 dry-run 不探测语言、KeyboardInterrupt 记录失败项、macOS 默认目录。
+  - 标准验证覆盖全量 pytest、ruff、doctor 和文件行数限制。
+- **降级/回滚策略：** 配置目录变更仅影响未来未显式设置 XDG 的 macOS 默认路径；用户仍可通过 XDG 环境变量覆盖。下载中断只新增摘要记录，不改变已下载文件。
+- **状态：** [客观已验证] - macOS 临时 venv 中 `python scripts/verify.py` 通过：86 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
+
+### Feature-014：下载文件名自动友好模板 — Phase 3-A Naming
+- **提交时间：** 2026-06-25
+- **类型：** 核心功能增强 / 下载工作流体验
+- **描述：** 默认启用友好命名模板 `{lang}-{author}-{title}-{platform}.{ext}`。真实下载前根据链接自动探测语言并映射为 `KR`、`EN`、`JP`、`SC`、`TC`、`AR`、`PT` 等短码；作者、标题、平台名由 yt-dlp 元数据自动填充。保留 `--name-template` 调整字段顺序、`--name-language` 手动覆盖语言码，以及高级 `--output-template` 原生模板覆盖能力。
+- **用户价值：** 用户可按语言、作者、标题、平台统一归档下载文件，批量下载后更容易排序、检索和交给后续剪辑/字幕流程使用。
+- **前置依赖检查：**
+  - 技术依赖：无新增运行时依赖；友好模板编译为 yt-dlp 原生输出模板。
+  - 环境依赖：真实下载仍依赖 PATH 中的 `yt-dlp`；自动语言码探测复用 `yt-dlp --print language`，dry-run 不触网并以 `AUTO` 预览。
+  - 安全影响：模板字段白名单校验，语言码仅允许字母、数字、`-`、`_`；模板字面量继续做跨平台字符清洗；默认传递 `--windows-filenames` 处理作者名/标题名中的本地不可用字符。
+  - 跨平台兼容性：不硬编码路径分隔符；扩展名默认使用 `{ext}`，也允许用户显式写 `.mp4`。
+- **预计影响模块：**
+  - 源码：`src/mediatools/core/fetch_naming.py`、`src/mediatools/core/fetch.py`。
+  - CLI：`src/mediatools/cli.py` — `fetch` 新增 `--name-template` / `--name-language` / `--no-windows-filenames`，并让 `--output-template` 覆盖友好模板。
+  - 测试：`tests/test_fetch_naming.py`、`tests/test_fetch.py`、`tests/test_cli.py`。
+  - 文档：`README.md`、`03_Context.md`、`04_Features.md`、`05_Lessons.md`。
+- **验收思路：**
+  - 单元测试覆盖默认模板、字段顺序调整、自动补 `{ext}`、硬编码 `.mp4`、未知字段报错、语言码自动映射与手动覆盖。
+  - CLI dry-run 摘要验证默认 `AUTO-作者-标题-平台` 模板、字段重排、`--output-template` 覆盖和 `--windows-filenames` 参数。
+- **降级/回滚策略：** 所有新增参数均为可选；不使用 `--name-template` 时沿用既有 `--output-template` 行为。
+- **状态：** [客观已验证] - macOS venv 中 `python scripts/verify.py` 通过：106 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
+
 ## 3. 首批 MVP 优先级矩阵
 
 > **决策状态：** 用户已确认首批 MVP = A/B/C/D/E（2026-06-24），对应 Feature-005~009。
@@ -312,6 +353,8 @@
 | --- | --- | --- | --- | --- | --- |
 | P3-A | 下载工作流增强 | P0 | yt-dlp | 批量、字幕、dry-run、结果摘要、失败清单 | Feature-010 |
 | P3-A+ | 下载格式控制与原语言探测 | P0+ | yt-dlp | preset mp4、convert-subs、sub-langs original | Feature-012 |
+| P3-A Hardening | macOS 兼容性补强 | P0 | 标准库 | venv 验证提示、dry-run 不联网、中断摘要、macOS Library 目录 | Feature-013 |
+| P3-A Naming | 下载文件名自动友好模板 | P0 | yt-dlp | 自动语言码、字段顺序模板、Windows 兼容文件名、保留 output-template | Feature-014 |
 | P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | 待 Legacy 考古 | 先兼容布局和用户路径，再选技术栈 | Feature-011 |
 | P3-C | 视频切片 | P2 | ffmpeg | 下载落地后再评估 | 待补 |
 | P3-D | 资产扫描 / 搜索 / 统计 | P3 | 标准库优先 | 服务批处理和前端结果管理 | 待补 |

@@ -150,3 +150,33 @@
 - **背景：** macOS 上校验单条 YouTube playlist 链接时，`yt-dlp --flat-playlist` 能识别 11 条视频，但实际提取每个视频都返回 `Sign in to confirm you’re not a bot`。此前 Win11 单/批量链接未触发该风控。
 - **经验：** 这类阻断不是 macOS 或 ffmpeg 兼容性问题，而是 YouTube 对当前网络、会话、playlist 批量提取或请求指纹触发登录/反机器人确认。下载工具应显式暴露 `--cookies-from-browser` 和 `--cookies`，但不能默认读取浏览器登录态；两种 cookie 来源应互斥。`--sub-langs original` 的语言探测也必须透传同一 cookie 来源，且 playlist 场景下 `--print language` 可能返回多行，应取第一条有效语言。本轮用 `--cookies-from-browser chrome` 复测后，前三条 playlist 视频已成功下载并经 ffprobe 验证为 H264 + AAC + MP4；中途 Ctrl-C 会导致 `summary.json` 未写出并留下当前条目的 `.part` 临时文件。
 - **状态：** 已采纳
+
+### L-024：macOS 验证入口必须避开系统 Python 与 Homebrew 全局 pip
+- **时间：** 2026-06-25 00:30:46 +08:00
+- **背景：** `python scripts/verify.py` 在 macOS shell 中可能找不到 `python`；`python3` 常命中 Apple Command Line Tools Python 3.9，不满足项目 Python 3.11+；Homebrew Python 又会因 PEP 668 阻止直接向全局环境 `pip install -e .[dev]`。
+- **经验：** macOS 本地验证应使用 Homebrew/pyenv 的 Python 3.11+ 创建虚拟环境后运行 `python scripts/verify.py`。`verify.py` 应先检查 Python 版本，安装失败遇到 `externally-managed-environment` 时明确提示创建 venv，而不是让用户误判为项目代码失败。
+- **状态：** 已采纳
+
+### L-025：dry-run 不应触发网络探测或读取浏览器登录态
+- **时间：** 2026-06-25 00:30:46 +08:00
+- **背景：** `fetch --dry-run --sub-langs original` 原先会先调用 `yt-dlp --print language` 解析原语言；若同时传 `--cookies-from-browser`，dry-run 也可能读取浏览器 cookie。
+- **经验：** dry-run 的承诺是只构造计划，不做网络访问和登录态读取。`original` 这类运行时探测值应在真实下载时解析；dry-run 中保留原始参数即可。
+- **状态：** 已采纳
+
+### L-026：批量下载中断也要写出可追踪摘要
+- **时间：** 2026-06-25 00:30:46 +08:00
+- **背景：** playlist 下载中途 Ctrl-C 会留下 `.part` 临时文件，并且如果异常直接冒泡，CLI 没机会写出 `summary.json`。
+- **经验：** 批量任务应捕获 `KeyboardInterrupt`，把当前 URL 记录为失败/中断项后停止批次，让 CLI 能输出 partial summary。不要自动删除 `.part`，因为用户可能需要恢复或检查 yt-dlp 的半成品。
+- **状态：** 已采纳
+
+### L-027：macOS 默认目录应使用 `~/Library`
+- **时间：** 2026-06-25 00:30:46 +08:00
+- **背景：** 早期配置模块把 macOS 与 Linux 一起归到 XDG 默认路径（`~/.config`、`~/.cache`、`~/.local/share`），可运行但不符合 macOS 桌面应用习惯。
+- **经验：** macOS 无显式 XDG 环境变量时，默认配置/数据放 `~/Library/Application Support/mediatools`，缓存放 `~/Library/Caches/mediatools`；同时继续允许 XDG 环境变量覆盖，方便高级用户和 CI。
+- **状态：** 已采纳
+
+### L-028：友好命名模板应编译到 yt-dlp 原生模板
+- **时间：** 2026-06-25 00:38:41 +08:00
+- **背景：** 用户需要按 `KR-作者名字-标题名-平台名.mp4` 这类结构命名下载视频，但直接暴露 yt-dlp 的 `%(title)s` 语法对日常使用不够直观。
+- **经验：** 保留高级 `--output-template`，同时新增白名单式友好模板（如 `{lang}-{author}-{title}-{platform}.{ext}`）并编译为 yt-dlp 原生输出模板。默认语言码可复用 `yt-dlp --print language` 自动探测并映射为短码，dry-run 不能触网，应用 `AUTO` 占位预览；作者/标题来自平台元数据，需默认传递 `--windows-filenames` 让 yt-dlp 处理本地不可用文件名字符。
+- **状态：** 已采纳

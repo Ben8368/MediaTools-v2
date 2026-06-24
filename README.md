@@ -48,10 +48,14 @@ python -m mediatools fetch "https://example.com/video" downloads --write-auto-su
 python -m mediatools fetch downloads --input-file urls.txt --dry-run
 python -m mediatools fetch downloads --input-file urls.txt --write-info-json --download-archive downloads/archive.txt --summary-json downloads/summary.json
 python -m mediatools fetch "https://example.com/playlist" downloads --cookies-from-browser safari --preset mp4
+python -m mediatools fetch "https://example.com/video" downloads --preset mp4
+python -m mediatools fetch "https://example.com/video" downloads --preset mp4 --name-template "{platform}-{title}-{author}-{lang}.{ext}" --name-language EN
 ```
 
 `probe`、`encode`、`screenshot` 需要本机 PATH 中可找到 `ffmpeg`/`ffprobe`；
 `fetch` 需要本机 PATH 中可找到 `yt-dlp`，并只接受 `http` / `https` URL。`--write-subs` 下载人工字幕，`--write-auto-subs` 下载自动字幕；`--input-file` 支持一行一个 URL 的批量任务；`--dry-run` 只预览计划；`--summary-json` 输出结构化结果，便于后续前端读取。若站点要求登录态或反机器人确认，可显式传 `--cookies-from-browser safari|chrome|firefox` 或 `--cookies path/to/cookies.txt`；二者互斥，且不会默认读取浏览器登录态。
+
+下载默认使用友好命名模板 `{lang}-{author}-{title}-{platform}.{ext}`。真实下载前会根据链接自动探测语言并映射为短码，例如 `KR`、`EN`、`JP`、`SC`、`TC`、`AR`、`PT`；作者、标题、平台名由 yt-dlp 元数据自动填充。`--name-template` 可调整字段顺序，支持 `{lang}`、`{author}`、`{title}`、`{platform}`、`{id}`、`{ext}`；`--name-language` 可手动覆盖语言码。默认传递 `--windows-filenames` 给 yt-dlp，以处理作者名和标题中本地文件系统不可用的字符；如需关闭可用 `--no-windows-filenames`。高级用法仍可用原始 yt-dlp `--output-template`，它会覆盖友好模板。
 
 ## 🚀 本地开发
 
@@ -62,6 +66,14 @@ python scripts/verify.py
 ```
 
 `verify.py` 会依次执行：Python 文件 500 行硬限制检查 → 安装 dev 依赖 → pytest → ruff → CLI 版本 → doctor 环境报告（含外部工具与 PATH 信息）。
+
+macOS 推荐先使用 Homebrew 或 pyenv 的 Python 3.11+ 创建虚拟环境，再运行验证；不要使用 Apple Command Line Tools 自带的 Python 3.9，也不要向 Homebrew 的全局 Python 环境直接安装包：
+
+```bash
+/opt/homebrew/bin/python3 -m venv .venv
+source .venv/bin/activate
+python scripts/verify.py
+```
 
 也可分步执行：
 

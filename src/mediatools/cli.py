@@ -104,7 +104,32 @@ def build_parser() -> argparse.ArgumentParser:
         "--input-file",
         help="UTF-8 text file with one URL per line. Blank lines and # comments are ignored.",
     )
-    fetch_parser.add_argument("--output-template", default="%(title).200B.%(ext)s")
+    fetch_parser.add_argument(
+        "--output-template",
+        help="Raw yt-dlp output template. Overrides the friendly name template.",
+    )
+    fetch_parser.add_argument(
+        "--name-template",
+        "--filename-template",
+        dest="filename_template",
+        help=(
+            "Friendly filename template, e.g. "
+            "'{lang}-{author}-{title}-{platform}.{ext}'."
+        ),
+    )
+    fetch_parser.add_argument(
+        "--name-language",
+        "--filename-language",
+        dest="filename_language",
+        default="auto",
+        help="Language code for {lang}: auto, KR, EN, JP, SC, TC, AR, PT, etc.",
+    )
+    fetch_parser.add_argument(
+        "--windows-filenames",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Force yt-dlp to sanitize downloaded filenames for Windows compatibility.",
+    )
     fetch_parser.add_argument("--write-subs", action="store_true", help="Download subtitles too.")
     fetch_parser.add_argument(
         "--write-auto-subs",
@@ -274,6 +299,9 @@ def run_fetch_command(args: argparse.Namespace) -> int:
         format_sort=args.format_sort,
         cookies=Path(args.cookies) if args.cookies else None,
         cookies_from_browser=args.cookies_from_browser,
+        filename_template=None if args.output_template else args.filename_template,
+        filename_language=args.filename_language,
+        windows_filenames=args.windows_filenames,
     )
     result = fetch_many(options, dry_run=args.dry_run)
     if args.summary_json:

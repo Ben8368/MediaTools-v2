@@ -23,7 +23,7 @@ def test_get_config_dir_respects_xdg_on_unix():
 
 def test_get_config_dir_defaults_to_dotconfig_on_unix():
     """get_config_dir should default to ~/.config/mediatools on Unix."""
-    if sys.platform == "win32":
+    if sys.platform in {"win32", "darwin"}:
         pytest.skip("Unix-specific test")
 
     with patch.dict("os.environ", {}, clear=True):
@@ -43,6 +43,16 @@ def test_get_config_dir_uses_localappdata_on_windows():
         assert config_dir == Path("C:/Users/test/AppData/Local/mediatools")
 
 
+def test_get_config_dir_defaults_to_application_support_on_macos():
+    """get_config_dir should default to Application Support on macOS."""
+    with patch("sys.platform", "darwin"):
+        with patch.dict("os.environ", {}, clear=True):
+            with patch("mediatools.core.config.normalize") as mock_normalize:
+                mock_normalize.return_value = Path("/Users/test")
+                config_dir = get_config_dir()
+                assert config_dir == Path("/Users/test/Library/Application Support/mediatools")
+
+
 def test_get_cache_dir_respects_xdg_on_unix():
     """get_cache_dir should use XDG_CACHE_HOME when set on Unix."""
     if sys.platform == "win32":
@@ -55,7 +65,7 @@ def test_get_cache_dir_respects_xdg_on_unix():
 
 def test_get_cache_dir_defaults_to_dotcache_on_unix():
     """get_cache_dir should default to ~/.cache/mediatools on Unix."""
-    if sys.platform == "win32":
+    if sys.platform in {"win32", "darwin"}:
         pytest.skip("Unix-specific test")
 
     with patch.dict("os.environ", {}, clear=True):
@@ -75,6 +85,16 @@ def test_get_cache_dir_uses_localappdata_on_windows():
         assert cache_dir == Path("C:/Users/test/AppData/Local/mediatools/cache")
 
 
+def test_get_cache_dir_defaults_to_library_caches_on_macos():
+    """get_cache_dir should default to Library/Caches on macOS."""
+    with patch("sys.platform", "darwin"):
+        with patch.dict("os.environ", {}, clear=True):
+            with patch("mediatools.core.config.normalize") as mock_normalize:
+                mock_normalize.return_value = Path("/Users/test")
+                cache_dir = get_cache_dir()
+                assert cache_dir == Path("/Users/test/Library/Caches/mediatools")
+
+
 def test_get_data_dir_respects_xdg_on_unix():
     """get_data_dir should use XDG_DATA_HOME when set on Unix."""
     if sys.platform == "win32":
@@ -87,7 +107,7 @@ def test_get_data_dir_respects_xdg_on_unix():
 
 def test_get_data_dir_defaults_to_local_share_on_unix():
     """get_data_dir should default to ~/.local/share/mediatools on Unix."""
-    if sys.platform == "win32":
+    if sys.platform in {"win32", "darwin"}:
         pytest.skip("Unix-specific test")
 
     with patch.dict("os.environ", {}, clear=True):
@@ -105,6 +125,16 @@ def test_get_data_dir_uses_localappdata_on_windows():
     with patch.dict("os.environ", {"LOCALAPPDATA": "C:\\Users\\test\\AppData\\Local"}):
         data_dir = get_data_dir()
         assert data_dir == Path("C:/Users/test/AppData/Local/mediatools/data")
+
+
+def test_get_data_dir_defaults_to_application_support_data_on_macos():
+    """get_data_dir should default to Application Support data on macOS."""
+    with patch("sys.platform", "darwin"):
+        with patch.dict("os.environ", {}, clear=True):
+            with patch("mediatools.core.config.normalize") as mock_normalize:
+                mock_normalize.return_value = Path("/Users/test")
+                data_dir = get_data_dir()
+                assert data_dir == Path("/Users/test/Library/Application Support/mediatools/data")
 
 
 def test_ensure_dir_creates_directory(tmp_path):

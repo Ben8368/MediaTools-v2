@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-24 22:05:43 +08:00
+> **更新时间：** 2026-06-25 01:03:45 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流已验收，补强登录态支持后转入 Legacy UI 兼容基线
-> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；`python scripts/verify.py` 通过（84 passed, 3 skipped；ruff 通过；doctor 通过）；CI #28096484531 三平台绿灯
+> **当前阶段：** Phase 3 - 下载工作流已验收，自动友好命名已客观验证，转入 Legacy UI 兼容基线
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；macOS venv 标准验证通过（106 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`）；CI #28096484531 三平台绿灯
 
 ## 2. 本轮阻断项
 
@@ -96,6 +96,10 @@
 - [x] 补强下载登录态支持：新增 `--cookies` / `--cookies-from-browser`，二者互斥；`--sub-langs original` 的语言探测会透传 cookie 来源并处理 playlist 多行语言输出
 - [x] 登录态补强后标准验证通过：84 passed, 3 skipped；ruff 通过；doctor 通过（macOS ffmpeg / ffprobe / yt-dlp 均可用）
 - [x] 使用 `--cookies-from-browser chrome` 复测 macOS playlist：前三条视频下载成功并经 ffprobe 验证为 H264 + AAC + MP4、1080p；第四条按用户要求中止，保留 `.part` 临时文件
+- [x] macOS 兼容性补强：`verify.py` 提前检查 Python 3.11+ 并提示 Homebrew PEP 668 venv 路径；README 增加 macOS venv 验证命令；`fetch --dry-run --sub-langs original` 不再触发语言探测/浏览器 cookie 读取；批量下载 Ctrl-C 记录中断项以便写出 partial summary；macOS 默认配置/cache/data 目录改用 `~/Library/...`
+- [x] macOS 补强后标准验证通过：86 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
+- [x] 自动友好命名：默认 `{lang}-{author}-{title}-{platform}.{ext}`；真实下载自动探测语言码；支持 `--name-template` 调整字段顺序、`--name-language` 手动覆盖、`--output-template` 原生覆盖；默认 `--windows-filenames` 处理作者/标题非法文件名字符
+- [x] 自动命名补强后标准验证通过：106 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
 
 ## 6. 下一步建议
 

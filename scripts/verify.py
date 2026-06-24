@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MAX_PYTHON_FILE_LINES = 500
 LINE_CHECK_DIRS = ("src", "tests", "scripts")
+MIN_PYTHON = (3, 11)
 
 
 def run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
@@ -26,6 +27,7 @@ def run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[
         capture_output=True,
         text=True,
         encoding="utf-8",
+        errors="replace",
     )
 
 
@@ -38,7 +40,35 @@ def step(title: str, command: list[str]) -> None:
     if result.stderr.strip():
         print(result.stderr.rstrip(), file=sys.stderr)
     if result.returncode != 0:
+        externally_managed = "externally-managed-environment" in result.stderr
+        if title == "Install editable package" and externally_managed:
+            print(
+                "\nThis Python environment is externally managed. On macOS/Homebrew, "
+                "create and activate a virtual environment before running verify.py.",
+                file=sys.stderr,
+            )
         raise SystemExit(result.returncode)
+
+
+def check_python_version() -> None:
+    """Fail early when the interpreter cannot run the project."""
+    print("\n==> Check Python version")
+    current = sys.version_info
+    required = ".".join(str(part) for part in MIN_PYTHON)
+    detected = f"{current.major}.{current.minor}.{current.micro}"
+    if current < MIN_PYTHON:
+        print(
+            f"Python {required}+ is required, but this interpreter is {detected}: "
+            f"{sys.executable}",
+            file=sys.stderr,
+        )
+        print(
+            "On macOS, avoid the Apple Command Line Tools Python 3.9; use a "
+            "Homebrew/pyenv Python inside a virtual environment.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    print(f"Python {detected} OK.")
 
 
 def check_python_file_sizes() -> None:
@@ -89,6 +119,7 @@ def report_environment() -> None:
 
 def main() -> int:
     print(f"MediaTools verify | root={ROOT}")
+    check_python_version()
     check_python_file_sizes()
     step("Install editable package", [sys.executable, "-m", "pip", "install", "-e", ".[dev]"])
     step("Run tests", [sys.executable, "-m", "pytest"])
