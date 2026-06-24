@@ -15,11 +15,38 @@
 项目正在重构中，当前阶段：
 
 - [x] 治理体系建立（01-05 文档 + AGENTS.md）
-- [ ] 技术栈决策（Python / Node.js / Go）
+- [x] 技术栈决策：Python CLI 优先
+- [x] 最小 CLI 脚手架验证
 - [ ] 核心架构搭建
 - [ ] 功能迁移与实现
 
 详见 [`REFACTOR.md`](REFACTOR.md)
+
+## 🧰 技术栈
+
+- Python 3.11+
+- 标准库 `argparse` 作为 CLI 入口
+- `pyproject.toml` 管理项目元数据、命令入口和开发依赖
+- `pytest` 用于测试
+- `ruff` 用于格式/静态检查
+- 系统 `ffmpeg` 作为后续媒体处理外部依赖，不 vendor 第三方源码
+
+## 🚀 本地开发
+
+```powershell
+python -m pip install -e ".[dev]"
+python -m mediatools --version
+python -m mediatools doctor
+python -m pytest
+python -m ruff check .
+```
+
+安装后也可以使用 console script：
+
+```powershell
+mediatools --version
+mediatools doctor --json
+```
 
 ## 📚 文档导航
 
