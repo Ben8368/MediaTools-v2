@@ -153,25 +153,32 @@ def _normalize_language(language: str | None) -> str:
     return normalized
 
 def strip_subtitle_language_suffix(output_dir: str | Path) -> None:
-    """Rename subtitle files so they match the video base name.
+    """Rename subtitle files so they match the video base name, keeping only srt.
 
-    yt-dlp writes subtitle files as ``<video-base>.<lang>.vtt``, but
-    playback tools expect ``<video-base>.srt`` (no language middle segment).
-    This function renames every subtitle in *output_dir* to remove the
-    language segment, e.g.::
+    yt-dlp writes subtitle files as <video-base>.<lang>.<fmt> (e.g.
+    KR-Title-youtube.en.vtt), but playback tools expect
+    <video-base>.srt without a language middle segment.
+
+    This function does two things:
+
+    1. Renames every subtitle to remove the language segment::
 
         KR-Title-youtube.en.vtt  ->  KR-Title-youtube.vtt
         KR-Title-youtube.zh-Hans.srt  ->  KR-Title-youtube.srt
 
+    2. After renaming, if a subtitle exists in both .srt and .vtt
+       format, the .vtt copy is deleted (.srt wins).
+
     If multiple subtitle languages exist for the same video base, only the
     **last** one (sorted by name) survives -- all others are silently dropped.
     This is acceptable because the user typically requests a single language
-    (``original`` or an explicit code).
+    (original or an explicit code).
     """
     dir_path = Path(output_dir)
     if not dir_path.is_dir():
         return
 
+    # -- Step 1: remove language middle segment from subtitle filenames --
     subs: dict[str, Path] = {}
     for child in sorted(dir_path.iterdir()):
         m = SUBTITLE_LANG_RE.match(child.name)
@@ -189,3 +196,16 @@ def strip_subtitle_language_suffix(output_dir: str | Path) -> None:
         src.rename(dest)
         logger.debug("Renamed subtitle %s -> %s", src.name, dest.name)
 
+    # -- Step 2: prefer srt, drop vtt when both exist --
+    base_to_srt: dict[str, Path] = {}
+    base_to_vtt: dict[str, Path] = {}
+    for child in sorted(dir_path.iterdir()):
+        if child.suffix.lower() == ".srt" and not SUBTITLE_LANG_RE.match(child.name):
+            base_to_srt[child.stem] = child
+        elif child.suffix.lower() == ".vtt" and not SUBTITLE_LANG_RE.match(child.name):
+            base_to_vtt[child.stem] = child
+
+    for stem, vtt_path in base_to_vtt.items():
+        if stem in base_to_srt:
+            vtt_path.unlink()
+            logger.debug("Removed %s (srt already exists)", vtt_path.name)
