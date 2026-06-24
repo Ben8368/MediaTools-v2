@@ -65,8 +65,8 @@
 | Claude Haiku | `Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>` |
 | Cursor | `Co-authored-by: Cursor <cursoragent@cursor.com>` |
 | Codex / Copilot | `Co-Authored-By: Codex <codex@openai.com>` |
-| OpenCode | `Co-Authored-By: OpenCode <opencode@byted.org>` |
-| WorkBuddy | `Co-Authored-By: WorkBuddy <workbuddy@example.com>` |
+| OpenCode | `Co-Authored-By: OpenCode <opencode@noreply.local>` |
+| WorkBuddy | `Co-Authored-By: WorkBuddy <workbuddy@noreply.local>` |
 
 **自动化方式**：
 - 安装 Git hook：`.git-hooks/install.ps1`（Windows）或 `cp .git-hooks/prepare-commit-msg .git/hooks/`（Linux/macOS）
