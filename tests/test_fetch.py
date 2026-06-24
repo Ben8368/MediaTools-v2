@@ -235,6 +235,45 @@ def test_build_fetch_args_with_format_sort(tmp_path):
     assert args[idx + 1] == "vcodec:h264,res,fps"
 
 
+def test_build_fetch_args_with_cookies_file(tmp_path):
+    cookies = tmp_path / "cookies.txt"
+    args = build_fetch_args(
+        FetchOptions(
+            url="https://example.com/video",
+            output_dir=tmp_path,
+            cookies=cookies,
+        ),
+    )
+    assert "--cookies" in args
+    idx = args.index("--cookies")
+    assert args[idx + 1] == str(cookies)
+
+
+def test_build_fetch_args_with_cookies_from_browser(tmp_path):
+    args = build_fetch_args(
+        FetchOptions(
+            url="https://example.com/video",
+            output_dir=tmp_path,
+            cookies_from_browser="safari",
+        ),
+    )
+    assert "--cookies-from-browser" in args
+    idx = args.index("--cookies-from-browser")
+    assert args[idx + 1] == "safari"
+
+
+def test_build_fetch_args_rejects_multiple_cookie_sources(tmp_path):
+    with pytest.raises(MediaToolsError):
+        build_fetch_args(
+            FetchOptions(
+                url="https://example.com/video",
+                output_dir=tmp_path,
+                cookies=tmp_path / "cookies.txt",
+                cookies_from_browser="safari",
+            ),
+        )
+
+
 def test_resolve_sub_langs_keeps_explicit_language(tmp_path):
     opts = FetchOptions(
         url="https://example.com/video",
@@ -305,6 +344,34 @@ def test_probe_language_returns_language_code(monkeypatch):
     assert result == "en-US"
 
 
+def test_probe_language_returns_first_language_for_playlist(monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+
+    def runner(command, **kwargs):
+        return subprocess.CompletedProcess(command, 0, stdout="zh-CN\nzh-TW\n", stderr="")
+
+    result = probe_language("https://example.com/playlist", runner=runner)
+    assert result == "zh-CN"
+
+
+def test_probe_language_passes_cookie_source(monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+    commands = []
+
+    def runner(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout="zh-CN\n", stderr="")
+
+    result = probe_language(
+        "https://example.com/video",
+        cookies_from_browser="safari",
+        runner=runner,
+    )
+    assert result == "zh-CN"
+    assert "--cookies-from-browser" in commands[0]
+    assert "safari" in commands[0]
+
+
 def test_make_fetch_options_accepts_new_fields(tmp_path):
     opts = make_fetch_options(
         ["https://example.com/video"],
@@ -312,8 +379,10 @@ def test_make_fetch_options_accepts_new_fields(tmp_path):
         preset="mp4",
         convert_subs="srt",
         format_sort="vcodec:h264",
+        cookies=tmp_path / "cookies.txt",
     )
     assert len(opts) == 1
     assert opts[0].preset == "mp4"
     assert opts[0].convert_subs == "srt"
     assert opts[0].format_sort == "vcodec:h264"
+    assert opts[0].cookies == tmp_path / "cookies.txt"

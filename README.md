@@ -47,10 +47,11 @@ python -m mediatools fetch "https://example.com/video" downloads --write-subs
 python -m mediatools fetch "https://example.com/video" downloads --write-auto-subs --sub-langs en
 python -m mediatools fetch downloads --input-file urls.txt --dry-run
 python -m mediatools fetch downloads --input-file urls.txt --write-info-json --download-archive downloads/archive.txt --summary-json downloads/summary.json
+python -m mediatools fetch "https://example.com/playlist" downloads --cookies-from-browser safari --preset mp4
 ```
 
 `probe`、`encode`、`screenshot` 需要本机 PATH 中可找到 `ffmpeg`/`ffprobe`；
-`fetch` 需要本机 PATH 中可找到 `yt-dlp`，并只接受 `http` / `https` URL。`--write-subs` 下载人工字幕，`--write-auto-subs` 下载自动字幕；`--input-file` 支持一行一个 URL 的批量任务；`--dry-run` 只预览计划；`--summary-json` 输出结构化结果，便于后续前端读取。
+`fetch` 需要本机 PATH 中可找到 `yt-dlp`，并只接受 `http` / `https` URL。`--write-subs` 下载人工字幕，`--write-auto-subs` 下载自动字幕；`--input-file` 支持一行一个 URL 的批量任务；`--dry-run` 只预览计划；`--summary-json` 输出结构化结果，便于后续前端读取。若站点要求登录态或反机器人确认，可显式传 `--cookies-from-browser safari|chrome|firefox` 或 `--cookies path/to/cookies.txt`；二者互斥，且不会默认读取浏览器登录态。
 
 ## 🚀 本地开发
 

@@ -34,6 +34,8 @@ class FetchOptions:
     remux_video: str | None = None
     convert_subs: str | None = None
     format_sort: str | None = None
+    cookies: Path | None = None
+    cookies_from_browser: str | None = None
 
 
 FetchStatus = Literal["planned", "succeeded", "failed"]
@@ -97,26 +99,45 @@ class FetchBatchResult:
         }
 
 
-def probe_language(url: str, *, runner: ProcessRunner | None = None) -> str | None:
+def probe_language(
+    url: str,
+    *,
+    cookies: Path | None = None,
+    cookies_from_browser: str | None = None,
+    runner: ProcessRunner | None = None,
+) -> str | None:
     """Return the video's primary language code, or None on failure."""
     try:
         kwargs = {"runner": runner} if runner is not None else {}
         result = run_ytdlp(
-            ["--print", "language", "--skip-download", url],
+            [
+                *_build_auth_args(cookies=cookies, cookies_from_browser=cookies_from_browser),
+                "--print",
+                "language",
+                "--skip-download",
+                url,
+            ],
             timeout=60,
             **kwargs,
         )
     except ExternalToolError:
         return None
-    lang = result.stdout.strip()
-    return lang if lang else None
+    for line in result.stdout.splitlines():
+        lang = line.strip()
+        if lang and lang != "NA":
+            return lang
+    return None
 
 
 def _resolve_sub_langs(options: FetchOptions) -> FetchOptions:
     """Replace the 'original' magic keyword with a detected language code."""
     if options.subtitle_languages != "original":
         return options
-    lang = probe_language(options.url)
+    lang = probe_language(
+        options.url,
+        cookies=options.cookies,
+        cookies_from_browser=options.cookies_from_browser,
+    )
     if not lang:
         resolved = "all"
     elif "-" in lang:
@@ -146,6 +167,12 @@ def build_fetch_args(options: FetchOptions) -> list[str]:
         template,
         "--no-overwrites" if not options.overwrite else "--force-overwrites",
     ]
+    args.extend(
+        _build_auth_args(
+            cookies=options.cookies,
+            cookies_from_browser=options.cookies_from_browser,
+        ),
+    )
     if options.preset:
         args.extend(["-t", options.preset])
     if options.merge_format:
@@ -206,6 +233,8 @@ def make_fetch_options(
     remux_video: str | None = None,
     convert_subs: str | None = None,
     format_sort: str | None = None,
+    cookies: Path | None = None,
+    cookies_from_browser: str | None = None,
 ) -> list[FetchOptions]:
     """Create per-URL fetch options from shared CLI settings."""
     if not urls:
@@ -227,6 +256,8 @@ def make_fetch_options(
             remux_video=remux_video,
             convert_subs=convert_subs,
             format_sort=format_sort,
+            cookies=cookies,
+            cookies_from_browser=cookies_from_browser,
         )
         for url in urls
     ]
@@ -269,6 +300,8 @@ def fetch_media(
         remux_video=options.remux_video,
         convert_subs=options.convert_subs,
         format_sort=options.format_sort,
+        cookies=options.cookies,
+        cookies_from_browser=options.cookies_from_browser,
     )
     kwargs = {"runner": runner} if runner is not None else {}
     return run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
@@ -331,6 +364,20 @@ def sanitize_output_template(template: str) -> str:
     return cleaned
 
 
+def _build_auth_args(
+    *,
+    cookies: Path | None,
+    cookies_from_browser: str | None,
+) -> list[str]:
+    if cookies is not None and cookies_from_browser:
+        raise MediaToolsError("Use either --cookies or --cookies-from-browser, not both.")
+    if cookies is not None:
+        return ["--cookies", str(normalize(cookies))]
+    if cookies_from_browser:
+        return ["--cookies-from-browser", cookies_from_browser]
+    return []
+
+
 def _replace_output_dir(options: FetchOptions, output_dir: Path) -> FetchOptions:
     return FetchOptions(
         url=options.url,
@@ -348,4 +395,6 @@ def _replace_output_dir(options: FetchOptions, output_dir: Path) -> FetchOptions
         remux_video=options.remux_video,
         convert_subs=options.convert_subs,
         format_sort=options.format_sort,
+        cookies=options.cookies,
+        cookies_from_browser=options.cookies_from_browser,
     )

@@ -207,7 +207,7 @@
 ### Feature-010：下载工作流增强 (fetch workflow) — Phase 3-A
 - **提交时间：** 2026-06-24
 - **类型：** 核心功能增强 / Phase 3 P0
-- **描述：** 在现有 `fetch` MVP 基础上完善真实落地体验，包括批量 URL、字幕语言选择、人工字幕/自动字幕区分、dry-run 预览、下载结果摘要、失败清单、元数据保存和已存在文件跳过策略。
+- **描述：** 在现有 `fetch` MVP 基础上完善真实落地体验，包括批量 URL、字幕语言选择、人工字幕/自动字幕区分、登录态 cookie 透传、dry-run 预览、下载结果摘要、失败清单、元数据保存和已存在文件跳过策略。
 - **用户价值：** 下载是媒体工作流入口；真实使用中最容易暴露网络、字幕、命名、失败恢复和批量管理问题，优先完善能让工具更快进入日常使用。
 - **Legacy 来源：** `modules/fetcher/downloader`、`modules/fetcher/ytdlp_manager`、`modules/fetcher/csv_manager`、旧前端下载任务流。
 - **前置依赖检查：**
@@ -224,7 +224,7 @@
   - mock 测试覆盖命令参数构造、批量输入解析、错误摘要、跳过策略。
   - 本地真实样本体验验证覆盖：单 URL、批量 URL、人工字幕、自动字幕、无字幕、下载失败。
 - **降级/回滚策略：** 保留现有单 URL `fetch` 行为；增强功能以新增参数或子命令提供，不破坏现有命令。
-- **状态：** [客观已验证] - 已实现批量 URL 输入、dry-run、summary JSON、info JSON、download archive；`python scripts/verify.py` 通过（500 行硬限制检查通过；63 passed, 6 skipped；ruff 通过；doctor 通过），待必要真实样本体验
+- **状态：** [已完成] - 已实现批量 URL 输入、dry-run、summary JSON、info JSON、download archive、登录态 cookie 透传（`--cookies` / `--cookies-from-browser`）；真实 7 URL 批量下载体验验收通过；macOS playlist 校验发现 YouTube 登录态阻断并已补强认证参数；当前标准验证 84 passed, 3 skipped；ruff 通过；doctor 通过；CI #28096484531 三平台绿灯
 
 ### Feature-011：Legacy 风格轻前端 / 下载工作台 — Phase 3-B
 - **提交时间：** 2026-06-24
@@ -271,7 +271,7 @@
       --sub-langs original --convert-subs srt --write-info-json
     ```
 - **降级/回滚策略：** 所有新参数完全可选；不指定时行为与 Feature-010 完全一致；`original` 探测失败自动降级到 `all`；不影响现有用户工作流。
-- **状态：** [已完成] - 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕；tr/en-US/pt-BR/ar 全部正确）；发现并修复 3 个 Bug（UnicodeDecodeError、--sub-langs 重复、locale 字幕标签不匹配）；最终验证 76 passed, 6 skipped；ruff 通过；doctor 通过
+- **状态：** [已完成] - 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕；tr/en-US/pt-BR/ar 全部正确）；发现并修复 3 个 Bug（UnicodeDecodeError、--sub-langs 重复、locale 字幕标签不匹配）；playlist 原语言探测已处理多行输出并透传 cookie 来源；当前标准验证 84 passed, 3 skipped；ruff 通过；doctor 通过；CI #28096484531 三平台绿灯
 
 ## 3. 首批 MVP 优先级矩阵
 

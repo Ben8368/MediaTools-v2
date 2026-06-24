@@ -154,6 +154,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--format-sort",
         help="yt-dlp format sort expression (e.g. 'vcodec:h264,res,fps').",
     )
+    fetch_parser.add_argument(
+        "--cookies",
+        help="Netscape cookies.txt file for sites that require login state.",
+    )
+    fetch_parser.add_argument(
+        "--cookies-from-browser",
+        help="Browser cookie source for yt-dlp (e.g. safari, chrome, firefox).",
+    )
     return parser
 
 
@@ -264,6 +272,8 @@ def run_fetch_command(args: argparse.Namespace) -> int:
         remux_video=args.remux_video,
         convert_subs=args.convert_subs,
         format_sort=args.format_sort,
+        cookies=Path(args.cookies) if args.cookies else None,
+        cookies_from_browser=args.cookies_from_browser,
     )
     result = fetch_many(options, dry_run=args.dry_run)
     if args.summary_json:

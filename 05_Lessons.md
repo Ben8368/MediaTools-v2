@@ -144,3 +144,9 @@
 - **背景：** `--print language` 返回 `pt-BR`、`en-US` 等带 locale 的 ISO 代码，但 YouTube 自动字幕的 base 标签是 `pt-orig`/`pt`、`en-orig`/`en`（不含 locale），导致 `--sub-langs pt-BR-orig` 不匹配任何字幕。
 - **经验：** `_resolve_sub_langs` 在探测到 `-` 分隔的 locale 代码时（如 `pt-BR`），同时生成 `pt-BR-orig,pt-BR,pt-orig,pt`，覆盖带 locale 和不带 locale 的两种标签；探测结果不含 `-` 时（如 `ar`），保持 `<lang>-orig,<lang>` 即可。
 - **状态：** 已采纳
+
+### L-023：YouTube playlist 可能需要显式登录态
+- **时间：** 2026-06-24 22:05:43 +08:00
+- **背景：** macOS 上校验单条 YouTube playlist 链接时，`yt-dlp --flat-playlist` 能识别 11 条视频，但实际提取每个视频都返回 `Sign in to confirm you’re not a bot`。此前 Win11 单/批量链接未触发该风控。
+- **经验：** 这类阻断不是 macOS 或 ffmpeg 兼容性问题，而是 YouTube 对当前网络、会话、playlist 批量提取或请求指纹触发登录/反机器人确认。下载工具应显式暴露 `--cookies-from-browser` 和 `--cookies`，但不能默认读取浏览器登录态；两种 cookie 来源应互斥。`--sub-langs original` 的语言探测也必须透传同一 cookie 来源，且 playlist 场景下 `--print language` 可能返回多行，应取第一条有效语言。本轮用 `--cookies-from-browser chrome` 复测后，前三条 playlist 视频已成功下载并经 ffprobe 验证为 H264 + AAC + MP4；中途 Ctrl-C 会导致 `summary.json` 未写出并留下当前条目的 `.part` 临时文件。
+- **状态：** 已采纳

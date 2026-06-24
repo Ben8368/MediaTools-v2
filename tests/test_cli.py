@@ -59,6 +59,8 @@ def test_fetch_dry_run_writes_summary(tmp_path, capsys):
             "--write-info-json",
             "--download-archive",
             str(tmp_path / "archive.txt"),
+            "--cookies-from-browser",
+            "safari",
             "--summary-json",
             str(summary_path),
         ],
@@ -69,6 +71,7 @@ def test_fetch_dry_run_writes_summary(tmp_path, capsys):
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["planned"] == 1
     assert summary["items"][0]["url"] == "https://example.com/video"
+    assert "--cookies-from-browser" in summary["items"][0]["command"]
 
 
 def test_fetch_requires_url_or_input_file(capsys):

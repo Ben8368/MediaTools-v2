@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-25 02:15:00 +08:00
+> **更新时间：** 2026-06-24 22:05:43 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 真实批量下载验收通过
-> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；`python scripts/verify.py` 通过（76 passed, 6 skipped；ruff 通过；doctor 通过）；CI 待推送后复核
+> **当前阶段：** Phase 3 - 下载工作流已验收，补强登录态支持后转入 Legacy UI 兼容基线
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；`python scripts/verify.py` 通过（84 passed, 3 skipped；ruff 通过；doctor 通过）；CI #28096484531 三平台绿灯
 
 ## 2. 本轮阻断项
 
@@ -90,12 +90,18 @@
 - [x] 真实 7 URL 批量下载体验验收通过：H264+AAC+MP4 + SRT 原语言字幕（tr/en-US/pt-BR/ar 四种语言全部正确）
 - [x] 真实验收发现并修复 3 个 Bug：① `UnicodeDecodeError`（`errors="replace"`）；② `--sub-langs` 重复追加；③ locale 字幕标签不匹配（`pt-BR` → 扩展为 `pt-BR-orig,pt-BR,pt-orig,pt`）
 - [x] Bug 修复后复验通过：76 passed, 6 skipped；ruff 通过；doctor 通过
+- [x] 推送后验证 CI 三平台绿灯（CI #28096484531）
+- [x] 本轮文档状态同步后复验通过：79 passed, 3 skipped；ruff 通过；doctor 通过（Codex Python 3.12.13）
+- [x] macOS playlist 下载校验：`yt-dlp` 可识别 11 条 playlist，但 YouTube 要求登录/反机器人确认，未下载媒体文件
+- [x] 补强下载登录态支持：新增 `--cookies` / `--cookies-from-browser`，二者互斥；`--sub-langs original` 的语言探测会透传 cookie 来源并处理 playlist 多行语言输出
+- [x] 登录态补强后标准验证通过：84 passed, 3 skipped；ruff 通过；doctor 通过（macOS ffmpeg / ffprobe / yt-dlp 均可用）
+- [x] 使用 `--cookies-from-browser chrome` 复测 macOS playlist：前三条视频下载成功并经 ffprobe 验证为 H264 + AAC + MP4、1080p；第四条按用户要求中止，保留 `.part` 临时文件
 
 ## 6. 下一步建议
 
 Phase 3 当前优先级：
-1. **下载工作流真实体验验收**：格式控制与原语言探测已就绪，可用真实批量任务验收完整流程（`--preset mp4 --convert-subs srt --sub-langs original`）。
-2. **Legacy UI 兼容基线**：考古 Legacy 前端技术栈、布局、视觉规则和下载工作流，再启动 v2 轻前端工程。
+1. **Legacy UI 兼容基线**：考古 Legacy 前端技术栈、布局、视觉规则和下载工作流，并补全 `docs/UI_COMPAT.md`。
+2. **轻前端接口契约**：先冻结下载工作台所需的输入模型、输出模型、错误模型、任务进度模型和文件安全边界。
 3. **轻前端 MVP**：优先做下载工作台，让项目能边开发边使用；前端只提交任务和展示状态，不复制媒体业务逻辑。
 4. **后续功能评估**：下载与轻前端稳定后，再评估视频切片、资产扫描 / 搜索 / 统计。
 
