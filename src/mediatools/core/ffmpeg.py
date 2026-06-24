@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any, Protocol
 
 from mediatools.core.errors import ExternalToolError
 
@@ -25,7 +26,16 @@ class ToolResult:
     returncode: int
 
 
-ProcessRunner = Callable[..., subprocess.CompletedProcess[str]]
+class ProcessRunner(Protocol):
+    """Callable protocol matching the subset of ``subprocess.run`` we use."""
+
+    def __call__(
+        self,
+        args: Sequence[str],
+        **kwargs: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        """Run a process and return its completed result."""
+        ...
 
 
 def find_tool(tool: str) -> str:

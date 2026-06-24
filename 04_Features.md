@@ -334,6 +334,26 @@
 - **降级/回滚策略：** 如需保留多语言字幕旧折叠行为，可在后续新增显式参数；默认行为优先避免数据丢失。
 - **状态：** [客观已验证] - macOS venv 中 `python scripts/verify.py` 通过：125 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
 
+### Feature-016：review 黄灯收敛 — Phase 3-A Maintenance
+- **提交时间：** 2026-06-25
+- **类型：** 维护性 / CLI 体验
+- **描述：** 收敛 review 中可立即处理的黄灯项：CLI 错误输出接入项目自定义 `core.logging`；`fetch` CLI 增加 3600 秒默认下载超时并保留 `--timeout 0` 不限时；命令分发从多段 `if` 改为映射；`ProcessRunner` 从宽泛 `Callable[..., ...]` 改为明确 Protocol。
+- **用户价值：** 长时间卡住的下载默认可被超时保护，CLI 分发和外部进程 runner 类型更易维护，自定义日志模块不再只是测试覆盖的孤岛。
+- **前置依赖检查：**
+  - 技术依赖：无新增运行时依赖。
+  - 环境依赖：真实下载仍依赖 PATH 中的 `yt-dlp`；超时为 CLI 默认值，core API 仍允许调用方自行传入。
+  - 安全影响：默认超时降低下载进程永久挂起风险；`--timeout 0` 保留用户对超长任务的显式控制。
+  - 跨平台兼容性：仅使用标准库 argparse、Protocol 和现有日志封装。
+- **预计影响模块：**
+  - 源码：`src/mediatools/cli.py`、`src/mediatools/commands/fetch.py`、`src/mediatools/core/ffmpeg.py`。
+  - 测试：`tests/test_cli.py`、现有 `tests/test_logging.py`、`tests/test_ffmpeg.py`。
+  - 文档：`README.md`、`03_Context.md`、`04_Features.md`、`05_Lessons.md`。
+- **验收思路：**
+  - 单元测试覆盖默认 fetch timeout 和 `--timeout 0`。
+  - 标准验证覆盖全量 pytest、ruff、doctor 和文件行数限制。
+- **降级/回滚策略：** 如默认 3600 秒不适合真实大文件任务，可调整 CLI 默认或在前端下载工作台中暴露更明确的预设。
+- **状态：** [客观已验证] - macOS venv 中 `python scripts/verify.py` 通过：127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
+
 ## 3. 首批 MVP 优先级矩阵
 
 > **决策状态：** 用户已确认首批 MVP = A/B/C/D/E（2026-06-24），对应 Feature-005~009。
@@ -376,6 +396,7 @@
 | P3-A Hardening | macOS 兼容性补强 | P0 | 标准库 | venv 验证提示、dry-run 不联网、中断摘要、macOS Library 目录 | Feature-013 |
 | P3-A Naming | 下载文件名自动友好模板 | P0 | yt-dlp | 自动语言码、字段顺序模板、Windows 兼容文件名、保留 output-template | Feature-014 |
 | P3-A Safety | 下载安全边界与批量结果硬化 | P0 | 标准库 | URL 预校验、模板路径边界、重复 URL summary、多语言字幕保留 | Feature-015 |
+| P3-A Maintenance | review 黄灯收敛 | P1 | 标准库 | CLI 日志接入、默认下载超时、命令分发映射、runner Protocol | Feature-016 |
 | P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | 待 Legacy 考古 | 先兼容布局和用户路径，再选技术栈 | Feature-011 |
 | P3-C | 视频切片 | P2 | ffmpeg | 下载落地后再评估 | 待补 |
 | P3-D | 资产扫描 / 搜索 / 统计 | P3 | 标准库优先 | 服务批处理和前端结果管理 | 待补 |

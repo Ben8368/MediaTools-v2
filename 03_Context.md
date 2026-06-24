@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-25 05:00:42 +08:00
+> **更新时间：** 2026-06-25 05:05:40 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流已验收，review 红灯项已修复并客观验证，转入 Legacy UI 兼容基线
-> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；review 红灯修复后 macOS venv 标准验证通过（125 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`）；CI #28096484531 三平台绿灯
+> **当前阶段：** Phase 3 - 下载工作流已验收，review 红灯/黄灯项已收敛，转入 Legacy UI 兼容基线
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；review 红灯/黄灯收敛后 macOS venv 标准验证通过（127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`）；CI #28129428367 三平台绿灯
 
 ## 2. 本轮阻断项
 
@@ -102,6 +102,8 @@
 - [x] 自动命名补强后标准验证通过：106 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
 - [x] review 红灯修复：非法 fetch URL 在触发 yt-dlp 前校验；`--output-template` 禁止绝对路径与 `..`；CLI 默认 `--preset mp4` 与 core 对齐；并发重复 URL 不再覆盖结果；多语言字幕后缀不再折叠丢失
 - [x] review 修复后标准验证通过：125 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
+- [x] review 黄灯收敛：CLI 错误输出接入 `core.logging`；fetch CLI 默认 3600 秒超时且支持 `--timeout 0` 不限时；命令分发改为映射；`ProcessRunner` 改为 Protocol 类型
+- [x] review 黄灯收敛后标准验证通过：127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
 
 ## 6. 下一步建议
 

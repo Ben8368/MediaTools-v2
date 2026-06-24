@@ -10,6 +10,8 @@ from pathlib import Path
 from mediatools.core.errors import MediaToolsError
 from mediatools.core.fetch import FetchOptions, fetch_many, load_fetch_urls, make_fetch_options
 
+DEFAULT_FETCH_TIMEOUT_SECONDS = 3600.0
+
 
 def register_parser(subparsers: argparse._SubParsersAction) -> None:
     fetch_parser = subparsers.add_parser("fetch", help="Download video or subtitles with yt-dlp.")
@@ -115,9 +117,9 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
     fetch_parser.add_argument(
         "--timeout",
         type=float,
-        default=None,
+        default=DEFAULT_FETCH_TIMEOUT_SECONDS,
         metavar="SECONDS",
-        help="Per-download timeout in seconds (default: no limit).",
+        help="Per-download timeout in seconds (default: 3600; use 0 for no limit).",
     )
 
 
@@ -146,8 +148,9 @@ def run(args: argparse.Namespace) -> int:
         windows_filenames=args.windows_filenames,
     )
     options = make_fetch_options(urls, template)
+    timeout = None if args.timeout <= 0 else args.timeout
     result = fetch_many(
-        options, dry_run=args.dry_run, max_workers=args.max_workers, timeout=args.timeout
+        options, dry_run=args.dry_run, max_workers=args.max_workers, timeout=timeout
     )
     if args.summary_json:
         _write_json_file(Path(args.summary_json), result.to_dict())

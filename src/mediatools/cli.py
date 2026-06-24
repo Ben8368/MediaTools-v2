@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from mediatools import __version__
 from mediatools.commands.doctor import build_doctor_report  # noqa: F401  # re-exported
@@ -21,6 +21,17 @@ from mediatools.commands.screenshot import run as run_screenshot
 from mediatools.commands.subtitle import register_parser as register_subtitle
 from mediatools.commands.subtitle import run as run_subtitle
 from mediatools.core.errors import MediaToolsError
+from mediatools.core.logging import Logger, StreamHandler
+
+CommandRunner = Callable[[argparse.Namespace], int]
+COMMAND_RUNNERS: dict[str, CommandRunner] = {
+    "doctor": run_doctor,
+    "probe": run_probe,
+    "subtitle": run_subtitle,
+    "encode": run_encode,
+    "screenshot": run_screenshot,
+    "fetch": run_fetch,
+}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -53,20 +64,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"MediaTools {__version__}")
             return 0
 
-        if args.command == "doctor":
-            return run_doctor(args)
-        if args.command == "probe":
-            return run_probe(args)
-        if args.command == "subtitle":
-            return run_subtitle(args)
-        if args.command == "encode":
-            return run_encode(args)
-        if args.command == "screenshot":
-            return run_screenshot(args)
-        if args.command == "fetch":
-            return run_fetch(args)
+        runner = COMMAND_RUNNERS.get(args.command)
+        if runner is not None:
+            return runner(args)
     except MediaToolsError as exc:
-        print(f"Error: {exc.message}", file=sys.stderr)
+        Logger(StreamHandler(stream=sys.stderr, show_level=False)).error(f"Error: {exc.message}")
         return 1
 
     parser.print_help()

@@ -129,6 +129,55 @@ def test_fetch_dry_run_uses_default_mp4_preset(tmp_path, capsys):
     assert " -t mp4 " in output
 
 
+def test_fetch_uses_default_timeout(tmp_path, monkeypatch, capsys):
+    captured: dict[str, object] = {}
+
+    def fake_fetch_many(options, *, dry_run, max_workers, timeout):
+        from mediatools.core.fetch_types import FetchBatchResult
+
+        captured["timeout"] = timeout
+        return FetchBatchResult(items=())
+
+    monkeypatch.setattr("mediatools.commands.fetch.fetch_many", fake_fetch_many)
+
+    exit_code = main(
+        [
+            "fetch",
+            "https://example.com/video",
+            str(tmp_path / "downloads"),
+        ],
+    )
+
+    assert exit_code == 0
+    assert captured["timeout"] == 3600.0
+    assert "Fetched 0 item" in capsys.readouterr().out
+
+
+def test_fetch_timeout_zero_means_no_limit(tmp_path, monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_fetch_many(options, *, dry_run, max_workers, timeout):
+        from mediatools.core.fetch_types import FetchBatchResult
+
+        captured["timeout"] = timeout
+        return FetchBatchResult(items=())
+
+    monkeypatch.setattr("mediatools.commands.fetch.fetch_many", fake_fetch_many)
+
+    exit_code = main(
+        [
+            "fetch",
+            "https://example.com/video",
+            str(tmp_path / "downloads"),
+            "--timeout",
+            "0",
+        ],
+    )
+
+    assert exit_code == 0
+    assert captured["timeout"] is None
+
+
 def test_fetch_dry_run_output_template_overrides_friendly_name(tmp_path, capsys):
     exit_code = main(
         [
