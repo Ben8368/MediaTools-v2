@@ -354,72 +354,52 @@ def test_resolve_sub_langs_keeps_explicit_language(tmp_path):
         output_dir=tmp_path,
         subtitle_languages="en,ko",
     )
-    resolved = _resolve_sub_langs(opts)
+    resolved = _resolve_sub_langs(opts, probed_lang=None)
     assert resolved.subtitle_languages == "en,ko"
 
 
-def test_resolve_sub_langs_uses_probed_language(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        "mediatools.core.fetch.probe_language",
-        lambda url, **kwargs: "en-US",
-    )
+def test_resolve_sub_langs_uses_probed_language(tmp_path):
     opts = FetchOptions(
         url="https://example.com/video",
         output_dir=tmp_path,
         subtitle_languages="original",
     )
-    resolved = _resolve_sub_langs(opts)
+    resolved = _resolve_sub_langs(opts, probed_lang="en-US")
     assert resolved.subtitle_languages == "en-US-orig,en-US,en-orig,en"
 
 
-def test_resolve_sub_langs_base_only_language(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        "mediatools.core.fetch.probe_language",
-        lambda url, **kwargs: "ar",
-    )
+def test_resolve_sub_langs_base_only_language(tmp_path):
     opts = FetchOptions(
         url="https://example.com/video",
         output_dir=tmp_path,
         subtitle_languages="original",
     )
-    resolved = _resolve_sub_langs(opts)
+    resolved = _resolve_sub_langs(opts, probed_lang="ar")
     assert resolved.subtitle_languages == "ar-orig,ar"
 
 
-def test_resolve_sub_langs_falls_back_to_all_on_probe_failure(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        "mediatools.core.fetch.probe_language",
-        lambda url, **kwargs: None,
-    )
+def test_resolve_sub_langs_falls_back_to_all_on_probe_failure(tmp_path):
     opts = FetchOptions(
         url="https://example.com/video",
         output_dir=tmp_path,
         subtitle_languages="original",
     )
-    resolved = _resolve_sub_langs(opts)
+    resolved = _resolve_sub_langs(opts, probed_lang=None)
     assert resolved.subtitle_languages == "all"
 
 
-def test_resolve_filename_language_uses_probed_language(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        "mediatools.core.fetch.probe_language",
-        lambda url, **kwargs: "zh-TW",
-    )
+def test_resolve_filename_language_uses_probed_language(tmp_path):
     opts = FetchOptions(url="https://example.com/video", output_dir=tmp_path)
 
-    resolved = _resolve_filename_language(opts)
+    resolved = _resolve_filename_language(opts, probed_lang="zh-TW")
 
     assert resolved.filename_language == "TC"
 
 
-def test_resolve_filename_language_falls_back_to_unknown(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        "mediatools.core.fetch.probe_language",
-        lambda url, **kwargs: None,
-    )
+def test_resolve_filename_language_falls_back_to_unknown(tmp_path):
     opts = FetchOptions(url="https://example.com/video", output_dir=tmp_path)
 
-    resolved = _resolve_filename_language(opts)
+    resolved = _resolve_filename_language(opts, probed_lang=None)
 
     assert resolved.filename_language == "UN"
 

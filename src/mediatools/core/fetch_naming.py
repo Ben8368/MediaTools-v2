@@ -183,6 +183,13 @@ def strip_subtitle_language_suffix(output_dir: str | Path) -> None:
         if m and child.suffix.lower() in SUBTITLE_EXTS:
             base, _lang, sub_ext = m.group(1, 2, 3)
             target_name = f"{base}.{sub_ext}"
+            if target_name in subs:
+                logger.warning(
+                    "Dropping subtitle %s (keeping %s for %s)",
+                    subs[target_name].name,
+                    child.name,
+                    target_name,
+                )
             subs[target_name] = child
 
     for target_name, src in subs.items():

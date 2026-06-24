@@ -111,6 +111,13 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
         metavar="N",
         help="Maximum concurrent downloads (default: 1, serial).",
     )
+    fetch_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help="Per-download timeout in seconds (default: no limit).",
+    )
 
 
 def run(args: argparse.Namespace) -> int:
@@ -138,7 +145,9 @@ def run(args: argparse.Namespace) -> int:
         windows_filenames=args.windows_filenames,
     )
     options = make_fetch_options(urls, template)
-    result = fetch_many(options, dry_run=args.dry_run, max_workers=args.max_workers)
+    result = fetch_many(
+        options, dry_run=args.dry_run, max_workers=args.max_workers, timeout=args.timeout
+    )
     if args.summary_json:
         _write_json_file(Path(args.summary_json), result.to_dict())
     _print_fetch_summary(result.to_dict(), dry_run=args.dry_run)

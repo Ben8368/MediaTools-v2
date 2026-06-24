@@ -2,109 +2,25 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from pathlib import Path
-from typing import Literal
-from urllib.parse import urlparse
 
 from mediatools.core.errors import ExternalToolError, MediaToolsError
 from mediatools.core.fetch_naming import (
-    AUTO_FILENAME_LANGUAGE,
-    DEFAULT_FILENAME_TEMPLATE,
     build_output_template,
     strip_subtitle_language_suffix,
     template_uses_language,
     to_filename_language_code,
 )
+from mediatools.core.fetch_types import (
+    FetchBatchResult,
+    FetchItemResult,
+    FetchOptions,
+    copy_options,
+    validate_url,
+)
 from mediatools.core.ffmpeg import ProcessRunner, ToolResult, run_ytdlp
 from mediatools.core.paths import normalize
-
-
-@dataclass(frozen=True)
-class FetchOptions:
-    """Options for a yt-dlp download."""
-
-    url: str
-    output_dir: Path
-    output_template: str | None = None
-    write_subtitles: bool = False
-    write_auto_subtitles: bool = False
-    subtitles_only: bool = False
-    subtitle_languages: str = "all"
-    overwrite: bool = False
-    write_info_json: bool = False
-    download_archive: Path | None = None
-    preset: str | None = "mp4"
-    merge_format: str | None = None
-    remux_video: str | None = None
-    convert_subs: str | None = None
-    format_sort: str | None = None
-    cookies: Path | None = None
-    cookies_from_browser: str | None = None
-    filename_template: str | None = DEFAULT_FILENAME_TEMPLATE
-    filename_language: str | None = AUTO_FILENAME_LANGUAGE
-    windows_filenames: bool = True
-
-
-FetchStatus = Literal["planned", "succeeded", "failed"]
-
-
-@dataclass(frozen=True)
-class FetchItemResult:
-    """Result for one planned or executed fetch item."""
-
-    url: str
-    status: FetchStatus
-    output_dir: Path
-    command: tuple[str, ...]
-    error: str | None = None
-
-    def to_dict(self) -> dict[str, object]:
-        """Return a JSON-serializable result payload."""
-        return {
-            "url": self.url,
-            "status": self.status,
-            "output_dir": str(self.output_dir),
-            "command": list(self.command),
-            "error": self.error,
-        }
-
-
-@dataclass(frozen=True)
-class FetchBatchResult:
-    """Summary for a batch of fetch operations."""
-
-    items: tuple[FetchItemResult, ...]
-
-    @property
-    def total(self) -> int:
-        """Number of items in the batch."""
-        return len(self.items)
-
-    @property
-    def succeeded(self) -> int:
-        """Number of successful downloads."""
-        return sum(1 for item in self.items if item.status == "succeeded")
-
-    @property
-    def failed(self) -> int:
-        """Number of failed downloads."""
-        return sum(1 for item in self.items if item.status == "failed")
-
-    @property
-    def planned(self) -> int:
-        """Number of dry-run planned downloads."""
-        return sum(1 for item in self.items if item.status == "planned")
-
-    def to_dict(self) -> dict[str, object]:
-        """Return a JSON-serializable summary payload."""
-        return {
-            "total": self.total,
-            "succeeded": self.succeeded,
-            "failed": self.failed,
-            "planned": self.planned,
-            "items": [item.to_dict() for item in self.items],
-        }
 
 
 def probe_language(
@@ -137,15 +53,11 @@ def probe_language(
     return None
 
 
-def _resolve_sub_langs(options: FetchOptions) -> FetchOptions:
+def _resolve_sub_langs(options: FetchOptions, *, probed_lang: str | None) -> FetchOptions:
     """Replace the 'original' magic keyword with a detected language code."""
     if options.subtitle_languages != "original":
         return options
-    lang = probe_language(
-        options.url,
-        cookies=options.cookies,
-        cookies_from_browser=options.cookies_from_browser,
-    )
+    lang = probed_lang
     if not lang:
         resolved = "all"
     elif "-" in lang:
@@ -153,31 +65,23 @@ def _resolve_sub_langs(options: FetchOptions) -> FetchOptions:
         resolved = f"{lang}-orig,{lang},{base}-orig,{base}"
     else:
         resolved = f"{lang}-orig,{lang}"
-    return _copy_options(options, subtitle_languages=resolved)
+    return copy_options(options, subtitle_languages=resolved)
 
 
 def _resolve_filename_language(
     options: FetchOptions,
     *,
-    runner: ProcessRunner | None = None,
+    probed_lang: str | None,
 ) -> FetchOptions:
     """Replace the automatic filename language marker with a probed short code."""
-    if (options.filename_language or "").lower() != AUTO_FILENAME_LANGUAGE:
+    if (options.filename_language or "").lower() != "auto":
         return options
     if not template_uses_language(options.filename_template):
         return options
-    lang = probe_language(
-        options.url,
-        cookies=options.cookies,
-        cookies_from_browser=options.cookies_from_browser,
-        runner=runner,
+    return copy_options(
+        options,
+        filename_language=to_filename_language_code(probed_lang) or "UN",
     )
-    return _copy_options(options, filename_language=to_filename_language_code(lang) or "UN")
-
-
-def _copy_options(options: FetchOptions, **overrides: object) -> FetchOptions:
-    """Return a new FetchOptions with the given field overrides."""
-    return replace(options, **overrides)
 
 
 def build_fetch_args(options: FetchOptions) -> list[str]:
@@ -284,7 +188,7 @@ def fetch_media(
     """Run yt-dlp for a single download operation."""
     output_dir = normalize(options.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    normalized_options = _copy_options(options, output_dir=output_dir)
+    normalized_options = copy_options(options, output_dir=output_dir)
     kwargs = {"runner": runner} if runner is not None else {}
     result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
     strip_subtitle_language_suffix(output_dir)
@@ -302,10 +206,19 @@ def _fetch_one(
     ``KeyboardInterrupt`` and ``MediaToolsError`` are caught internally so
     that callers — including concurrent executors — always receive a
     ``FetchItemResult``.
+
+    Language probing runs once and feeds both subtitle resolution and
+    filename-language resolution.
     """
     try:
-        resolved = _resolve_sub_langs(options)
-        resolved = _resolve_filename_language(resolved, runner=runner)
+        probed_lang = probe_language(
+            options.url,
+            cookies=options.cookies,
+            cookies_from_browser=options.cookies_from_browser,
+            runner=runner,
+        )
+        resolved = _resolve_sub_langs(options, probed_lang=probed_lang)
+        resolved = _resolve_filename_language(resolved, probed_lang=probed_lang)
         result = fetch_media(resolved, runner=runner, timeout=timeout)
         return FetchItemResult(
             url=resolved.url,
@@ -392,7 +305,12 @@ def _fetch_parallel(
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_url = {
-            executor.submit(_fetch_one, opts, runner=runner, timeout=timeout): opts.url
+            executor.submit(
+                _fetch_one,
+                opts,
+                runner=runner,
+                timeout=timeout,
+            ): opts.url
             for opts in options_list
         }
         try:
@@ -400,10 +318,12 @@ def _fetch_parallel(
                 try:
                     results_map[future_to_url[future]] = future.result()
                 except Exception:
-                    results_map[future_to_url[future]] = FetchItemResult(
-                        url=future_to_url[future],
+                    url = future_to_url[future]
+                    opts = next(o for o in options_list if o.url == url)
+                    results_map[url] = FetchItemResult(
+                        url=url,
                         status="failed",
-                        output_dir=Path("."),
+                        output_dir=normalize(opts.output_dir),
                         command=(),
                         error="Unexpected error during fetch.",
                     )
@@ -430,13 +350,6 @@ def _fetch_parallel(
     return FetchBatchResult(items=tuple(results))
 
 
-def validate_url(url: str) -> None:
-    """Allow only explicit HTTP(S) URLs for network downloads."""
-    parsed = urlparse(url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise MediaToolsError("Fetch URL must be an absolute http or https URL.")
-
-
 def _build_auth_args(
     *,
     cookies: Path | None,
@@ -452,4 +365,4 @@ def _build_auth_args(
 
 
 def _replace_output_dir(options: FetchOptions, output_dir: Path) -> FetchOptions:
-    return _copy_options(options, output_dir=output_dir)
+    return copy_options(options, output_dir=output_dir)
