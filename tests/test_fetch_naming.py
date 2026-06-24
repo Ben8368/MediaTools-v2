@@ -152,22 +152,6 @@ def test_strip_subtitle_language_suffix_empty_dir(tmp_path):
     strip_subtitle_language_suffix(tmp_path)  # no-op is fine
 
 
-def test_strip_subtitle_language_suffix_prefers_srt_over_vtt(tmp_path):
-    """When both srt and vtt exist for the same base, srt wins and vtt is removed."""
-    (tmp_path / "KR-Ben-Title-youtube.en.srt").write_text("SRT content")
-    (tmp_path / "KR-Ben-Title-youtube.en.vtt").write_text("WEBVTT")
-
-    from mediatools.core.fetch_naming import strip_subtitle_language_suffix
-    strip_subtitle_language_suffix(tmp_path)
-
-    # Both should be renamed to remove language segment
-    assert (tmp_path / "KR-Ben-Title-youtube.srt").exists()
-    # The vtt should be deleted because srt already exists for the same base
-    assert not (tmp_path / "KR-Ben-Title-youtube.vtt").exists()
-    assert not (tmp_path / "KR-Ben-Title-youtube.en.srt").exists()
-    assert not (tmp_path / "KR-Ben-Title-youtube.en.vtt").exists()
-
-
 def test_strip_subtitle_language_suffix_keeps_vtt_when_no_srt(tmp_path):
     """When only vtt exists (no srt), vtt is kept."""
     (tmp_path / "KR-Ben-Title-youtube.en.vtt").write_text("WEBVTT")

@@ -34,7 +34,7 @@ class FetchOptions:
     overwrite: bool = False
     write_info_json: bool = False
     download_archive: Path | None = None
-    preset: str | None = None
+    preset: str | None = "mp4"
     merge_format: str | None = None
     remux_video: str | None = None
     convert_subs: str | None = None
@@ -260,7 +260,7 @@ def make_fetch_options(
     overwrite: bool = False,
     write_info_json: bool = False,
     download_archive: Path | None = None,
-    preset: str | None = None,
+    preset: str | None = "mp4",
     merge_format: str | None = None,
     remux_video: str | None = None,
     convert_subs: str | None = None,
@@ -272,6 +272,7 @@ def make_fetch_options(
     windows_filenames: bool = True,
 ) -> list[FetchOptions]:
     """Create per-URL fetch options from shared CLI settings."""
+    preset = preset or "mp4"
     if not urls:
         raise MediaToolsError("Provide a fetch URL or --input-file with at least one URL.")
     return [
