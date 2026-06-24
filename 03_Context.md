@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-24 14:44:38 +08:00
+> **更新时间：** 2026-06-24 15:11:05 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 2 客观收口与 CI 复核完成，待用户主观验收
-> **验证状态：** `python scripts/verify.py` 通过（53 passed, 6 skipped；ruff 通过；doctor 通过）；本地端到端 smoke 通过；CI 三平台绿灯
+> **当前阶段：** Phase 2 已完成，准备进入 Phase 3 - 功能增强与优化
+> **验证状态：** 真实样本验收通过；`python scripts/verify.py` 通过（54 passed, 6 skipped；ruff 通过；doctor 通过）；CI 三平台绿灯
 
 ## 2. 本轮阻断项
 
@@ -79,14 +79,15 @@
 - [x] 本地端到端 smoke 通过：生成 2 秒 MP4，覆盖 `probe` / `subtitle convert` / `encode` / `screenshot`
 - [x] Phase 2 客观收口后最终复验通过：53 passed, 6 skipped；ruff 通过；doctor 通过
 - [x] 推送后验证 CI 三平台绿灯（windows-latest / macos-latest / ubuntu-latest）
-- [ ] 用户主观验收首批 MVP 真实媒体体验
+- [x] 用户委托真实样本体验验收：真实视频 probe/screenshot/encode/audio、真实字幕转换、YouTube fetch + 自动字幕下载均通过
+- [x] 清理项目目录：移除临时 smoke/caches/coverage/重复下载；归档旧 `data/tasks.db` 到 `data/legacy/tasks.db`
 
 ## 6. 下一步建议
 
-Phase 2 首批 MVP 已完成客观收口与 CI 复核，下一步先完成主观体验门槛，再进入 Phase 3：
-1. **用户主观验收**：用真实媒体样本试用 `probe` / `subtitle convert` / `encode` / `screenshot` / `fetch`。
-2. **验收后收敛**：若体验无阻断，再将 Feature-005~009 从 `[客观已验证]` 更新为 `[已完成]`。
-3. **进入下一批功能评估**：优先评估视频切片、资产扫描 / 搜索 / 统计；暂不启动完整前后端架构。
+Phase 2 首批 MVP 已完成。下一步进入 Phase 3：
+1. **下一批功能评估**：优先评估视频切片、资产扫描 / 搜索 / 统计。
+2. **体验增强**：围绕真实样本暴露的需求补齐参数，例如 fetch 自动字幕已补 `--write-auto-subs`。
+3. **架构边界**：暂不启动完整前后端架构，继续保持 core / CLI 适配层清晰。
 
 ## 7. 维护边界备忘
 

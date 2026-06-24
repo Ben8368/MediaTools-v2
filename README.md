@@ -43,10 +43,11 @@ python -m mediatools encode input.mp4 audio.mp3 --extract-audio
 python -m mediatools screenshot input.mp4 shot.png --time 00:00:05
 python -m mediatools screenshot input.mp4 frames --interval 5
 python -m mediatools fetch "https://example.com/video" downloads --write-subs
+python -m mediatools fetch "https://example.com/video" downloads --write-auto-subs --sub-langs en
 ```
 
 `probe`、`encode`、`screenshot` 需要本机 PATH 中可找到 `ffmpeg`/`ffprobe`；
-`fetch` 需要本机 PATH 中可找到 `yt-dlp`，并只接受 `http` / `https` URL。
+`fetch` 需要本机 PATH 中可找到 `yt-dlp`，并只接受 `http` / `https` URL。`--write-subs` 下载人工字幕，`--write-auto-subs` 下载自动字幕。
 
 ## 🚀 本地开发
 

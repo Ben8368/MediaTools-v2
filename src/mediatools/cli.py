@@ -103,6 +103,11 @@ def build_parser() -> argparse.ArgumentParser:
     fetch_parser.add_argument("--output-template", default="%(title).200B.%(ext)s")
     fetch_parser.add_argument("--write-subs", action="store_true", help="Download subtitles too.")
     fetch_parser.add_argument(
+        "--write-auto-subs",
+        action="store_true",
+        help="Download automatic subtitles too.",
+    )
+    fetch_parser.add_argument(
         "--subtitles-only",
         action="store_true",
         help="Download subtitles only.",
@@ -208,6 +213,7 @@ def run_fetch_command(args: argparse.Namespace) -> int:
             output_dir=Path(args.output_dir),
             output_template=args.output_template,
             write_subtitles=args.write_subs,
+            write_auto_subtitles=args.write_auto_subs,
             subtitles_only=args.subtitles_only,
             subtitle_languages=args.sub_langs,
             overwrite=args.overwrite,

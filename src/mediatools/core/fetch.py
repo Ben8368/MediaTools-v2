@@ -22,6 +22,7 @@ class FetchOptions:
     output_dir: Path
     output_template: str = "%(title).200B.%(ext)s"
     write_subtitles: bool = False
+    write_auto_subtitles: bool = False
     subtitles_only: bool = False
     subtitle_languages: str = "all"
     overwrite: bool = False
@@ -42,6 +43,8 @@ def build_fetch_args(options: FetchOptions) -> list[str]:
     ]
     if options.write_subtitles or options.subtitles_only:
         args.extend(["--write-subs", "--sub-langs", options.subtitle_languages])
+    if options.write_auto_subtitles:
+        args.extend(["--write-auto-subs", "--sub-langs", options.subtitle_languages])
     if options.subtitles_only:
         args.append("--skip-download")
     args.append(options.url)
@@ -62,6 +65,7 @@ def fetch_media(
         output_dir=output_dir,
         output_template=options.output_template,
         write_subtitles=options.write_subtitles,
+        write_auto_subtitles=options.write_auto_subtitles,
         subtitles_only=options.subtitles_only,
         subtitle_languages=options.subtitle_languages,
         overwrite=options.overwrite,

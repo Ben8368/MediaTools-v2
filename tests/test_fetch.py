@@ -28,6 +28,21 @@ def test_build_fetch_args_for_subtitles_only(tmp_path):
     assert "en,zh" in args
 
 
+def test_build_fetch_args_for_auto_subtitles(tmp_path):
+    args = build_fetch_args(
+        FetchOptions(
+            url="https://example.com/video",
+            output_dir=tmp_path,
+            write_auto_subtitles=True,
+            subtitle_languages="en",
+        ),
+    )
+
+    assert "--write-auto-subs" in args
+    assert "--sub-langs" in args
+    assert "en" in args
+
+
 def test_build_fetch_args_rejects_non_http_url(tmp_path):
     with pytest.raises(MediaToolsError):
         build_fetch_args(FetchOptions(url="file:///tmp/video", output_dir=tmp_path))
