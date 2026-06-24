@@ -2,7 +2,7 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-25 01:03:45 +08:00
+> **更新时间：** 2026-06-25 01:10:46 +08:00
 > **当前分支：** refactor-v2
 > **当前阶段：** Phase 3 - 下载工作流已验收，自动友好命名已客观验证，转入 Legacy UI 兼容基线
 > **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；macOS venv 标准验证通过（106 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`）；CI #28096484531 三平台绿灯

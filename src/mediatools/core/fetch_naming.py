@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import re
+from pathlib import Path
 
 from mediatools.core.errors import MediaToolsError
 
@@ -13,6 +15,11 @@ SAFE_TEMPLATE_RE = re.compile(r"[^A-Za-z0-9._%()/-]+")
 TOKEN_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 LANGUAGE_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 LITERAL_EXTENSION_RE = re.compile(r"\.[A-Za-z0-9]{2,5}$")
+
+#: Subtitle file extensions that yt-dlp may write.
+SUBTITLE_EXTS = {".vtt", ".srt", ".ass", ".ssa", ".lrc"}
+#: Regex to match a subtitle filename with a language middle segment.
+SUBTITLE_LANG_RE = re.compile(r"^(.+)\.([A-Za-z0-9_-]+)\.(vtt|srt|ass|ssa|lrc)$")
 
 FIELD_MAP = {
     "author": "%(uploader)s",
@@ -42,6 +49,7 @@ LANGUAGE_CODE_MAP = {
     "zh-mo": "TC",
 }
 
+logger = logging.getLogger(__name__)
 
 def build_output_template(
     output_template: str | None,
@@ -143,3 +151,41 @@ def _normalize_language(language: str | None) -> str:
     if not normalized or not LANGUAGE_RE.fullmatch(normalized):
         raise MediaToolsError("Filename language may only contain letters, numbers, '-' or '_'.")
     return normalized
+
+def strip_subtitle_language_suffix(output_dir: str | Path) -> None:
+    """Rename subtitle files so they match the video base name.
+
+    yt-dlp writes subtitle files as ``<video-base>.<lang>.vtt``, but
+    playback tools expect ``<video-base>.srt`` (no language middle segment).
+    This function renames every subtitle in *output_dir* to remove the
+    language segment, e.g.::
+
+        KR-Title-youtube.en.vtt  ->  KR-Title-youtube.vtt
+        KR-Title-youtube.zh-Hans.srt  ->  KR-Title-youtube.srt
+
+    If multiple subtitle languages exist for the same video base, only the
+    **last** one (sorted by name) survives -- all others are silently dropped.
+    This is acceptable because the user typically requests a single language
+    (``original`` or an explicit code).
+    """
+    dir_path = Path(output_dir)
+    if not dir_path.is_dir():
+        return
+
+    subs: dict[str, Path] = {}
+    for child in sorted(dir_path.iterdir()):
+        m = SUBTITLE_LANG_RE.match(child.name)
+        if m and child.suffix.lower() in SUBTITLE_EXTS:
+            base, _lang, sub_ext = m.group(1, 2, 3)
+            target_name = f"{base}.{sub_ext}"
+            subs[target_name] = child
+
+    for target_name, src in subs.items():
+        dest = dir_path / target_name
+        if dest == src:
+            continue
+        if dest.exists():
+            dest.unlink()
+        src.rename(dest)
+        logger.debug("Renamed subtitle %s -> %s", src.name, dest.name)
+

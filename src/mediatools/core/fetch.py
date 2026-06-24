@@ -12,6 +12,7 @@ from mediatools.core.fetch_naming import (
     AUTO_FILENAME_LANGUAGE,
     DEFAULT_FILENAME_TEMPLATE,
     build_output_template,
+    strip_subtitle_language_suffix,
     template_uses_language,
     to_filename_language_code,
 )
@@ -323,7 +324,9 @@ def fetch_media(
     output_dir.mkdir(parents=True, exist_ok=True)
     normalized_options = _copy_options(options, output_dir=output_dir)
     kwargs = {"runner": runner} if runner is not None else {}
-    return run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
+    result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
+    strip_subtitle_language_suffix(output_dir)
+    return result
 
 
 def fetch_many(
