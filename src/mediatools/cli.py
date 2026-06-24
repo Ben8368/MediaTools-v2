@@ -13,7 +13,7 @@ from pathlib import Path
 from mediatools import __version__
 from mediatools.core.encode import EncodeOptions, encode_media
 from mediatools.core.errors import MediaToolsError
-from mediatools.core.fetch import FetchOptions, fetch_media
+from mediatools.core.fetch import fetch_many, load_fetch_urls, make_fetch_options
 from mediatools.core.probe import format_probe_text, probe_media, summarize_probe
 from mediatools.core.screenshot import ScreenshotOptions, capture_screenshot
 from mediatools.core.subtitle import convert_subtitle_file
@@ -98,8 +98,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     fetch_parser = subparsers.add_parser("fetch", help="Download video or subtitles with yt-dlp.")
-    fetch_parser.add_argument("url", help="http(s) URL to download.")
+    fetch_parser.add_argument("url", nargs="?", help="http(s) URL to download.")
     fetch_parser.add_argument("output_dir", help="Directory for downloaded files.")
+    fetch_parser.add_argument(
+        "--input-file",
+        help="UTF-8 text file with one URL per line. Blank lines and # comments are ignored.",
+    )
     fetch_parser.add_argument("--output-template", default="%(title).200B.%(ext)s")
     fetch_parser.add_argument("--write-subs", action="store_true", help="Download subtitles too.")
     fetch_parser.add_argument(
@@ -114,6 +118,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     fetch_parser.add_argument("--sub-langs", default="all", help="Subtitle languages for yt-dlp.")
     fetch_parser.add_argument("--overwrite", action="store_true", help="Allow overwriting outputs.")
+    fetch_parser.add_argument(
+        "--write-info-json",
+        action="store_true",
+        help="Save yt-dlp metadata JSON next to downloaded media.",
+    )
+    fetch_parser.add_argument(
+        "--download-archive",
+        help="yt-dlp archive file used to skip URLs that were already downloaded.",
+    )
+    fetch_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the plan without downloading.",
+    )
+    fetch_parser.add_argument("--summary-json", help="Write a JSON summary to this path.")
     return parser
 
 
@@ -207,20 +226,24 @@ def run_screenshot_command(args: argparse.Namespace) -> int:
 
 
 def run_fetch_command(args: argparse.Namespace) -> int:
-    fetch_media(
-        FetchOptions(
-            url=args.url,
-            output_dir=Path(args.output_dir),
-            output_template=args.output_template,
-            write_subtitles=args.write_subs,
-            write_auto_subtitles=args.write_auto_subs,
-            subtitles_only=args.subtitles_only,
-            subtitle_languages=args.sub_langs,
-            overwrite=args.overwrite,
-        ),
+    urls = _fetch_urls_from_args(args)
+    options = make_fetch_options(
+        urls,
+        output_dir=Path(args.output_dir),
+        output_template=args.output_template,
+        write_subtitles=args.write_subs,
+        write_auto_subtitles=args.write_auto_subs,
+        subtitles_only=args.subtitles_only,
+        subtitle_languages=args.sub_langs,
+        overwrite=args.overwrite,
+        write_info_json=args.write_info_json,
+        download_archive=Path(args.download_archive) if args.download_archive else None,
     )
-    print(f"Downloaded to {Path(args.output_dir).expanduser()}")
-    return 0
+    result = fetch_many(options, dry_run=args.dry_run)
+    if args.summary_json:
+        _write_json_file(Path(args.summary_json), result.to_dict())
+    _print_fetch_summary(result.to_dict(), dry_run=args.dry_run)
+    return 1 if result.failed else 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -261,6 +284,40 @@ def _screenshot_output_path(output: str, *, interval: float | None) -> Path:
     if path.suffix:
         return path
     return path / "frame_%04d.png"
+
+
+def _fetch_urls_from_args(args: argparse.Namespace) -> list[str]:
+    urls: list[str] = []
+    if args.url:
+        urls.append(args.url)
+    if args.input_file:
+        urls.extend(load_fetch_urls(args.input_file))
+    if not urls:
+        raise MediaToolsError("Provide a fetch URL or --input-file.")
+    return urls
+
+
+def _write_json_file(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _print_fetch_summary(payload: dict[str, object], *, dry_run: bool) -> None:
+    action = "Planned" if dry_run else "Fetched"
+    print(
+        f"{action} {payload['total']} item(s): "
+        f"{payload['succeeded']} succeeded, {payload['failed']} failed, "
+        f"{payload['planned']} planned.",
+    )
+    for item in payload["items"]:
+        assert isinstance(item, dict)
+        print(f"- {item['status']}: {item['url']}")
+        if dry_run:
+            command = item.get("command", [])
+            assert isinstance(command, list)
+            print(f"  command: {' '.join(str(part) for part in command)}")
+        if item.get("error"):
+            print(f"  error: {item['error']}", file=sys.stderr)
 
 
 if __name__ == "__main__":

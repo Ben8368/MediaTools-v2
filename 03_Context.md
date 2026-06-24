@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-24 15:11:05 +08:00
+> **更新时间：** 2026-06-24 17:05:23 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 2 已完成，准备进入 Phase 3 - 功能增强与优化
-> **验证状态：** 真实样本验收通过；`python scripts/verify.py` 通过（54 passed, 6 skipped；ruff 通过；doctor 通过）；CI 三平台绿灯
+> **当前阶段：** Phase 3 - 下载工作流落地与 Legacy 风格轻前端准备
+> **验证状态：** 下载增强客观验证通过；`python scripts/verify.py` 通过（500 行硬限制检查通过；63 passed, 6 skipped；ruff 通过；doctor 通过）；CI 待推送后复核
 
 ## 2. 本轮阻断项
 
@@ -36,8 +36,8 @@
 - 打包和部署复杂度
 - 与 ffmpeg、yt-dlp 等外部工具的集成方式
 
-### 暂缓项
-- Web UI / 桌面 GUI 推迟到核心 CLI 稳定、真实样本验收和接口契约清晰后评估。
+### 当前演进项
+- Web UI / 桌面 GUI 不再作为笼统暂缓项；Phase 3 先评估贴近 Legacy 的本地轻前端，用于边开发边使用。
 - 单文件可执行程序分发推迟到发布准备阶段评估。
 
 ## 4. 知识库关联
@@ -53,7 +53,7 @@
 - ✅ 核心功能清单已确认（首批 MVP A/B/C/D/E）
 - ✅ 工程脚手架已通过验证
 - ✅ `core/paths` 与 CI 已通过验证
-- ✅ 前后端策略已澄清：不否定分离，延后到核心契约稳定后
+- ✅ 前后端策略已澄清：不否定分离；Phase 3 轻前端必须贴近 Legacy 布局和用户路径，业务逻辑仍保留在 core / CLI / API 适配层
 
 ## 5. 当前任务焦点
 
@@ -81,19 +81,25 @@
 - [x] 推送后验证 CI 三平台绿灯（windows-latest / macos-latest / ubuntu-latest）
 - [x] 用户委托真实样本体验验收：真实视频 probe/screenshot/encode/audio、真实字幕转换、YouTube fetch + 自动字幕下载均通过
 - [x] 清理项目目录：移除临时 smoke/caches/coverage/重复下载；归档旧 `data/tasks.db` 到 `data/legacy/tasks.db`
+- [x] 将单个 Python 文件超过 500 行设为 `scripts/verify.py` 硬性失败
+- [x] 启动下载工作流增强：批量 URL 输入、dry-run、summary JSON、info JSON、download archive
+- [x] 下载增强局部验证通过：`tests/test_fetch.py tests/test_cli.py` 共 18 passed，ruff 通过
+- [x] 下载增强标准验证通过：`python scripts/verify.py`（500 行硬限制检查通过；63 passed, 6 skipped；ruff 通过；doctor 通过）
 
 ## 6. 下一步建议
 
-Phase 2 首批 MVP 已完成。下一步进入 Phase 3：
-1. **下一批功能评估**：优先评估视频切片、资产扫描 / 搜索 / 统计。
-2. **体验增强**：围绕真实样本暴露的需求补齐参数，例如 fetch 自动字幕已补 `--write-auto-subs`。
-3. **架构边界**：暂不启动完整前后端架构，继续保持 core / CLI 适配层清晰。
+Phase 3 当前优先级：
+1. **下载工作流增强体验验收**：客观验证已通过，下一步可用真实下载任务体验批量、归档、summary JSON 等新参数。
+2. **Legacy UI 兼容基线**：考古 Legacy 前端技术栈、布局、视觉规则和下载工作流，再启动 v2 轻前端工程。
+3. **轻前端 MVP**：优先做下载工作台，让项目能边开发边使用；前端只提交任务和展示状态，不复制媒体业务逻辑。
+4. **后续功能评估**：下载与轻前端稳定后，再评估视频切片、资产扫描 / 搜索 / 统计。
 
 ## 7. 维护边界备忘
 
 - **治理文档**：01-05 仅开发仓库使用，不随包分发。
+- **`.agents/` 状态**：当前为空是正常状态；统一入口仍是根目录 `AGENTS.md`，除非需要多工具专属补充规则，否则不强制填充。
 - **不提交**：构建产物、node_modules、__pycache__、.env、运行日志、数据库、vendor 残留。
 - **跨平台优先**：所有路径处理使用 `mediatools.core.paths`。
 - **依赖最小化**：慎重引入第三方依赖。
-- **代码规模**：350 行预警，450 行评估拆分，500 行默认禁止继续堆业务逻辑。
+- **代码规模**：350 行预警，450 行评估拆分，500 行由 `scripts/verify.py` 硬性失败。
 - **未验证不打钩**：客观项须先跑 `python scripts/verify.py`；主观项等待用户反馈；用户可见功能完成需两者都满足。

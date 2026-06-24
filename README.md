@@ -18,7 +18,8 @@
 - [x] 技术栈决策：Python CLI 优先
 - [x] 最小 CLI 脚手架验证
 - [x] Phase 1 核心架构（路径、日志、错误处理、配置）
-- [ ] Phase 2 功能迁移与实现
+- [x] Phase 2 首批 MVP 功能迁移与真实样本验收
+- [ ] Phase 3 下载工作流增强与 Legacy 风格轻前端准备
 
 详见 [`REFACTOR.md`](REFACTOR.md)
 
@@ -44,10 +45,12 @@ python -m mediatools screenshot input.mp4 shot.png --time 00:00:05
 python -m mediatools screenshot input.mp4 frames --interval 5
 python -m mediatools fetch "https://example.com/video" downloads --write-subs
 python -m mediatools fetch "https://example.com/video" downloads --write-auto-subs --sub-langs en
+python -m mediatools fetch downloads --input-file urls.txt --dry-run
+python -m mediatools fetch downloads --input-file urls.txt --write-info-json --download-archive downloads/archive.txt --summary-json downloads/summary.json
 ```
 
 `probe`、`encode`、`screenshot` 需要本机 PATH 中可找到 `ffmpeg`/`ffprobe`；
-`fetch` 需要本机 PATH 中可找到 `yt-dlp`，并只接受 `http` / `https` URL。`--write-subs` 下载人工字幕，`--write-auto-subs` 下载自动字幕。
+`fetch` 需要本机 PATH 中可找到 `yt-dlp`，并只接受 `http` / `https` URL。`--write-subs` 下载人工字幕，`--write-auto-subs` 下载自动字幕；`--input-file` 支持一行一个 URL 的批量任务；`--dry-run` 只预览计划；`--summary-json` 输出结构化结果，便于后续前端读取。
 
 ## 🚀 本地开发
 
@@ -57,7 +60,7 @@ python -m mediatools fetch "https://example.com/video" downloads --write-auto-su
 python scripts/verify.py
 ```
 
-`verify.py` 会依次执行：安装 dev 依赖 → pytest → ruff → CLI 版本 → doctor 环境报告（含外部工具与 PATH 信息）。
+`verify.py` 会依次执行：Python 文件 500 行硬限制检查 → 安装 dev 依赖 → pytest → ruff → CLI 版本 → doctor 环境报告（含外部工具与 PATH 信息）。
 
 也可分步执行：
 
@@ -94,6 +97,7 @@ mediatools doctor --json
 
 ### 重构计划
 - [`REFACTOR.md`](REFACTOR.md) - 重构策略与迁移计划
+- [`docs/UI_COMPAT.md`](docs/UI_COMPAT.md) - Legacy UI 兼容基线
 
 ## 📝 License
 

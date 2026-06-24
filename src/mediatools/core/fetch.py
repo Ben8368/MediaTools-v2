@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlparse
 
 from mediatools.core.errors import MediaToolsError
@@ -26,6 +27,69 @@ class FetchOptions:
     subtitles_only: bool = False
     subtitle_languages: str = "all"
     overwrite: bool = False
+    write_info_json: bool = False
+    download_archive: Path | None = None
+
+
+FetchStatus = Literal["planned", "succeeded", "failed"]
+
+
+@dataclass(frozen=True)
+class FetchItemResult:
+    """Result for one planned or executed fetch item."""
+
+    url: str
+    status: FetchStatus
+    output_dir: Path
+    command: tuple[str, ...]
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        """Return a JSON-serializable result payload."""
+        return {
+            "url": self.url,
+            "status": self.status,
+            "output_dir": str(self.output_dir),
+            "command": list(self.command),
+            "error": self.error,
+        }
+
+
+@dataclass(frozen=True)
+class FetchBatchResult:
+    """Summary for a batch of fetch operations."""
+
+    items: tuple[FetchItemResult, ...]
+
+    @property
+    def total(self) -> int:
+        """Number of items in the batch."""
+        return len(self.items)
+
+    @property
+    def succeeded(self) -> int:
+        """Number of successful downloads."""
+        return sum(1 for item in self.items if item.status == "succeeded")
+
+    @property
+    def failed(self) -> int:
+        """Number of failed downloads."""
+        return sum(1 for item in self.items if item.status == "failed")
+
+    @property
+    def planned(self) -> int:
+        """Number of dry-run planned downloads."""
+        return sum(1 for item in self.items if item.status == "planned")
+
+    def to_dict(self) -> dict[str, object]:
+        """Return a JSON-serializable summary payload."""
+        return {
+            "total": self.total,
+            "succeeded": self.succeeded,
+            "failed": self.failed,
+            "planned": self.planned,
+            "items": [item.to_dict() for item in self.items],
+        }
 
 
 def build_fetch_args(options: FetchOptions) -> list[str]:
@@ -47,8 +111,74 @@ def build_fetch_args(options: FetchOptions) -> list[str]:
         args.extend(["--write-auto-subs", "--sub-langs", options.subtitle_languages])
     if options.subtitles_only:
         args.append("--skip-download")
+    if options.write_info_json:
+        args.append("--write-info-json")
+    if options.download_archive is not None:
+        args.extend(["--download-archive", str(normalize(options.download_archive))])
     args.append(options.url)
     return args
+
+
+def load_fetch_urls(input_file: str | Path) -> list[str]:
+    """Load non-empty, non-comment URLs from a UTF-8 text file."""
+    path = normalize(Path(input_file))
+    if not path.exists():
+        raise MediaToolsError(f"Fetch input file does not exist: {path}")
+    urls = [
+        line.strip()
+        for line in path.read_text(encoding="utf-8-sig").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    if not urls:
+        raise MediaToolsError(f"Fetch input file has no URLs: {path}")
+    for url in urls:
+        validate_url(url)
+    return urls
+
+
+def make_fetch_options(
+    urls: list[str],
+    *,
+    output_dir: Path,
+    output_template: str = "%(title).200B.%(ext)s",
+    write_subtitles: bool = False,
+    write_auto_subtitles: bool = False,
+    subtitles_only: bool = False,
+    subtitle_languages: str = "all",
+    overwrite: bool = False,
+    write_info_json: bool = False,
+    download_archive: Path | None = None,
+) -> list[FetchOptions]:
+    """Create per-URL fetch options from shared CLI settings."""
+    if not urls:
+        raise MediaToolsError("Provide a fetch URL or --input-file with at least one URL.")
+    return [
+        FetchOptions(
+            url=url,
+            output_dir=output_dir,
+            output_template=output_template,
+            write_subtitles=write_subtitles,
+            write_auto_subtitles=write_auto_subtitles,
+            subtitles_only=subtitles_only,
+            subtitle_languages=subtitle_languages,
+            overwrite=overwrite,
+            write_info_json=write_info_json,
+            download_archive=download_archive,
+        )
+        for url in urls
+    ]
+
+
+def dry_run_fetch(options: FetchOptions) -> FetchItemResult:
+    """Build a planned fetch item without calling yt-dlp."""
+    output_dir = normalize(options.output_dir)
+    args = build_fetch_args(_replace_output_dir(options, output_dir))
+    return FetchItemResult(
+        url=options.url,
+        status="planned",
+        output_dir=output_dir,
+        command=("yt-dlp", *args),
+    )
 
 
 def fetch_media(
@@ -69,9 +199,50 @@ def fetch_media(
         subtitles_only=options.subtitles_only,
         subtitle_languages=options.subtitle_languages,
         overwrite=options.overwrite,
+        write_info_json=options.write_info_json,
+        download_archive=options.download_archive,
     )
     kwargs = {"runner": runner} if runner is not None else {}
     return run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
+
+
+def fetch_many(
+    options_list: list[FetchOptions],
+    *,
+    dry_run: bool = False,
+    runner: ProcessRunner | None = None,
+    timeout: float | None = None,
+) -> FetchBatchResult:
+    """Run or plan multiple fetch operations."""
+    if not options_list:
+        raise MediaToolsError("Provide at least one fetch URL.")
+
+    results: list[FetchItemResult] = []
+    for options in options_list:
+        if dry_run:
+            results.append(dry_run_fetch(options))
+            continue
+        try:
+            result = fetch_media(options, runner=runner, timeout=timeout)
+            results.append(
+                FetchItemResult(
+                    url=options.url,
+                    status="succeeded",
+                    output_dir=normalize(options.output_dir),
+                    command=result.command,
+                ),
+            )
+        except MediaToolsError as exc:
+            results.append(
+                FetchItemResult(
+                    url=options.url,
+                    status="failed",
+                    output_dir=normalize(options.output_dir),
+                    command=("yt-dlp", *build_fetch_args(options)),
+                    error=exc.message,
+                ),
+            )
+    return FetchBatchResult(items=tuple(results))
 
 
 def validate_url(url: str) -> None:
@@ -89,3 +260,18 @@ def sanitize_output_template(template: str) -> str:
     if not cleaned:
         return "%(title).200B.%(ext)s"
     return cleaned
+
+
+def _replace_output_dir(options: FetchOptions, output_dir: Path) -> FetchOptions:
+    return FetchOptions(
+        url=options.url,
+        output_dir=output_dir,
+        output_template=options.output_template,
+        write_subtitles=options.write_subtitles,
+        write_auto_subtitles=options.write_auto_subtitles,
+        subtitles_only=options.subtitles_only,
+        subtitle_languages=options.subtitle_languages,
+        overwrite=options.overwrite,
+        write_info_json=options.write_info_json,
+        download_archive=options.download_archive,
+    )

@@ -43,3 +43,54 @@ def test_module_execution_version():
 
     assert result.returncode == 0
     assert "MediaTools" in result.stdout
+
+
+def test_fetch_dry_run_writes_summary(tmp_path, capsys):
+    summary_path = tmp_path / "summary.json"
+    exit_code = main(
+        [
+            "fetch",
+            "https://example.com/video",
+            str(tmp_path / "downloads"),
+            "--dry-run",
+            "--write-auto-subs",
+            "--sub-langs",
+            "en",
+            "--write-info-json",
+            "--download-archive",
+            str(tmp_path / "archive.txt"),
+            "--summary-json",
+            str(summary_path),
+        ],
+    )
+
+    assert exit_code == 0
+    assert "Planned 1 item" in capsys.readouterr().out
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["planned"] == 1
+    assert summary["items"][0]["url"] == "https://example.com/video"
+
+
+def test_fetch_requires_url_or_input_file(capsys):
+    exit_code = main(["fetch", "downloads", "--dry-run"])
+
+    assert exit_code == 1
+    assert "Provide a fetch URL or --input-file" in capsys.readouterr().err
+
+
+def test_fetch_dry_run_accepts_input_file(tmp_path, capsys):
+    input_file = tmp_path / "urls.txt"
+    input_file.write_text("https://example.com/one\nhttps://example.com/two\n", encoding="utf-8")
+
+    exit_code = main(
+        [
+            "fetch",
+            str(tmp_path / "downloads"),
+            "--input-file",
+            str(input_file),
+            "--dry-run",
+        ],
+    )
+
+    assert exit_code == 0
+    assert "Planned 2 item" in capsys.readouterr().out

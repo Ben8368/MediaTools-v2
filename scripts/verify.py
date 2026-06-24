@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+MAX_PYTHON_FILE_LINES = 500
+LINE_CHECK_DIRS = ("src", "tests", "scripts")
 
 
 def run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
@@ -37,6 +39,25 @@ def step(title: str, command: list[str]) -> None:
         print(result.stderr.rstrip(), file=sys.stderr)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
+
+
+def check_python_file_sizes() -> None:
+    """Fail verification if a Python file exceeds the project hard limit."""
+    print("\n==> Check Python file sizes")
+    oversized: list[tuple[Path, int]] = []
+    for directory in LINE_CHECK_DIRS:
+        for path in sorted((ROOT / directory).rglob("*.py")):
+            lines = path.read_text(encoding="utf-8").splitlines()
+            if len(lines) > MAX_PYTHON_FILE_LINES:
+                oversized.append((path.relative_to(ROOT), len(lines)))
+
+    if oversized:
+        print(f"Python files must not exceed {MAX_PYTHON_FILE_LINES} lines.", file=sys.stderr)
+        for path, line_count in oversized:
+            print(f"{path}: {line_count} lines", file=sys.stderr)
+        raise SystemExit(1)
+
+    print(f"All Python files are <= {MAX_PYTHON_FILE_LINES} lines.")
 
 
 def report_environment() -> None:
@@ -68,6 +89,7 @@ def report_environment() -> None:
 
 def main() -> int:
     print(f"MediaTools verify | root={ROOT}")
+    check_python_file_sizes()
     step("Install editable package", [sys.executable, "-m", "pip", "install", "-e", ".[dev]"])
     step("Run tests", [sys.executable, "-m", "pytest"])
     step("Run ruff", [sys.executable, "-m", "ruff", "check", "."])

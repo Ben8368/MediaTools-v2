@@ -8,7 +8,10 @@ from mediatools.core.errors import MediaToolsError
 from mediatools.core.fetch import (
     FetchOptions,
     build_fetch_args,
+    fetch_many,
     fetch_media,
+    load_fetch_urls,
+    make_fetch_options,
     sanitize_output_template,
 )
 
@@ -43,6 +46,22 @@ def test_build_fetch_args_for_auto_subtitles(tmp_path):
     assert "en" in args
 
 
+def test_build_fetch_args_for_info_json_and_archive(tmp_path):
+    archive = tmp_path / "archive.txt"
+    args = build_fetch_args(
+        FetchOptions(
+            url="https://example.com/video",
+            output_dir=tmp_path,
+            write_info_json=True,
+            download_archive=archive,
+        ),
+    )
+
+    assert "--write-info-json" in args
+    assert "--download-archive" in args
+    assert str(archive) in args
+
+
 def test_build_fetch_args_rejects_non_http_url(tmp_path):
     with pytest.raises(MediaToolsError):
         build_fetch_args(FetchOptions(url="file:///tmp/video", output_dir=tmp_path))
@@ -68,3 +87,75 @@ def test_fetch_media_runs_ytdlp(tmp_path, monkeypatch):
 
     assert result.command[0] == "/bin/yt-dlp"
     assert "https://example.com/video" in result.command
+
+
+def test_load_fetch_urls_ignores_blank_lines_and_comments(tmp_path):
+    input_file = tmp_path / "urls.txt"
+    input_file.write_text(
+        "\n# comment\nhttps://example.com/one\n  https://example.com/two  \n",
+        encoding="utf-8",
+    )
+
+    assert load_fetch_urls(input_file) == [
+        "https://example.com/one",
+        "https://example.com/two",
+    ]
+
+
+def test_load_fetch_urls_rejects_invalid_url(tmp_path):
+    input_file = tmp_path / "urls.txt"
+    input_file.write_text("ftp://example.com/video\n", encoding="utf-8")
+
+    with pytest.raises(MediaToolsError):
+        load_fetch_urls(input_file)
+
+
+def test_make_fetch_options_requires_urls(tmp_path):
+    with pytest.raises(MediaToolsError):
+        make_fetch_options([], output_dir=tmp_path)
+
+
+def test_fetch_many_dry_run_builds_plan_without_tool_lookup(tmp_path):
+    result = fetch_many(
+        [
+            FetchOptions(
+                url="https://example.com/video",
+                output_dir=tmp_path,
+                write_subtitles=True,
+                subtitle_languages="en",
+                write_info_json=True,
+            ),
+        ],
+        dry_run=True,
+    )
+
+    assert result.total == 1
+    assert result.planned == 1
+    assert result.failed == 0
+    assert result.items[0].command[0] == "yt-dlp"
+    assert "--write-subs" in result.items[0].command
+    assert "--write-info-json" in result.items[0].command
+
+
+def test_fetch_many_collects_failures_and_continues(tmp_path, monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append(command)
+        if "https://example.com/fail" in command:
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="network failed")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    result = fetch_many(
+        [
+            FetchOptions(url="https://example.com/ok", output_dir=tmp_path),
+            FetchOptions(url="https://example.com/fail", output_dir=tmp_path),
+        ],
+        runner=runner,
+    )
+
+    assert len(calls) == 2
+    assert result.succeeded == 1
+    assert result.failed == 1
+    assert result.items[1].error == "network failed"
