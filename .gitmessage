@@ -1,0 +1,17 @@
+# Commit message template for MediaTools
+#
+# Format:
+# <type>(<scope>): <subject>
+#
+# <body (optional)>
+#
+# Co-Authored-By: <AI Tool Name> <email>
+#
+# Examples of Co-Authored-By:
+# Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+# Co-Authored-By: Cursor <cursoragent@cursor.com>
+# Co-Authored-By: Codex <codex@openai.com>
+# Co-Authored-By: OpenCode <opencode@example.com>
+# Co-Authored-By: WorkBuddy <workbuddy@example.com>
+#
+# Types: feat, fix, docs, style, refactor, perf, test, chore

@@ -1,0 +1,82 @@
+#!/bin/bash
+# prepare-commit-msg hook
+# Automatically adds Co-Authored-By trailer for AI development tools
+#
+# Install: cp .git-hooks/prepare-commit-msg .git/hooks/ && chmod +x .git/hooks/prepare-commit-msg
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+
+# Skip if commit message already has Co-Authored-By
+if grep -qi "Co-Authored-By:" "$COMMIT_MSG_FILE"; then
+    exit 0
+fi
+
+# Skip for merge/squash commits
+if [ "$COMMIT_SOURCE" = "merge" ] || [ "$COMMIT_SOURCE" = "squash" ]; then
+    exit 0
+fi
+
+# Detect which AI tool is running
+detect_ai_tool() {
+    # Check environment variables and process list
+
+    # Claude Code CLI
+    if [ -n "$CLAUDE_CODE_SESSION" ] || pgrep -f "claude-code" > /dev/null 2>&1; then
+        echo "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+        return
+    fi
+
+    # Cursor
+    if [ -n "$CURSOR_SESSION_ID" ] || pgrep -f "Cursor" > /dev/null 2>&1; then
+        echo "Co-authored-by: Cursor <cursoragent@cursor.com>"
+        return
+    fi
+
+    # GitHub Copilot / Codex (VS Code extension)
+    if [ -n "$VSCODE_GIT_ASKPASS_NODE" ] && pgrep -f "copilot" > /dev/null 2>&1; then
+        echo "Co-Authored-By: Codex <codex@openai.com>"
+        return
+    fi
+
+    # OpenCode (字节内部)
+    if [ -n "$OPENCODE_SESSION" ] || [ -n "$OPENCODE_COAUTHOR" ]; then
+        echo "Co-Authored-By: OpenCode <opencode@byted.org>"
+        return
+    fi
+
+    # WorkBuddy
+    if [ -n "$WORKBUDDY_SESSION" ]; then
+        echo "Co-Authored-By: WorkBuddy <workbuddy@example.com>"
+        return
+    fi
+
+    # Check if running in known AI tool editors
+    if [ -n "$TERM_PROGRAM" ]; then
+        case "$TERM_PROGRAM" in
+            "Cursor")
+                echo "Co-authored-by: Cursor <cursoragent@cursor.com>"
+                return
+                ;;
+        esac
+    fi
+
+    # No AI tool detected - don't add co-author
+    echo ""
+}
+
+# Detect AI tool
+AI_COAUTHOR=$(detect_ai_tool)
+
+# If AI tool detected, append co-author
+if [ -n "$AI_COAUTHOR" ]; then
+    # Check if commit message ends with a newline
+    if [ -s "$COMMIT_MSG_FILE" ]; then
+        # Add blank line before co-author if message doesn't end with one
+        tail -c1 "$COMMIT_MSG_FILE" | read -r _ || echo "" >> "$COMMIT_MSG_FILE"
+        echo "" >> "$COMMIT_MSG_FILE"
+        echo "$AI_COAUTHOR" >> "$COMMIT_MSG_FILE"
+    fi
+fi
+
+exit 0
