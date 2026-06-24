@@ -1,3 +1,93 @@
+# AI 行为准则
+
+## 1. 总则
+
+- 遵循 `AGENTS.md` 工作流：思考 → 编码 → 红绿灯审查 → 给出验证命令 → 等待用户确认。
+- 优先最小可行改动，不引入与任务无关的重构。
+- 所有路径、编码、外部命令调用必须考虑 Windows / macOS / Linux 一致性。
+- 未经验证的事项在 `03_Context.md` 和 `04_Features.md` 中标记为 `[待验证]`，不得提前打钩为已完成。
+
+## 2. 目录结构
+
+```
+src/mediatools/
+  __init__.py          # 包版本
+  __main__.py          # python -m mediatools 入口
+  cli.py               # argparse 命令注册与调度
+  core/                # 与 I/O、CLI 无关的纯逻辑
+    paths.py           # 跨平台路径工具
+tests/                 # pytest 测试，镜像 core/ 模块命名
+```
+
+约定：
+- **CLI 层**（`cli.py`）只做参数解析、输出格式、调用 core。
+- **Core 层**（`core/`）不直接 `print`，不启动子进程，便于单元测试。
+- **命令实现**后续放 `commands/` 或按功能分子包，不在 `cli.py` 堆业务逻辑。
+
+## 3. Python 编码风格
+
+- 目标版本：Python 3.11+；使用 `from __future__ import annotations`。
+- 格式化与静态检查：`ruff`（`E`、`F`、`I`、`UP`、`B` 规则集）。
+- 类型注解：公共函数必须有参数与返回值注解；复杂结构用 `dict[str, object]` 等内置泛型。
+- 命名：`snake_case` 函数/变量，`PascalCase` 类，`UPPER_SNAKE` 常量。
+- 文件读写显式 `encoding="utf-8"`。
+- 禁止：占位 `pass` 冒充实现、无 issue 关联的大段注释代码、硬编码 `\` 或 `/` 拼路径。
+
+## 4. 路径处理
+
+- **必须**使用 `pathlib.Path`，通过 `mediatools.core.paths` 提供的工具函数操作路径。
+- **禁止**字符串拼接路径分隔符（`os.path.join` 仅在与第三方 API 对接且无法避免时使用）。
+- 用户输入路径在进入文件操作前须 `normalize()`；写入操作前用 `is_safe_child()` 防止目录穿越。
+- 工作区、输出目录、缓存目录的路径约定在 Phase 1 配置模块确定前，测试中使用 `tmp_path` fixture。
+
+## 5. 子进程与外部工具
+
+- 调用 `ffmpeg` 等外部工具前，用 `shutil.which()` 探测是否可用（参考 `doctor` 命令）。
+- 使用 `subprocess.run` / `subprocess.Popen` 时：
+  - 显式传入参数列表，**禁止** `shell=True`。
+  - 捕获超时与返回码，错误信息对用户可读。
+- 不把第三方可执行文件 vendor 进仓库；依赖用户本机或 PATH 中的系统工具。
+
+## 6. 错误处理
+
+- Core 层抛标准异常（`ValueError`、`FileNotFoundError` 等）或自定义轻量异常；CLI 层统一转换为用户可读消息。
+- 不向用户暴露完整堆栈，除非 `--verbose` 类调试开关（后续引入）。
+- 文件不存在、权限不足、外部命令缺失须有明确降级或报错路径，禁止静默失败。
+
+## 7. 依赖引入
+
+引入新的运行时依赖前，在 PR/变更说明中回答：
+
+1. 标准库能否实现？
+2. 是否跨平台维护良好？
+3. 许可证是否兼容 MIT？
+4. 是否可用系统工具替代？
+
+当前策略：`dependencies = []`，仅 dev 依赖 `pytest` 和 `ruff`。
+
+## 8. 测试
+
+- 框架：`pytest`；测试文件命名 `test_<module>.py`。
+- Core 逻辑须有单元测试；CLI 用 `capsys` 或子进程 smoke test。
+- 路径相关测试使用 `tmp_path`，不依赖本机固定目录。
+- 新增模块时同步新增测试；CI 矩阵覆盖 ubuntu / windows / macos。
+
+## 9. 文档同步
+
+变更代码或阶段进度时，同步检查并更新：
+
+| 变更类型 | 需更新的文档 |
+| --- | --- |
+| 阶段/任务进度 | `03_Context.md`、`01_Project_Plan.md` |
+| 功能状态 | `04_Features.md` |
+| 重构策略 | `REFACTOR.md` |
+| 避坑经验 | `05_Lessons.md` |
+| 用户可见命令 | `README.md` |
+
+`03_Context.md` 是实时快照，但**不能**作为其他文档滞后的借口；`REFACTOR.md`、`04_Features.md` 须与之间状态一致。
+
+---
+
 ## 10. 红绿灯审查系统 (Traffic Light Audit)
 
 > **核心逻辑**：隐性深度思考，显性简洁输出

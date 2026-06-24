@@ -17,7 +17,8 @@
 - [x] 治理体系建立（01-05 文档 + AGENTS.md）
 - [x] 技术栈决策：Python CLI 优先
 - [x] 最小 CLI 脚手架验证
-- [ ] 核心架构搭建
+- [ ] 核心架构搭建（路径模块、CI 待验证）
+- [ ] 核心功能清单（暂缓，待完善）
 - [ ] 功能迁移与实现
 
 详见 [`REFACTOR.md`](REFACTOR.md)
@@ -40,6 +41,8 @@ python -m mediatools doctor
 python -m pytest
 python -m ruff check .
 ```
+
+Linux / macOS 等价命令相同（将 `python` 换为本机 Python 3.11+ 解释器即可）。
 
 安装后也可以使用 console script：
 

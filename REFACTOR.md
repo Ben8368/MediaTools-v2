@@ -38,13 +38,16 @@ Legacy 版本（https://github.com/Ben8368/MediaTools）存在以下问题：
 
 ## 🚀 Roadmap
 
-详见 `01_Project_Plan.md` §5，当前阶段：
+详见 `01_Project_Plan.md` §2，当前阶段：
 
 - [x] Phase 0：治理初始化
   - [x] 创建极简结构
   - [x] 建立治理文档体系
-  - [ ] 技术栈决策
-- [ ] Phase 1：核心架构搭建
+  - [x] 技术栈决策（Python CLI 优先）
+  - [ ] 明确首批核心功能清单（暂缓，待完善）
+- [ ] Phase 1：核心架构搭建（进行中）
+  - [ ] 跨平台路径处理模块（待验证）
+  - [ ] 基础 CI（待验证）
 - [ ] Phase 2：从 Legacy 迁移功能
 - [ ] Phase 3：功能增强与优化
 
