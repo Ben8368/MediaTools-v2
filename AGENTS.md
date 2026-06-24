@@ -65,7 +65,7 @@
 | Claude Haiku | `Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>` |
 | Cursor | `Co-authored-by: Cursor <cursoragent@cursor.com>` |
 | Codex / Copilot | `Co-Authored-By: Codex <codex@openai.com>` |
-| OpenCode | `Co-Authored-By: OpenCode <opencode@noreply.local>` |
+| OpenCode | `Co-Authored-By: opencode <opencode@noreply.local>` |
 | WorkBuddy | `Co-Authored-By: WorkBuddy <workbuddy@noreply.local>` |
 
 **自动化方式**：
