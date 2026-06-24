@@ -13,7 +13,8 @@
 2. **编码**：遵循 `02` 规范
 3. **审查**：执行红绿灯评估 🚦
 4. **验证**：AI 自行执行 `python scripts/verify.py`，附结果摘要
-5. **推进**：客观项全绿则更新治理文档并继续；主观项再询问用户
+5. **提交**：添加对应 AI 工具的 Co-Authored-By 标记（见下文"Git Commit 规范"）
+6. **推进**：客观项全绿则更新治理文档并继续；主观项再询问用户
 
 ### 验证分层
 
@@ -52,6 +53,26 @@
 - 客观项：AI 跑 `verify.py` + CI 绿 → 可标 `[已完成]`
 - 主观项：标 `[待完善]` 或等待用户反馈
 - 严禁未跑验证就打钩
+
+### Git Commit 规范
+
+所有 AI 辅助开发的提交**必须**添加 `Co-Authored-By` 标记，用于追踪各工具贡献：
+
+| AI 工具 | Co-Authored-By 标记 |
+|---------|---------------------|
+| Claude Code / Opus | `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` |
+| Claude Sonnet | `Co-Authored-By: Claude Sonnet 4.6 (1M context) <noreply@anthropic.com>` |
+| Claude Haiku | `Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>` |
+| Cursor | `Co-authored-by: Cursor <cursoragent@cursor.com>` |
+| Codex / Copilot | `Co-Authored-By: Codex <codex@openai.com>` |
+| OpenCode | `Co-Authored-By: OpenCode <opencode@byted.org>` |
+| WorkBuddy | `Co-Authored-By: WorkBuddy <workbuddy@example.com>` |
+
+**自动化方式**：
+- 安装 Git hook：`.git-hooks/install.ps1`（Windows）或 `cp .git-hooks/prepare-commit-msg .git/hooks/`（Linux/macOS）
+- Hook 会自动检测当前 AI 工具并添加对应标记
+
+**详细配置**：见 `docs/AI_COAUTHOR_SETUP.md`
 
 ---
 

@@ -88,6 +88,10 @@ mediatools doctor --json
 - [`04_Features.md`](04_Features.md) - 功能评估池
 - [`05_Lessons.md`](05_Lessons.md) - 经验与避坑
 
+### Git 工作流
+- [`docs/AI_COAUTHOR_SETUP.md`](docs/AI_COAUTHOR_SETUP.md) - AI 工具 Co-Author 自动追踪
+- [`docs/AI_COMMIT_GUIDE.md`](docs/AI_COMMIT_GUIDE.md) - Commit 规范说明
+
 ### 重构计划
 - [`REFACTOR.md`](REFACTOR.md) - 重构策略与迁移计划
 
