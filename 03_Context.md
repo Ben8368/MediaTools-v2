@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-25 05:05:40 +08:00
+> **更新时间：** 2026-06-25 05:13:33 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流已验收，review 红灯/黄灯项已收敛，转入 Legacy UI 兼容基线
-> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；review 红灯/黄灯收敛后 macOS venv 标准验证通过（127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`）；CI #28129428367 三平台绿灯
+> **当前阶段：** Phase 3 - 下载工作流已验收，review 完美绿灯收口已本地与 CI 验证，转入 Legacy UI 兼容基线
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；review 完美绿灯收口后 macOS venv 标准验证通过（127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`）；最新推送 CI 三平台绿灯
 
 ## 2. 本轮阻断项
 
@@ -104,6 +104,8 @@
 - [x] review 修复后标准验证通过：125 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
 - [x] review 黄灯收敛：CLI 错误输出接入 `core.logging`；fetch CLI 默认 3600 秒超时且支持 `--timeout 0` 不限时；命令分发改为映射；`ProcessRunner` 改为 Protocol 类型
 - [x] review 黄灯收敛后标准验证通过：127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
+- [x] review 完美绿灯收口：拆分 `core/fetch.py` 的认证/语言解析职责；拆分 `tests/test_fetch.py` 的参数构造与语言解析测试；所有 Python 文件降至 350 行预警线以下；CI 升级到 `actions/checkout@v7` / `actions/setup-python@v6` 并固定 macOS runner 为 `macos-15`
+- [x] 完美绿灯收口后标准验证通过：127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`；最新推送 CI 三平台绿灯
 
 ## 6. 下一步建议
 

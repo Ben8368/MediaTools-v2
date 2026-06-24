@@ -352,7 +352,28 @@
   - 单元测试覆盖默认 fetch timeout 和 `--timeout 0`。
   - 标准验证覆盖全量 pytest、ruff、doctor 和文件行数限制。
 - **降级/回滚策略：** 如默认 3600 秒不适合真实大文件任务，可调整 CLI 默认或在前端下载工作台中暴露更明确的预设。
-- **状态：** [客观已验证] - macOS venv 中 `python scripts/verify.py` 通过：127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
+- **状态：** [客观已验证] - macOS venv 中 `python scripts/verify.py` 通过：127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`；最新推送 CI 三平台绿灯
+
+### Feature-017：完美绿灯维护收口 — Phase 3-A Perfect Green
+- **提交时间：** 2026-06-25
+- **类型：** 维护性 / 验证体验 / CI 硬化
+- **描述：** 暂缓后续功能开发，专注消除剩余预警：将 `core/fetch.py` 的 cookie 参数构造与语言解析拆到独立模块；将 `tests/test_fetch.py` 中参数构造、语言解析测试拆到独立测试文件；所有 Python 文件降至 350 行预警线以下；CI 升级到 `actions/checkout@v7`、`actions/setup-python@v6`，并把 macOS runner 固定为 `macos-15`。
+- **用户价值：** 代码职责更清晰，测试文件更容易维护，CI 输出减少平台迁移和 Node runtime 预警，后续进入轻前端前工程底座更干净。
+- **前置依赖检查：**
+  - 技术依赖：无新增运行时依赖；CI action tag 已通过远端 tag 查询确认存在。
+  - 环境依赖：本地验证仍使用 macOS venv；CI 仍覆盖 ubuntu / windows / macOS。
+  - 安全影响：不改变下载安全边界和用户可见下载行为。
+  - 跨平台兼容性：CI macOS 从浮动 `macos-latest` 固定为 `macos-15`，避免近期 runner 迁移带来的不确定性。
+- **预计影响模块：**
+  - 源码：`src/mediatools/core/fetch.py`、`src/mediatools/core/fetch_auth.py`、`src/mediatools/core/fetch_resolution.py`。
+  - 测试：`tests/test_fetch.py`、`tests/test_fetch_args.py`、`tests/test_fetch_resolution.py`。
+  - CI：`.github/workflows/ci.yml`。
+  - 文档：`03_Context.md`、`04_Features.md`、`05_Lessons.md`。
+- **验收思路：**
+  - 标准验证覆盖全量 pytest、ruff、doctor 和文件行数限制。
+  - 推送后以 CI 三平台绿灯且无原先 Node/macOS migration annotation 作为跨平台验证。
+- **降级/回滚策略：** 如新版 action major 在 GitHub runner 上出现兼容问题，可回退到已验证的上一 major，同时保留 `macos-15` 固定 runner。
+- **状态：** [客观已验证] - macOS venv 中 `python scripts/verify.py` 通过：127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`；最新推送 CI 三平台绿灯
 
 ## 3. 首批 MVP 优先级矩阵
 
@@ -397,6 +418,7 @@
 | P3-A Naming | 下载文件名自动友好模板 | P0 | yt-dlp | 自动语言码、字段顺序模板、Windows 兼容文件名、保留 output-template | Feature-014 |
 | P3-A Safety | 下载安全边界与批量结果硬化 | P0 | 标准库 | URL 预校验、模板路径边界、重复 URL summary、多语言字幕保留 | Feature-015 |
 | P3-A Maintenance | review 黄灯收敛 | P1 | 标准库 | CLI 日志接入、默认下载超时、命令分发映射、runner Protocol | Feature-016 |
+| P3-A Perfect Green | 完美绿灯维护收口 | P1 | 标准库 / CI | 拆分预警文件、降低行数风险、升级 CI action 与固定 macOS runner | Feature-017 |
 | P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | 待 Legacy 考古 | 先兼容布局和用户路径，再选技术栈 | Feature-011 |
 | P3-C | 视频切片 | P2 | ffmpeg | 下载落地后再评估 | 待补 |
 | P3-D | 资产扫描 / 搜索 / 统计 | P3 | 标准库优先 | 服务批处理和前端结果管理 | 待补 |
