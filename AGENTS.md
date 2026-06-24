@@ -60,9 +60,9 @@
 
 | AI 工具 | Co-Authored-By 标记 |
 |---------|---------------------|
-| Claude Code | `Co-Authored-By: Claude <claude@noreply.anthropic.com>` |
-| Cursor | `Co-authored-by: Cursor <cursoragent@cursor.com>` |
-| Codex / Copilot | `Co-Authored-By: Codex <codex@openai.com>` |
+| Claude Code | `Co-Authored-By: claude <claude@noreply.anthropic.com>` |
+| Cursor | `Co-authored-by: cursoragent <cursoragent@cursor.com>` |
+| Codex | `Co-Authored-By: codex <codex@openai.com>` |
 | OpenCode | `Co-Authored-By: opencode <opencode@noreply.local>` |
 | OpenClaw | `Co-Authored-By: openclaw <openclaw@noreply.local>` |
 
