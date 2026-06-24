@@ -60,9 +60,7 @@
 
 | AI 工具 | Co-Authored-By 标记 |
 |---------|---------------------|
-| Claude Code / Opus | `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` |
-| Claude Sonnet | `Co-Authored-By: Claude Sonnet 4.6 (1M context) <noreply@anthropic.com>` |
-| Claude Haiku | `Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>` |
+| Claude Code | `Co-Authored-By: Claude <claude@noreply.anthropic.com>` |
 | Cursor | `Co-authored-by: Cursor <cursoragent@cursor.com>` |
 | Codex / Copilot | `Co-Authored-By: Codex <codex@openai.com>` |
 | OpenCode | `Co-Authored-By: opencode <opencode@noreply.local>` |
