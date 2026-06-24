@@ -24,6 +24,15 @@ dist/
 .next/
 out/
 
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+go.work
+
 # IDE
 .vscode/
 .idea/
@@ -42,3 +51,11 @@ data/
 logs/
 temp/
 *.log
+
+# Keep governance files (DO NOT ignore)
+!01_Project_Plan.md
+!02_AI_Rules.md
+!03_Context.md
+!04_Features.md
+!05_Lessons.md
+!AGENTS.md
