@@ -90,7 +90,13 @@ def run_ffmpeg(
     timeout: float | None = 300,
     runner: ProcessRunner = subprocess.run,
 ) -> ToolResult:
-    """Run ``ffmpeg`` with safe subprocess defaults."""
+    """Run ``ffmpeg`` with safe subprocess defaults.
+
+    The default 300-second (5-minute) timeout covers typical single-file
+    transcoding operations.  For batch encodes, very long source files, or
+    two-pass encoding, callers should pass a higher value or ``None`` for
+    no limit.
+    """
     return run_tool("ffmpeg", args, timeout=timeout, runner=runner)
 
 
@@ -100,7 +106,12 @@ def run_ffprobe(
     timeout: float | None = 60,
     runner: ProcessRunner = subprocess.run,
 ) -> ToolResult:
-    """Run ``ffprobe`` with safe subprocess defaults."""
+    """Run ``ffprobe`` with safe subprocess defaults.
+
+    The default 60-second timeout is generous for metadata reads, which
+    only parse container headers and stream information.  Even very large
+    files should probe in under a few seconds.
+    """
     return run_tool("ffprobe", args, timeout=timeout, runner=runner)
 
 
@@ -110,5 +121,11 @@ def run_ytdlp(
     timeout: float | None = None,
     runner: ProcessRunner = subprocess.run,
 ) -> ToolResult:
-    """Run ``yt-dlp`` with safe subprocess defaults."""
+    """Run ``yt-dlp`` with safe subprocess defaults.
+
+    No default timeout is set because network downloads can take arbitrarily
+    long depending on file size, connection speed, and server throttling.
+    Callers that need a bounded wait should supply a ``timeout`` value
+    (e.g. ``timeout=3600`` for a one-hour cap on a single download).
+    """
     return run_tool("yt-dlp", args, timeout=timeout, runner=runner)

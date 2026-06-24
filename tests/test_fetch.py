@@ -124,7 +124,7 @@ def test_load_fetch_urls_rejects_invalid_url(tmp_path):
 
 def test_make_fetch_options_requires_urls(tmp_path):
     with pytest.raises(MediaToolsError):
-        make_fetch_options([], output_dir=tmp_path)
+        make_fetch_options([], FetchOptions(url="", output_dir=tmp_path))
 
 
 def test_fetch_many_dry_run_builds_plan_without_tool_lookup(tmp_path):
@@ -473,8 +473,8 @@ def test_probe_language_passes_cookie_source(monkeypatch):
 
 
 def test_make_fetch_options_accepts_new_fields(tmp_path):
-    opts = make_fetch_options(
-        ["https://example.com/video"],
+    template = FetchOptions(
+        url="",  # placeholder — replaced per-URL
         output_dir=tmp_path,
         preset="mp4",
         convert_subs="srt",
@@ -484,6 +484,7 @@ def test_make_fetch_options_accepts_new_fields(tmp_path):
         filename_language="auto",
         windows_filenames=False,
     )
+    opts = make_fetch_options(["https://example.com/video"], template)
     assert len(opts) == 1
     assert opts[0].preset == "mp4"
     assert opts[0].convert_subs == "srt"

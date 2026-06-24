@@ -13,6 +13,40 @@ from pathlib import Path
 from mediatools.core.paths import normalize
 
 
+def _platform_dir(
+    *,
+    win_suffix: str,
+    darwin_suffix: str,
+    linux_xdg_env: str,
+    linux_xdg_suffix: str,
+    linux_fallback_suffix: str,
+) -> Path:
+    """Return a platform-appropriate directory path based on the given suffixes.
+
+    Resolution order (matches the previous per-function logic exactly):
+
+    1. **Windows**: ``%LOCALAPPDATA%/<win_suffix>``, falling back to
+       ``~/AppData/Local/<win_suffix>``.
+    2. **XDG** (all Unix, including macOS when the env var is set): ``$<env>/<suffix>``.
+    3. **macOS** (no XDG override): ``~/<darwin_suffix>``.
+    4. **Linux / other Unix**: ``~/<linux_fallback_suffix>``.
+    """
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA")
+        if base:
+            return Path(base).joinpath(*win_suffix.split("/"))
+        return normalize("~") / "AppData" / "Local" / win_suffix
+
+    xdg_value = os.environ.get(linux_xdg_env)
+    if xdg_value:
+        return Path(xdg_value, linux_xdg_suffix)
+
+    if sys.platform == "darwin":
+        return normalize("~").joinpath(*darwin_suffix.split("/"))
+
+    return normalize("~").joinpath(*linux_fallback_suffix.split("/"))
+
+
 def get_config_dir() -> Path:
     """Return the configuration directory for MediaTools.
 
@@ -24,18 +58,13 @@ def get_config_dir() -> Path:
     Returns:
         Absolute path to the config directory.
     """
-    if sys.platform == "win32":
-        base = os.environ.get("LOCALAPPDATA")
-        if base:
-            return Path(base) / "mediatools"
-        return normalize("~") / "AppData" / "Local" / "mediatools"
-
-    xdg_config = os.environ.get("XDG_CONFIG_HOME")
-    if xdg_config:
-        return Path(xdg_config) / "mediatools"
-    if sys.platform == "darwin":
-        return normalize("~") / "Library" / "Application Support" / "mediatools"
-    return normalize("~") / ".config" / "mediatools"
+    return _platform_dir(
+        win_suffix="mediatools",
+        darwin_suffix="Library/Application Support/mediatools",
+        linux_xdg_env="XDG_CONFIG_HOME",
+        linux_xdg_suffix="mediatools",
+        linux_fallback_suffix=".config/mediatools",
+    )
 
 
 def get_cache_dir() -> Path:
@@ -49,18 +78,13 @@ def get_cache_dir() -> Path:
     Returns:
         Absolute path to the cache directory.
     """
-    if sys.platform == "win32":
-        base = os.environ.get("LOCALAPPDATA")
-        if base:
-            return Path(base) / "mediatools" / "cache"
-        return normalize("~") / "AppData" / "Local" / "mediatools" / "cache"
-
-    xdg_cache = os.environ.get("XDG_CACHE_HOME")
-    if xdg_cache:
-        return Path(xdg_cache) / "mediatools"
-    if sys.platform == "darwin":
-        return normalize("~") / "Library" / "Caches" / "mediatools"
-    return normalize("~") / ".cache" / "mediatools"
+    return _platform_dir(
+        win_suffix="mediatools/cache",
+        darwin_suffix="Library/Caches/mediatools",
+        linux_xdg_env="XDG_CACHE_HOME",
+        linux_xdg_suffix="mediatools",
+        linux_fallback_suffix=".cache/mediatools",
+    )
 
 
 def get_data_dir() -> Path:
@@ -74,18 +98,13 @@ def get_data_dir() -> Path:
     Returns:
         Absolute path to the data directory.
     """
-    if sys.platform == "win32":
-        base = os.environ.get("LOCALAPPDATA")
-        if base:
-            return Path(base) / "mediatools" / "data"
-        return normalize("~") / "AppData" / "Local" / "mediatools" / "data"
-
-    xdg_data = os.environ.get("XDG_DATA_HOME")
-    if xdg_data:
-        return Path(xdg_data) / "mediatools"
-    if sys.platform == "darwin":
-        return normalize("~") / "Library" / "Application Support" / "mediatools" / "data"
-    return normalize("~") / ".local" / "share" / "mediatools"
+    return _platform_dir(
+        win_suffix="mediatools/data",
+        darwin_suffix="Library/Application Support/mediatools/data",
+        linux_xdg_env="XDG_DATA_HOME",
+        linux_xdg_suffix="mediatools",
+        linux_fallback_suffix=".local/share/mediatools",
+    )
 
 
 def ensure_dir(path: Path) -> Path:

@@ -250,56 +250,17 @@ def load_fetch_urls(input_file: str | Path) -> list[str]:
 
 def make_fetch_options(
     urls: list[str],
-    *,
-    output_dir: Path,
-    output_template: str | None = None,
-    write_subtitles: bool = False,
-    write_auto_subtitles: bool = False,
-    subtitles_only: bool = False,
-    subtitle_languages: str = "all",
-    overwrite: bool = False,
-    write_info_json: bool = False,
-    download_archive: Path | None = None,
-    preset: str | None = "mp4",
-    merge_format: str | None = None,
-    remux_video: str | None = None,
-    convert_subs: str | None = None,
-    format_sort: str | None = None,
-    cookies: Path | None = None,
-    cookies_from_browser: str | None = None,
-    filename_template: str | None = DEFAULT_FILENAME_TEMPLATE,
-    filename_language: str | None = AUTO_FILENAME_LANGUAGE,
-    windows_filenames: bool = True,
+    template: FetchOptions,
 ) -> list[FetchOptions]:
-    """Create per-URL fetch options from shared CLI settings."""
-    preset = preset or "mp4"
+    """Create per-URL fetch options from a shared template.
+
+    Each URL gets its own ``FetchOptions`` with all other fields copied
+    from *template*.  The ``FetchOptions`` dataclass defaults are the
+    single source of truth for every field default.
+    """
     if not urls:
         raise MediaToolsError("Provide a fetch URL or --input-file with at least one URL.")
-    return [
-        FetchOptions(
-            url=url,
-            output_dir=output_dir,
-            output_template=output_template,
-            write_subtitles=write_subtitles,
-            write_auto_subtitles=write_auto_subtitles,
-            subtitles_only=subtitles_only,
-            subtitle_languages=subtitle_languages,
-            overwrite=overwrite,
-            write_info_json=write_info_json,
-            download_archive=download_archive,
-            preset=preset,
-            merge_format=merge_format,
-            remux_video=remux_video,
-            convert_subs=convert_subs,
-            format_sort=format_sort,
-            cookies=cookies,
-            cookies_from_browser=cookies_from_browser,
-            filename_template=filename_template,
-            filename_language=filename_language,
-            windows_filenames=windows_filenames,
-        )
-        for url in urls
-    ]
+    return [replace(template, url=url) for url in urls]
 
 
 def dry_run_fetch(options: FetchOptions) -> FetchItemResult:
@@ -330,53 +291,140 @@ def fetch_media(
     return result
 
 
+def _fetch_one(
+    options: FetchOptions,
+    *,
+    runner: ProcessRunner | None = None,
+    timeout: float | None = None,
+) -> FetchItemResult:
+    """Execute a single download, always returning a result (never raises).
+
+    ``KeyboardInterrupt`` and ``MediaToolsError`` are caught internally so
+    that callers — including concurrent executors — always receive a
+    ``FetchItemResult``.
+    """
+    try:
+        resolved = _resolve_sub_langs(options)
+        resolved = _resolve_filename_language(resolved, runner=runner)
+        result = fetch_media(resolved, runner=runner, timeout=timeout)
+        return FetchItemResult(
+            url=resolved.url,
+            status="succeeded",
+            output_dir=normalize(options.output_dir),
+            command=result.command,
+        )
+    except KeyboardInterrupt:
+        return FetchItemResult(
+            url=options.url,
+            status="failed",
+            output_dir=normalize(options.output_dir),
+            command=("yt-dlp", *build_fetch_args(options)),
+            error="Interrupted by user. Partial download files may remain.",
+        )
+    except MediaToolsError as exc:
+        return FetchItemResult(
+            url=options.url,
+            status="failed",
+            output_dir=normalize(options.output_dir),
+            command=("yt-dlp", *build_fetch_args(options)),
+            error=exc.message,
+        )
+
+
 def fetch_many(
     options_list: list[FetchOptions],
     *,
     dry_run: bool = False,
     runner: ProcessRunner | None = None,
     timeout: float | None = None,
+    max_workers: int = 1,
 ) -> FetchBatchResult:
-    """Run or plan multiple fetch operations."""
+    """Run or plan multiple fetch operations.
+
+    Args:
+        options_list: One ``FetchOptions`` per URL.
+        dry_run: When ``True``, build planned items without calling yt-dlp.
+        runner: Optional subprocess runner for testing.
+        timeout: Per-download timeout forwarded to yt-dlp.
+        max_workers: Maximum concurrent downloads (default 1, serial).
+            Values > 1 use a ``ThreadPoolExecutor``.
+    """
     if not options_list:
         raise MediaToolsError("Provide at least one fetch URL.")
 
+    if dry_run:
+        return FetchBatchResult(items=tuple(dry_run_fetch(o) for o in options_list))
+
+    if max_workers <= 1:
+        return _fetch_serial(options_list, runner=runner, timeout=timeout)
+
+    return _fetch_parallel(options_list, runner=runner, timeout=timeout, max_workers=max_workers)
+
+
+def _fetch_serial(
+    options_list: list[FetchOptions],
+    *,
+    runner: ProcessRunner | None = None,
+    timeout: float | None = None,
+) -> FetchBatchResult:
+    """Run downloads one at a time, stopping on ``KeyboardInterrupt``."""
     results: list[FetchItemResult] = []
     for options in options_list:
-        if dry_run:
-            results.append(dry_run_fetch(options))
-            continue
-        try:
-            options = _resolve_sub_langs(options)
-            options = _resolve_filename_language(options, runner=runner)
-            result = fetch_media(options, runner=runner, timeout=timeout)
-            results.append(
-                FetchItemResult(
-                    url=options.url,
-                    status="succeeded",
-                    output_dir=normalize(options.output_dir),
-                    command=result.command,
-                ),
-            )
-        except KeyboardInterrupt:
-            results.append(
-                FetchItemResult(
-                    url=options.url,
-                    status="failed",
-                    output_dir=normalize(options.output_dir),
-                    command=("yt-dlp", *build_fetch_args(options)),
-                    error="Interrupted by user. Partial download files may remain.",
-                ),
-            )
+        result = _fetch_one(options, runner=runner, timeout=timeout)
+        results.append(result)
+        if result.error and "Interrupted by user" in str(result.error):
             break
-        except MediaToolsError as exc:
+    return FetchBatchResult(items=tuple(results))
+
+
+def _fetch_parallel(
+    options_list: list[FetchOptions],
+    *,
+    runner: ProcessRunner | None = None,
+    timeout: float | None = None,
+    max_workers: int,
+) -> FetchBatchResult:
+    """Run downloads concurrently via ``ThreadPoolExecutor``."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    results_map: dict[str, FetchItemResult] = {}
+    interrupted = False
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_url = {
+            executor.submit(_fetch_one, opts, runner=runner, timeout=timeout): opts.url
+            for opts in options_list
+        }
+        try:
+            for future in as_completed(future_to_url):
+                try:
+                    results_map[future_to_url[future]] = future.result()
+                except Exception:
+                    results_map[future_to_url[future]] = FetchItemResult(
+                        url=future_to_url[future],
+                        status="failed",
+                        output_dir=Path("."),
+                        command=(),
+                        error="Unexpected error during fetch.",
+                    )
+        except KeyboardInterrupt:
+            interrupted = True
+            for future in future_to_url:
+                future.cancel()
+
+    # Reconstitute results in original order, filling in gaps from interruption
+    results: list[FetchItemResult] = []
+    for opts in options_list:
+        if opts.url in results_map:
+            results.append(results_map[opts.url])
+        elif interrupted:
             results.append(
                 FetchItemResult(
-                    url=options.url,
+                    url=opts.url,
                     status="failed",
-                    output_dir=normalize(options.output_dir),
-                    command=("yt-dlp", *build_fetch_args(options)),
-                    error=exc.message,
+                    output_dir=normalize(opts.output_dir),
+                    command=("yt-dlp", *build_fetch_args(opts)),
+                    error="Interrupted by user. Partial download files may remain.",
                 ),
             )
     return FetchBatchResult(items=tuple(results))
