@@ -44,7 +44,6 @@ Legacy 版本（https://github.com/Ben8368/MediaTools）存在以下问题：
   - [x] 创建极简结构
   - [x] 建立治理文档体系
   - [x] 技术栈决策（Python CLI 优先）
-  - [ ] 明确首批核心功能清单（暂缓，待完善）
 - [ ] Phase 1：核心架构搭建（进行中）
   - [x] 跨平台路径处理模块
   - [x] 基础 CI
