@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-24 14:15:03 +08:00
+> **更新时间：** 2026-06-24 14:42:32 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 2 - 首批 MVP 已实现，待用户主观验收与 CI 复核
-> **验证状态：** 首批 MVP 本地客观验证通过（`python scripts/verify.py`：53 passed, 6 skipped；ruff 通过；doctor 通过）
+> **当前阶段：** Phase 2 客观收口完成，待用户主观验收与 CI 三平台复核
+> **验证状态：** `python scripts/verify.py` 通过（53 passed, 6 skipped；ruff 通过；doctor 通过）；本地端到端 smoke 通过（probe / subtitle / encode / screenshot）
 
 ## 2. 本轮阻断项
 
@@ -37,7 +37,7 @@
 - 与 ffmpeg、yt-dlp 等外部工具的集成方式
 
 ### 暂缓项
-- Web UI / 桌面 GUI 推迟到核心 CLI 稳定后评估。
+- Web UI / 桌面 GUI 推迟到核心 CLI 稳定、真实样本验收和接口契约清晰后评估。
 - 单文件可执行程序分发推迟到发布准备阶段评估。
 
 ## 4. 知识库关联
@@ -50,9 +50,10 @@
 - ✅ 采用治理文件体系（参考 weibo-workflow）
 - ✅ 全新 orphan 分支重构，不保留历史包袱
 - ✅ 技术栈采用 Python CLI 优先
-- ⏳ 核心功能清单待确认
+- ✅ 核心功能清单已确认（首批 MVP A/B/C/D/E）
 - ✅ 工程脚手架已通过验证
 - ✅ `core/paths` 与 CI 已通过验证
+- ✅ 前后端策略已澄清：不否定分离，延后到核心契约稳定后
 
 ## 5. 当前任务焦点
 
@@ -73,15 +74,20 @@
 - [x] 实现首批 MVP（A→C→B→D→E）
 - [x] 扩展 `doctor` 与 `scripts/verify.py` 外部工具报告（ffmpeg / ffprobe / yt-dlp）
 - [x] 本地客观验证通过：53 passed, 6 skipped；ruff 通过
+- [x] 补强治理规则：500 行阈值、前后端分离边界、客观/主观状态拆分
+- [x] 治理文档优化后复跑 `python scripts/verify.py` 通过：53 passed, 6 skipped；ruff 通过；doctor 通过
+- [x] 本地端到端 smoke 通过：生成 2 秒 MP4，覆盖 `probe` / `subtitle convert` / `encode` / `screenshot`
+- [x] Phase 2 客观收口后最终复验通过：53 passed, 6 skipped；ruff 通过；doctor 通过
 - [ ] 用户主观验收首批 MVP 真实媒体体验
 - [ ] 推送后等待 CI 三平台复核
 
 ## 6. 下一步建议
 
-Phase 2 首批 MVP 已完成本地客观验证。下一步建议：
+Phase 2 首批 MVP 已完成本地客观收口，下一步先完成主观与跨平台门槛，再进入 Phase 3：
 1. **用户主观验收**：用真实媒体样本试用 `probe` / `subtitle convert` / `encode` / `screenshot` / `fetch`。
 2. **推送并看 CI**：以 GitHub Actions 三平台绿灯作为跨平台复核。
-3. **验收后收敛**：若体验无阻断，再将 Feature-005~009 从 `[待验证]` 更新为 `[已完成]`。
+3. **验收后收敛**：若体验无阻断，再将 Feature-005~009 从 `[客观已验证]` 更新为 `[已完成]`。
+4. **进入下一批功能评估**：优先评估视频切片、资产扫描 / 搜索 / 统计；暂不启动完整前后端架构。
 
 ## 7. 维护边界备忘
 
@@ -89,4 +95,5 @@ Phase 2 首批 MVP 已完成本地客观验证。下一步建议：
 - **不提交**：构建产物、node_modules、__pycache__、.env、运行日志、数据库、vendor 残留。
 - **跨平台优先**：所有路径处理使用 `mediatools.core.paths`。
 - **依赖最小化**：慎重引入第三方依赖。
-- **未验证不打钩**：客观项须先跑 `python scripts/verify.py`；主观项等待用户反馈。
+- **代码规模**：350 行预警，450 行评估拆分，500 行默认禁止继续堆业务逻辑。
+- **未验证不打钩**：客观项须先跑 `python scripts/verify.py`；主观项等待用户反馈；用户可见功能完成需两者都满足。
