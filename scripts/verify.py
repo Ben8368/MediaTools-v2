@@ -50,11 +50,12 @@ def report_environment() -> None:
         raise SystemExit(doctor.returncode)
 
     report = json.loads(doctor.stdout)
-    ffmpeg = report.get("ffmpeg", {})
-    if isinstance(ffmpeg, dict) and ffmpeg.get("available"):
-        print(f"ffmpeg: found at {ffmpeg.get('path')}")
-    else:
-        print("ffmpeg: not found on PATH (informational; required only for media features)")
+    for tool in ("ffmpeg", "ffprobe", "yt-dlp"):
+        tool_report = report.get(tool, {})
+        if isinstance(tool_report, dict) and tool_report.get("available"):
+            print(f"{tool}: found at {tool_report.get('path')}")
+        else:
+            print(f"{tool}: not found on PATH (informational until that feature is used)")
 
     console_script = shutil.which("mediatools")
     if console_script:

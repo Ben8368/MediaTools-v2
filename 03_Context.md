@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-24 15:35:00 +08:00
+> **更新时间：** 2026-06-24 14:15:03 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 1 - 核心架构搭建（已完成）
-> **验证状态：** Phase 1 完成验证（本地 31 passed, 6 skipped；CI #28077072580 三平台绿灯）
+> **当前阶段：** Phase 2 - 首批 MVP 已实现，待用户主观验收与 CI 复核
+> **验证状态：** 首批 MVP 本地客观验证通过（`python scripts/verify.py`：53 passed, 6 skipped；ruff 通过；doctor 通过）
 
 ## 2. 本轮阻断项
 
@@ -70,16 +70,18 @@
 - [x] 推送并验证 CI 三平台绿灯（CI #28077072580）
 - [x] 从 Legacy 版本提取核心功能清单（Feature-005~009，Tier 矩阵见 04 §3）
 - [x] 用户确认首批 MVP = A/B/C/D/E（probe / 转码 / 字幕转换 / 截图 / 下载）
-- [ ] 实现首批 MVP（建议顺序：A→C→B→D→E）
+- [x] 实现首批 MVP（A→C→B→D→E）
+- [x] 扩展 `doctor` 与 `scripts/verify.py` 外部工具报告（ffmpeg / ffprobe / yt-dlp）
+- [x] 本地客观验证通过：53 passed, 6 skipped；ruff 通过
+- [ ] 用户主观验收首批 MVP 真实媒体体验
+- [ ] 推送后等待 CI 三平台复核
 
 ## 6. 下一步建议
 
-Phase 2 启动，首批 MVP 已确认（Feature-005~009）。建议实现顺序：
-1. **A 媒体信息探测（Feature-005）** — 先建 `core/ffmpeg.py` 子进程封装，作为后续地基
-2. **C 字幕转换（Feature-007）** — 零依赖纯逻辑，验证分层架构样板
-3. **B 转码 / 音频提取（Feature-006）** — 复用 ffmpeg 封装
-4. **D 视频截图（Feature-008）** — 复用 ffmpeg 封装
-5. **E 视频/字幕下载（Feature-009）** — 依赖 yt-dlp，含网络安全审查，最后做
+Phase 2 首批 MVP 已完成本地客观验证。下一步建议：
+1. **用户主观验收**：用真实媒体样本试用 `probe` / `subtitle convert` / `encode` / `screenshot` / `fetch`。
+2. **推送并看 CI**：以 GitHub Actions 三平台绿灯作为跨平台复核。
+3. **验收后收敛**：若体验无阻断，再将 Feature-005~009 从 `[待验证]` 更新为 `[已完成]`。
 
 ## 7. 维护边界备忘
 

@@ -51,6 +51,9 @@ Legacy 版本（https://github.com/Ben8368/MediaTools）存在以下问题：
   - [x] 错误处理体系
   - [x] 配置加载与工作区约定
 - [ ] Phase 2：从 Legacy 迁移功能（当前阶段）
+  - [x] 首批 MVP A/B/C/D/E 已实现并通过本地客观验证
+  - [ ] 等待用户真实媒体样本主观验收
+  - [ ] 等待推送后 CI 三平台复核
 - [ ] Phase 3：功能增强与优化
 
 ---

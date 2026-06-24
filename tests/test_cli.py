@@ -19,6 +19,8 @@ def test_doctor_json_output(capsys):
     report = json.loads(capsys.readouterr().out)
     assert report["mediatools_version"]
     assert "ffmpeg" in report
+    assert "ffprobe" in report
+    assert "yt-dlp" in report
 
 
 def test_doctor_report_shape():
@@ -27,6 +29,8 @@ def test_doctor_report_shape():
     assert isinstance(report["python_version"], str)
     assert isinstance(report["ffmpeg"], dict)
     assert "available" in report["ffmpeg"]
+    assert isinstance(report["ffprobe"], dict)
+    assert isinstance(report["yt-dlp"], dict)
 
 
 def test_module_execution_version():

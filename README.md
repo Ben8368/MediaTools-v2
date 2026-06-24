@@ -29,7 +29,24 @@
 - `pyproject.toml` 管理项目元数据、命令入口和开发依赖
 - `pytest` 用于测试
 - `ruff` 用于格式/静态检查
-- 系统 `ffmpeg` 作为后续媒体处理外部依赖，不 vendor 第三方源码
+- 系统 `ffmpeg` / `ffprobe` / `yt-dlp` 作为媒体处理外部工具，不 vendor 第三方源码
+
+## ✅ 首批 MVP CLI
+
+当前已实现首批 CLI 能力：
+
+```powershell
+python -m mediatools probe input.mp4 --json
+python -m mediatools subtitle convert input.vtt output.srt
+python -m mediatools encode input.mp4 output.mp4 --video-codec libx265 --audio-codec aac
+python -m mediatools encode input.mp4 audio.mp3 --extract-audio
+python -m mediatools screenshot input.mp4 shot.png --time 00:00:05
+python -m mediatools screenshot input.mp4 frames --interval 5
+python -m mediatools fetch "https://example.com/video" downloads --write-subs
+```
+
+`probe`、`encode`、`screenshot` 需要本机 PATH 中可找到 `ffmpeg`/`ffprobe`；
+`fetch` 需要本机 PATH 中可找到 `yt-dlp`，并只接受 `http` / `https` URL。
 
 ## 🚀 本地开发
 
@@ -39,7 +56,7 @@
 python scripts/verify.py
 ```
 
-`verify.py` 会依次执行：安装 dev 依赖 → pytest → ruff → CLI 版本 → doctor 环境报告（含 ffmpeg 与 PATH 信息）。
+`verify.py` 会依次执行：安装 dev 依赖 → pytest → ruff → CLI 版本 → doctor 环境报告（含外部工具与 PATH 信息）。
 
 也可分步执行：
 
