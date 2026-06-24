@@ -54,8 +54,8 @@ Legacy 版本（https://github.com/Ben8368/MediaTools）存在以下问题：
 - [ ] Phase 2：从 Legacy 迁移功能（当前阶段）
   - [x] 首批 MVP A/B/C/D/E 已实现并通过本地客观验证
   - [x] 本地端到端 smoke 通过（probe / subtitle / encode / screenshot）
+  - [x] CI 三平台绿灯
   - [ ] 等待用户真实媒体样本主观验收
-  - [ ] 等待推送后 CI 三平台复核
 - [ ] Phase 3：功能增强与优化
   - [ ] 完成准入检查后再启动下一批功能
   - [ ] 优先评估视频切片、资产扫描 / 搜索 / 统计

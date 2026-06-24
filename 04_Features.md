@@ -117,7 +117,7 @@
   - 单元测试 mock `ffprobe` JSON 输出，断言解析正确
   - ffprobe 缺失时给出可读报错（ExternalToolError）
 - **降级/回滚策略：** ffprobe 不可用时明确提示安装 ffmpeg，不静默失败
-- **状态：** [客观已验证] - 已实现 `core/ffmpeg.py` + `core/probe.py` + `probe` CLI；本地 `python scripts/verify.py` 通过（53 passed, 6 skipped；ruff 通过）；生成媒体 smoke 通过，待真实媒体样本主观验收与 CI 复核
+- **状态：** [客观已验证] - 已实现 `core/ffmpeg.py` + `core/probe.py` + `probe` CLI；本地 `python scripts/verify.py` 通过（53 passed, 6 skipped；ruff 通过）；生成媒体 smoke 通过；CI 三平台绿灯；待真实媒体样本主观验收
 
 ### Feature-006：转码 / 音频提取 (encode) — MVP-B
 - **提交时间：** 2026-06-24
@@ -138,7 +138,7 @@
   - 单元测试断言生成的 ffmpeg 参数正确
   - 捕获返回码与超时，错误信息可读
 - **降级/回滚策略：** 失败保留原文件，输出到独立目录，不就地破坏
-- **状态：** [客观已验证] - 已实现 `core/encode.py` + `encode` CLI，复用 ffmpeg 封装；本地客观验证与生成媒体 smoke 通过，待真实媒体样本主观验收与 CI 复核
+- **状态：** [客观已验证] - 已实现 `core/encode.py` + `encode` CLI，复用 ffmpeg 封装；本地客观验证与生成媒体 smoke 通过；CI 三平台绿灯；待真实媒体样本主观验收
 
 ### Feature-007：字幕格式转换 VTT↔SRT (subtitle) — MVP-C
 - **提交时间：** 2026-06-24
@@ -159,7 +159,7 @@
   - 单元测试：VTT→SRT、SRT→VTT 往返一致性
   - 边界：空行、多行字幕、特殊时间格式、BOM
 - **降级/回滚策略：** 不修改源文件，输出新文件
-- **状态：** [客观已验证] - 已实现 `core/subtitle.py` + `subtitle convert` CLI；覆盖 VTT↔SRT、BOM、标签清洗、时间轴序列化；本地客观验证与 smoke 通过，待用户确认输出体验
+- **状态：** [客观已验证] - 已实现 `core/subtitle.py` + `subtitle convert` CLI；覆盖 VTT↔SRT、BOM、标签清洗、时间轴序列化；本地客观验证与 smoke 通过；CI 三平台绿灯；待用户确认输出体验
 
 ### Feature-008：视频截图 / 抽帧 (screenshot) — MVP-D
 - **提交时间：** 2026-06-24
@@ -180,7 +180,7 @@
   - 单元测试断言时间点/间隔参数转换正确
   - 时间格式校验（HH:MM:SS / 秒）
 - **降级/回滚策略：** 输出到独立目录，不覆盖已有图片
-- **状态：** [客观已验证] - 已实现 `core/screenshot.py` + `screenshot` CLI，支持指定时间点与间隔抽帧；本地客观验证与生成媒体 smoke 通过，待真实视频样本主观验收与 CI 复核
+- **状态：** [客观已验证] - 已实现 `core/screenshot.py` + `screenshot` CLI，支持指定时间点与间隔抽帧；本地客观验证与生成媒体 smoke 通过；CI 三平台绿灯；待真实视频样本主观验收
 
 ### Feature-009：视频 / 字幕下载 (fetch) — MVP-E
 - **提交时间：** 2026-06-24
@@ -202,7 +202,7 @@
   - 单元测试 mock 子进程，断言命令参数与文件名清洗
   - yt-dlp 缺失时可读报错
 - **降级/回滚策略：** yt-dlp 不可用时提示安装，不静默失败；下载失败清理半成品
-- **状态：** [客观已验证] - 已实现 `core/fetch.py` + `fetch` CLI，yt-dlp 作为 PATH 系统工具探测，限制 http/https URL；本地 mock 客观验证通过，待真实下载体验与 CI 复核
+- **状态：** [客观已验证] - 已实现 `core/fetch.py` + `fetch` CLI，yt-dlp 作为 PATH 系统工具探测，限制 http/https URL；本地 mock 客观验证通过；CI 三平台绿灯；待真实下载体验
 
 ## 3. 首批 MVP 优先级矩阵
 

@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-24 14:42:32 +08:00
+> **更新时间：** 2026-06-24 14:44:38 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 2 客观收口完成，待用户主观验收与 CI 三平台复核
-> **验证状态：** `python scripts/verify.py` 通过（53 passed, 6 skipped；ruff 通过；doctor 通过）；本地端到端 smoke 通过（probe / subtitle / encode / screenshot）
+> **当前阶段：** Phase 2 客观收口与 CI 复核完成，待用户主观验收
+> **验证状态：** `python scripts/verify.py` 通过（53 passed, 6 skipped；ruff 通过；doctor 通过）；本地端到端 smoke 通过；CI 三平台绿灯
 
 ## 2. 本轮阻断项
 
@@ -78,16 +78,15 @@
 - [x] 治理文档优化后复跑 `python scripts/verify.py` 通过：53 passed, 6 skipped；ruff 通过；doctor 通过
 - [x] 本地端到端 smoke 通过：生成 2 秒 MP4，覆盖 `probe` / `subtitle convert` / `encode` / `screenshot`
 - [x] Phase 2 客观收口后最终复验通过：53 passed, 6 skipped；ruff 通过；doctor 通过
+- [x] 推送后验证 CI 三平台绿灯（windows-latest / macos-latest / ubuntu-latest）
 - [ ] 用户主观验收首批 MVP 真实媒体体验
-- [ ] 推送后等待 CI 三平台复核
 
 ## 6. 下一步建议
 
-Phase 2 首批 MVP 已完成本地客观收口，下一步先完成主观与跨平台门槛，再进入 Phase 3：
+Phase 2 首批 MVP 已完成客观收口与 CI 复核，下一步先完成主观体验门槛，再进入 Phase 3：
 1. **用户主观验收**：用真实媒体样本试用 `probe` / `subtitle convert` / `encode` / `screenshot` / `fetch`。
-2. **推送并看 CI**：以 GitHub Actions 三平台绿灯作为跨平台复核。
-3. **验收后收敛**：若体验无阻断，再将 Feature-005~009 从 `[客观已验证]` 更新为 `[已完成]`。
-4. **进入下一批功能评估**：优先评估视频切片、资产扫描 / 搜索 / 统计；暂不启动完整前后端架构。
+2. **验收后收敛**：若体验无阻断，再将 Feature-005~009 从 `[客观已验证]` 更新为 `[已完成]`。
+3. **进入下一批功能评估**：优先评估视频切片、资产扫描 / 搜索 / 统计；暂不启动完整前后端架构。
 
 ## 7. 维护边界备忘
 
