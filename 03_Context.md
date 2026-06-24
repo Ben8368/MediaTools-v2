@@ -67,15 +67,19 @@
   - [x] 日志系统（`src/mediatools/core/logging.py`）
   - [x] 错误处理体系（`src/mediatools/core/errors.py`）
   - [x] 配置加载与工作区约定（`src/mediatools/core/config.py`）
-- [ ] 推送并验证 CI 三平台绿灯
-- [ ] 从 Legacy 版本提取核心功能清单
+- [x] 推送并验证 CI 三平台绿灯（CI #28077072580）
+- [x] 从 Legacy 版本提取核心功能清单（Feature-005~009，Tier 矩阵见 04 §3）
+- [x] 用户确认首批 MVP = A/B/C/D/E（probe / 转码 / 字幕转换 / 截图 / 下载）
+- [ ] 实现首批 MVP（建议顺序：A→C→B→D→E）
 
 ## 6. 下一步建议
 
-Phase 1 核心架构已完成，建议进入 Phase 2：
-- 从 Legacy 版本提取核心功能清单
-- 评估首批 MVP 功能（媒体信息探测、转码、字幕处理等）
-- 实现第一个完整功能模块
+Phase 2 启动，首批 MVP 已确认（Feature-005~009）。建议实现顺序：
+1. **A 媒体信息探测（Feature-005）** — 先建 `core/ffmpeg.py` 子进程封装，作为后续地基
+2. **C 字幕转换（Feature-007）** — 零依赖纯逻辑，验证分层架构样板
+3. **B 转码 / 音频提取（Feature-006）** — 复用 ffmpeg 封装
+4. **D 视频截图（Feature-008）** — 复用 ffmpeg 封装
+5. **E 视频/字幕下载（Feature-009）** — 依赖 yt-dlp，含网络安全审查，最后做
 
 ## 7. 维护边界备忘
 
