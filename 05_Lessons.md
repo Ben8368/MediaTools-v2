@@ -36,3 +36,16 @@
 - **背景：** Phase 1 启动跨平台路径模块，需避免在 CLI 层硬编码路径拼接。
 - **经验：** 路径工具放 `src/mediatools/core/paths.py`，测试用 `pytest` 的 `tmp_path` fixture，不依赖本机目录；用户输入写入前用 `is_safe_child()` 防目录穿越。
 - **状态：** 已采纳
+
+### L-005：Windows 用户级安装时 console script 可能不在 PATH
+- **时间：** 2026-06-24 12:57:11 +08:00
+- **背景：** `pip install -e ".[dev]"` 在不可写系统 site-packages 时走用户安装，`mediatools.exe` 落到 `Roaming\Python\Python314\Scripts`，若未加入 PATH 会告警。
+- **经验：** README 优先推荐 `python -m mediatools`；文档与测试覆盖模块入口，不依赖 console script 是否在 PATH。
+- **状态：** 已采纳
+
+### L-006：客观验证由 AI 执行，用户只验主观体验
+- **时间：** 2026-06-24 13:05:00 +08:00
+- **背景：** AI 开发项目若要求用户重复跑 pytest/ruff/doctor，与 AI 自行执行等价，徒增往返。
+- **经验：** 统一入口 `python scripts/verify.py`（安装、测试、lint、doctor、ffmpeg/PATH 报告）；AI 本地跑 + CI 矩阵绿 → 直接打钩；用户只评「好不好用」和 MVP 等业务决策。
+- **状态：** 已采纳
+

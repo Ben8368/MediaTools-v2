@@ -2,10 +2,10 @@
 
 ## 1. 总则
 
-- 遵循 `AGENTS.md` 工作流：思考 → 编码 → 红绿灯审查 → 给出验证命令 → 等待用户确认。
+- 遵循 `AGENTS.md` 工作流：思考 → 编码 → 红绿灯审查 → **AI 自动验证** → 更新文档 → 推进任务。
 - 优先最小可行改动，不引入与任务无关的重构。
 - 所有路径、编码、外部命令调用必须考虑 Windows / macOS / Linux 一致性。
-- 未经验证的事项在 `03_Context.md` 和 `04_Features.md` 中标记为 `[待验证]`，不得提前打钩为已完成。
+- **客观验证由 AI 执行**，不要求用户重复跑命令；用户只关注功能好不好用、能不能用。
 
 ## 2. 目录结构
 
@@ -17,6 +17,8 @@ src/mediatools/
   core/                # 与 I/O、CLI 无关的纯逻辑
     paths.py           # 跨平台路径工具
 tests/                 # pytest 测试，镜像 core/ 模块命名
+scripts/
+  verify.py            # 标准客观验证入口（AI / CI / 人工共用）
 ```
 
 约定：
@@ -65,12 +67,36 @@ tests/                 # pytest 测试，镜像 core/ 模块命名
 
 当前策略：`dependencies = []`，仅 dev 依赖 `pytest` 和 `ruff`。
 
-## 8. 测试
+## 8. 测试与验证
+
+### 客观验证（AI / CI 自动）
+
+改码后 **AI 必须自行执行**：
+
+```bash
+python scripts/verify.py
+```
+
+`verify.py` 覆盖：可编辑安装、pytest、ruff、CLI 版本、doctor 环境报告（含 ffmpeg / console script PATH 信息）。
+
+- 本地通过后，推送并以 **CI 绿灯** 作为跨平台验收依据。
+- 全绿 → AI 可直接将 `04_Features.md` 标为 `[已完成]` 并更新 `03_Context.md`。
+- **禁止**把上述命令转交给用户重复执行。
+
+### 主观验收（用户）
+
+仅以下情况需要用户介入：
+
+- 功能体验：好不好用、输出是否符合预期
+- 业务判断：MVP 范围、迁移优先级
+- AI/CI 失败且 AI 无法自行修复时
+
+### 测试约定
 
 - 框架：`pytest`；测试文件命名 `test_<module>.py`。
 - Core 逻辑须有单元测试；CLI 用 `capsys` 或子进程 smoke test。
 - 路径相关测试使用 `tmp_path`，不依赖本机固定目录。
-- 新增模块时同步新增测试；CI 矩阵覆盖 ubuntu / windows / macos。
+- CI 矩阵覆盖 ubuntu / windows / macos。
 
 ## 9. 文档同步
 

@@ -17,7 +17,8 @@
 - [x] 治理体系建立（01-05 文档 + AGENTS.md）
 - [x] 技术栈决策：Python CLI 优先
 - [x] 最小 CLI 脚手架验证
-- [ ] 核心架构搭建（路径模块、CI 待验证）
+- [x] 跨平台路径模块与基础 CI
+- [ ] 核心架构其余项（日志、错误处理、配置）
 - [ ] 核心功能清单（暂缓，待完善）
 - [ ] 功能迁移与实现
 
@@ -33,6 +34,16 @@
 - 系统 `ffmpeg` 作为后续媒体处理外部依赖，不 vendor 第三方源码
 
 ## 🚀 本地开发
+
+一键客观验证（AI / CI / 本地共用）：
+
+```powershell
+python scripts/verify.py
+```
+
+`verify.py` 会依次执行：安装 dev 依赖 → pytest → ruff → CLI 版本 → doctor 环境报告（含 ffmpeg 与 PATH 信息）。
+
+也可分步执行：
 
 ```powershell
 python -m pip install -e ".[dev]"

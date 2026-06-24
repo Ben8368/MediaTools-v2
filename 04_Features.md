@@ -76,7 +76,7 @@
   - 跨平台验证：Windows/macOS/Linux CI 矩阵
   - 回归范围：所有使用路径的模块
 - **降级/回滚策略：** 使用标准库原生 API
-- **状态：** [待验证] - `core/paths` 已实现，等待用户验证与 CI 绿灯
+- **状态：** [已完成] - 本地 9 passed + ruff；CI ubuntu/windows/macos 绿灯（run #28076101163）
 
 ### Feature-004：最小 CLI 脚手架
 - **提交时间：** 2026-06-24
