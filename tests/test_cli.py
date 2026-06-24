@@ -114,6 +114,21 @@ def test_fetch_dry_run_uses_default_friendly_name_template(tmp_path, capsys):
     assert "AUTO-%(uploader)s-%(title).200B-%(extractor_key)s.%(ext)s" in output
 
 
+def test_fetch_dry_run_uses_default_mp4_preset(tmp_path, capsys):
+    exit_code = main(
+        [
+            "fetch",
+            "https://example.com/video",
+            str(tmp_path / "downloads"),
+            "--dry-run",
+        ],
+    )
+
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    assert " -t mp4 " in output
+
+
 def test_fetch_dry_run_output_template_overrides_friendly_name(tmp_path, capsys):
     exit_code = main(
         [

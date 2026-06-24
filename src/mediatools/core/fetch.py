@@ -31,6 +31,7 @@ def probe_language(
     runner: ProcessRunner | None = None,
 ) -> str | None:
     """Return the video's primary language code, or None on failure."""
+    validate_url(url)
     try:
         kwargs = {"runner": runner} if runner is not None else {}
         result = run_ytdlp(
@@ -170,7 +171,7 @@ def make_fetch_options(
 def dry_run_fetch(options: FetchOptions) -> FetchItemResult:
     """Build a planned fetch item without calling yt-dlp."""
     output_dir = normalize(options.output_dir)
-    args = build_fetch_args(_replace_output_dir(options, output_dir))
+    args = build_fetch_args(copy_options(options, output_dir=output_dir))
     return FetchItemResult(
         url=options.url,
         status="planned",
@@ -211,6 +212,7 @@ def _fetch_one(
     filename-language resolution.
     """
     try:
+        validate_url(options.url)
         probed_lang = probe_language(
             options.url,
             cookies=options.cookies,
@@ -231,7 +233,7 @@ def _fetch_one(
             url=options.url,
             status="failed",
             output_dir=normalize(options.output_dir),
-            command=("yt-dlp", *build_fetch_args(options)),
+            command=_safe_fetch_command(options),
             error="Interrupted by user. Partial download files may remain.",
         )
     except MediaToolsError as exc:
@@ -239,7 +241,7 @@ def _fetch_one(
             url=options.url,
             status="failed",
             output_dir=normalize(options.output_dir),
-            command=("yt-dlp", *build_fetch_args(options)),
+            command=_safe_fetch_command(options),
             error=exc.message,
         )
 
@@ -300,28 +302,28 @@ def _fetch_parallel(
     """Run downloads concurrently via ``ThreadPoolExecutor``."""
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    results_map: dict[str, FetchItemResult] = {}
+    results_map: dict[int, FetchItemResult] = {}
     interrupted = False
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_url = {
+        future_to_index = {
             executor.submit(
                 _fetch_one,
                 opts,
                 runner=runner,
                 timeout=timeout,
-            ): opts.url
-            for opts in options_list
+            ): index
+            for index, opts in enumerate(options_list)
         }
         try:
-            for future in as_completed(future_to_url):
+            for future in as_completed(future_to_index):
+                index = future_to_index[future]
                 try:
-                    results_map[future_to_url[future]] = future.result()
+                    results_map[index] = future.result()
                 except Exception:
-                    url = future_to_url[future]
-                    opts = next(o for o in options_list if o.url == url)
-                    results_map[url] = FetchItemResult(
-                        url=url,
+                    opts = options_list[index]
+                    results_map[index] = FetchItemResult(
+                        url=opts.url,
                         status="failed",
                         output_dir=normalize(opts.output_dir),
                         command=(),
@@ -329,21 +331,21 @@ def _fetch_parallel(
                     )
         except KeyboardInterrupt:
             interrupted = True
-            for future in future_to_url:
+            for future in future_to_index:
                 future.cancel()
 
     # Reconstitute results in original order, filling in gaps from interruption
     results: list[FetchItemResult] = []
-    for opts in options_list:
-        if opts.url in results_map:
-            results.append(results_map[opts.url])
+    for index, opts in enumerate(options_list):
+        if index in results_map:
+            results.append(results_map[index])
         elif interrupted:
             results.append(
                 FetchItemResult(
                     url=opts.url,
                     status="failed",
                     output_dir=normalize(opts.output_dir),
-                    command=("yt-dlp", *build_fetch_args(opts)),
+                    command=_safe_fetch_command(opts),
                     error="Interrupted by user. Partial download files may remain.",
                 ),
             )
@@ -364,5 +366,9 @@ def _build_auth_args(
     return []
 
 
-def _replace_output_dir(options: FetchOptions, output_dir: Path) -> FetchOptions:
-    return copy_options(options, output_dir=output_dir)
+def _safe_fetch_command(options: FetchOptions) -> tuple[str, ...]:
+    """Return a best-effort command for failure summaries."""
+    try:
+        return ("yt-dlp", *build_fetch_args(options))
+    except MediaToolsError:
+        return ("yt-dlp",)

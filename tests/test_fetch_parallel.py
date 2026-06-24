@@ -88,3 +88,30 @@ def test_fetch_many_concurrent_preserves_results_order(tmp_path, monkeypatch):
     assert result.succeeded == 2
     assert result.items[0].url == "https://example.com/fast"
     assert result.items[1].url == "https://example.com/slow"
+
+
+def test_fetch_many_concurrent_keeps_duplicate_urls_as_separate_items(tmp_path, monkeypatch):
+    """Duplicate URLs should not overwrite each other in the result summary."""
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+    download_count = 0
+
+    def runner(command, **kwargs):
+        nonlocal download_count
+        if "--print" not in command:
+            download_count += 1
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    result = fetch_many(
+        [
+            FetchOptions(url="https://example.com/same", output_dir=tmp_path / "one"),
+            FetchOptions(url="https://example.com/same", output_dir=tmp_path / "two"),
+        ],
+        runner=runner,
+        max_workers=2,
+    )
+
+    assert result.total == 2
+    assert result.succeeded == 2
+    assert download_count == 2
+    assert result.items[0].output_dir == (tmp_path / "one").resolve()
+    assert result.items[1].output_dir == (tmp_path / "two").resolve()

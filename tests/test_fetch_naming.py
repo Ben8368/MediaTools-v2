@@ -118,17 +118,28 @@ def test_strip_subtitle_language_suffix_removes_language_segment(tmp_path):
     assert renamed.read_text() == "WEBVTT"
 
 
-def test_strip_subtitle_language_suffix_handles_multiple_langs(tmp_path):
-    """When multiple subtitle languages exist, only the last (sorted) survives."""
+def test_strip_subtitle_language_suffix_keeps_multiple_langs(tmp_path):
+    """When multiple subtitle languages exist, keep suffixes to avoid data loss."""
     (tmp_path / "video.en.srt").write_text("EN")
     (tmp_path / "video.zh-Hans.srt").write_text("ZH")
 
     from mediatools.core.fetch_naming import strip_subtitle_language_suffix
     strip_subtitle_language_suffix(tmp_path)
 
-    # The sorted-order last one (zh-Hans > en) should survive
-    assert (tmp_path / "video.srt").exists()
-    # Only the sorted-last file (zh-Hans > en) gets renamed; the earlier one stays.
+    assert (tmp_path / "video.en.srt").exists()
+    assert (tmp_path / "video.zh-Hans.srt").exists()
+    assert not (tmp_path / "video.srt").exists()
+
+
+def test_strip_subtitle_language_suffix_does_not_overwrite_existing_target(tmp_path):
+    """Existing target subtitles are preserved instead of being replaced."""
+    (tmp_path / "video.srt").write_text("EXISTING")
+    (tmp_path / "video.en.srt").write_text("EN")
+
+    from mediatools.core.fetch_naming import strip_subtitle_language_suffix
+    strip_subtitle_language_suffix(tmp_path)
+
+    assert (tmp_path / "video.srt").read_text() == "EXISTING"
     assert (tmp_path / "video.en.srt").exists()
 
 

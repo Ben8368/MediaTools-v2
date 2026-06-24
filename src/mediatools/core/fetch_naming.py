@@ -15,6 +15,7 @@ SAFE_TEMPLATE_RE = re.compile(r"[^A-Za-z0-9._%()/-]+")
 TOKEN_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 LANGUAGE_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 LITERAL_EXTENSION_RE = re.compile(r"\.[A-Za-z0-9]{2,5}$")
+WINDOWS_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[/\\]")
 
 #: Subtitle file extensions that yt-dlp may write.
 SUBTITLE_EXTS = {".vtt", ".srt", ".ass", ".ssa", ".lrc"}
@@ -99,6 +100,7 @@ def render_filename_template(
 
 def sanitize_output_template(template: str) -> str:
     """Remove characters that are invalid or awkward across common filesystems."""
+    _validate_template_path(template)
     cleaned = template.replace("\\", "/").replace(":", "_")
     cleaned = SAFE_TEMPLATE_RE.sub("_", cleaned)
     cleaned = cleaned.strip(" /.")
@@ -142,6 +144,14 @@ def _ensure_extension(template: str) -> str:
     return f"{template}.{{ext}}"
 
 
+def _validate_template_path(template: str) -> None:
+    normalized = template.strip().replace("\\", "/")
+    if normalized.startswith(("/", "~")) or WINDOWS_ABSOLUTE_RE.match(normalized):
+        raise MediaToolsError("Output template must be relative to the output directory.")
+    if any(part == ".." for part in normalized.split("/")):
+        raise MediaToolsError("Output template must not contain '..' path segments.")
+
+
 def _normalize_language(language: str | None) -> str:
     if language is None:
         raise MediaToolsError("Use --name-language when --name-template contains {lang}.")
@@ -153,52 +163,46 @@ def _normalize_language(language: str | None) -> str:
     return normalized
 
 def strip_subtitle_language_suffix(output_dir: str | Path) -> None:
-    """Rename subtitle files so they match the video base name, removing language segment.
+    """Remove subtitle language suffixes only when doing so is unambiguous.
 
     yt-dlp writes subtitle files as <video-base>.<lang>.<fmt> (e.g.
     KR-Title-youtube.en.vtt), but playback tools expect
-    <video-base>.srt without a language middle segment.
+    <video-base>.srt without a language middle segment for single-language
+    subtitles.
 
-    This function renames every subtitle to remove the language segment:
-
-    1. Renames every subtitle to remove the language segment::
+    Single-language output is renamed::
 
         KR-Title-youtube.en.vtt  ->  KR-Title-youtube.vtt
-        KR-Title-youtube.zh-Hans.srt  ->  KR-Title-youtube.srt
 
-
-    If multiple subtitle languages exist for the same video base, only the
-    **last** one (sorted by name) survives -- all others are silently dropped.
-    This is acceptable because the user typically requests a single language
-    (original or an explicit code).
+    When multiple languages would collapse to the same target name, all files
+    keep their language suffix to avoid data loss.
     """
     dir_path = Path(output_dir)
     if not dir_path.is_dir():
         return
 
-    # -- Step 1: remove language middle segment from subtitle filenames --
-    subs: dict[str, Path] = {}
+    subs: dict[str, list[Path]] = {}
     for child in sorted(dir_path.iterdir()):
         m = SUBTITLE_LANG_RE.match(child.name)
         if m and child.suffix.lower() in SUBTITLE_EXTS:
             base, _lang, sub_ext = m.group(1, 2, 3)
             target_name = f"{base}.{sub_ext}"
-            if target_name in subs:
-                logger.warning(
-                    "Dropping subtitle %s (keeping %s for %s)",
-                    subs[target_name].name,
-                    child.name,
-                    target_name,
-                )
-            subs[target_name] = child
+            subs.setdefault(target_name, []).append(child)
 
-    for target_name, src in subs.items():
+    for target_name, sources in subs.items():
+        if len(sources) > 1:
+            logger.warning(
+                "Keeping language suffixes for %s because multiple subtitles would collide.",
+                target_name,
+            )
+            continue
+        src = sources[0]
         dest = dir_path / target_name
         if dest == src:
             continue
         if dest.exists():
-            dest.unlink()
+            logger.warning("Keeping subtitle %s because %s already exists.", src.name, dest.name)
+            continue
         src.rename(dest)
         logger.debug("Renamed subtitle %s -> %s", src.name, dest.name)
-
 

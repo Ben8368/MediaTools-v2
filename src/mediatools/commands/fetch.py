@@ -75,6 +75,7 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
     fetch_parser.add_argument("--summary-json", help="Write a JSON summary to this path.")
     fetch_parser.add_argument(
         "--preset",
+        default="mp4",
         help="yt-dlp format preset (e.g. mp4, mkv, aac).",
     )
     fetch_parser.add_argument(

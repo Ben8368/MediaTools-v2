@@ -312,7 +312,27 @@
   - 单元测试覆盖默认模板、字段顺序调整、自动补 `{ext}`、硬编码 `.mp4`、未知字段报错、语言码自动映射与手动覆盖。
   - CLI dry-run 摘要验证默认 `AUTO-作者-标题-平台` 模板、字段重排、`--output-template` 覆盖和 `--windows-filenames` 参数。
 - **降级/回滚策略：** 所有新增参数均为可选；不使用 `--name-template` 时沿用既有 `--output-template` 行为。
-- **状态：** [客观已验证] - macOS venv 中 `python scripts/verify.py` 通过：106 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
+- **状态：** [客观已验证] - macOS venv 中 `python scripts/verify.py` 通过：106 passed, 6 skipped；review 红灯修复后复验 125 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
+
+### Feature-015：下载安全边界与批量结果硬化 — Phase 3-A Safety
+- **提交时间：** 2026-06-25
+- **类型：** 安全硬化 / 下载工作流可靠性
+- **描述：** 修复 review 红灯项：真实下载在语言探测前先校验 URL，避免非 http(s) URL 进入 `yt-dlp`；`--output-template` 禁止绝对路径和 `..` 片段，确保输出模板相对下载目录；并发下载结果按输入序号归档，重复 URL 不会互相覆盖；多语言字幕不再折叠为同一无语言后缀文件名。
+- **用户价值：** 下载入口的文件写入边界更清晰，批量 summary 更可信，多语言字幕不会因自动重命名丢失或混淆。
+- **前置依赖检查：**
+  - 技术依赖：无新增运行时依赖；继续复用标准库、yt-dlp 和现有 mock 测试方式。
+  - 环境依赖：真实下载仍依赖 PATH 中的 `yt-dlp`；安全校验本身不触网。
+  - 安全影响：非 http(s) URL 不再触发语言探测；输出模板无法通过绝对路径或 `..` 写出下载目录。
+  - 跨平台兼容性：同时拒绝 POSIX 绝对路径、Windows drive 绝对路径和反斜杠形式的 `..` 片段。
+- **预计影响模块：**
+  - 源码：`src/mediatools/core/fetch.py`、`src/mediatools/core/fetch_naming.py`、`src/mediatools/commands/fetch.py`。
+  - 测试：`tests/test_fetch_security.py`、`tests/test_fetch_parallel.py`、`tests/test_fetch_naming.py`、`tests/test_cli.py`。
+  - 文档：`README.md`、`03_Context.md`、`04_Features.md`、`05_Lessons.md`。
+- **验收思路：**
+  - 单元测试覆盖非法 URL 不调用 runner、路径逃逸模板拒绝、安全子目录模板允许、重复 URL 并发结果保留、多语言字幕保留后缀、CLI 默认 `-t mp4`。
+  - 标准验证覆盖全量 pytest、ruff、doctor 和文件行数限制。
+- **降级/回滚策略：** 如需保留多语言字幕旧折叠行为，可在后续新增显式参数；默认行为优先避免数据丢失。
+- **状态：** [客观已验证] - macOS venv 中 `python scripts/verify.py` 通过：125 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
 
 ## 3. 首批 MVP 优先级矩阵
 
@@ -355,6 +375,7 @@
 | P3-A+ | 下载格式控制与原语言探测 | P0+ | yt-dlp | preset mp4、convert-subs、sub-langs original | Feature-012 |
 | P3-A Hardening | macOS 兼容性补强 | P0 | 标准库 | venv 验证提示、dry-run 不联网、中断摘要、macOS Library 目录 | Feature-013 |
 | P3-A Naming | 下载文件名自动友好模板 | P0 | yt-dlp | 自动语言码、字段顺序模板、Windows 兼容文件名、保留 output-template | Feature-014 |
+| P3-A Safety | 下载安全边界与批量结果硬化 | P0 | 标准库 | URL 预校验、模板路径边界、重复 URL summary、多语言字幕保留 | Feature-015 |
 | P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | 待 Legacy 考古 | 先兼容布局和用户路径，再选技术栈 | Feature-011 |
 | P3-C | 视频切片 | P2 | ffmpeg | 下载落地后再评估 | 待补 |
 | P3-D | 资产扫描 / 搜索 / 统计 | P3 | 标准库优先 | 服务批处理和前端结果管理 | 待补 |
