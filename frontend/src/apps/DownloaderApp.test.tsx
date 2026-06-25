@@ -112,7 +112,7 @@ describe('DownloaderApp interactions', () => {
           stage: 'queued',
         },
       ],
-    })
+    )
 
     render(<DownloaderApp />)
 
@@ -136,7 +136,7 @@ describe('DownloaderApp interactions', () => {
           stage: 'done',
         },
       ],
-    })
+    )
 
     render(<DownloaderApp />)
 
@@ -158,7 +158,7 @@ describe('DownloaderApp interactions', () => {
           stage: 'done',
         },
       ],
-    })
+    )
 
     render(<DownloaderApp />)
 
@@ -277,7 +277,7 @@ describe('DownloaderApp interactions', () => {
           stage: 'failed',
         },
       ],
-    })
+    )
 
     render(<DownloaderApp />)
 
@@ -305,7 +305,7 @@ describe('DownloaderApp interactions', () => {
           stage: 'failed',
         },
       ],
-    })
+    )
 
     render(<DownloaderApp />)
 
@@ -334,7 +334,7 @@ describe('DownloaderApp interactions', () => {
           stage: 'done',
         },
       ],
-    })
+    )
 
     render(<DownloaderApp />)
 
@@ -376,7 +376,7 @@ describe('DownloaderApp interactions', () => {
           },
         },
       ],
-    })
+    )
 
     render(<DownloaderApp />)
 
@@ -403,7 +403,7 @@ describe('DownloaderApp interactions', () => {
           },
         },
       ],
-    })
+    )
 
     render(<DownloaderApp />)
 
