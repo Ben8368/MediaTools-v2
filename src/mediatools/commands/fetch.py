@@ -7,11 +7,12 @@ import json
 import sys
 from pathlib import Path
 
+from mediatools.core.config import get_max_concurrent_downloads
 from mediatools.core.errors import MediaToolsError
 from mediatools.core.fetch import FetchOptions, fetch_many, load_fetch_urls, make_fetch_options
 
 DEFAULT_FETCH_TIMEOUT_SECONDS = 3600.0
-MAX_CONCURRENT_DOWNLOADS = 8
+DEFAULT_MAX_CONCURRENT_DOWNLOADS = 8
 
 
 def register_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -150,11 +151,12 @@ def run(args: argparse.Namespace) -> int:
     )
     options = make_fetch_options(urls, template)
     timeout = None if args.timeout <= 0 else args.timeout
-    safe_max_workers = min(args.max_workers, MAX_CONCURRENT_DOWNLOADS)
+    max_concurrent_limit = get_max_concurrent_downloads(DEFAULT_MAX_CONCURRENT_DOWNLOADS)
+    safe_max_workers = min(args.max_workers, max_concurrent_limit)
     if safe_max_workers < args.max_workers:
         print(
             f"Warning: --max-concurrent reduced from {args.max_workers} to "
-            f"{MAX_CONCURRENT_DOWNLOADS} (system limit).",
+            f"{max_concurrent_limit} (system limit).",
             file=sys.stderr,
         )
     result = fetch_many(

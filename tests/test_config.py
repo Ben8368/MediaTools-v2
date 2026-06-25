@@ -8,7 +8,14 @@ from unittest.mock import patch
 
 import pytest
 
-from mediatools.core.config import ensure_dir, get_cache_dir, get_config_dir, get_data_dir
+from mediatools.core.config import (
+    ensure_dir,
+    get_cache_dir,
+    get_config_dir,
+    get_data_dir,
+    get_max_concurrent_downloads,
+    load_user_config,
+)
 
 
 def test_get_config_dir_respects_xdg_on_unix():
@@ -170,3 +177,77 @@ def test_ensure_dir_returns_absolute_path(tmp_path):
 
     assert result.is_absolute()
     assert result == target.resolve()
+
+
+def test_load_user_config_returns_empty_dict_when_file_missing(tmp_path):
+    """load_user_config returns empty dict when config.json does not exist."""
+    with patch("mediatools.core.config.get_config_dir", return_value=tmp_path):
+        config = load_user_config()
+        assert config == {}
+
+
+def test_load_user_config_returns_empty_dict_on_invalid_json(tmp_path):
+    """load_user_config returns empty dict when config.json is invalid JSON."""
+    config_file = tmp_path / "config.json"
+    config_file.write_text("{invalid json", encoding="utf-8")
+
+    with patch("mediatools.core.config.get_config_dir", return_value=tmp_path):
+        config = load_user_config()
+        assert config == {}
+
+
+def test_load_user_config_returns_parsed_dict(tmp_path):
+    """load_user_config returns parsed dict from valid config.json."""
+    config_file = tmp_path / "config.json"
+    config_file.write_text('{"max_concurrent_downloads": 4}', encoding="utf-8")
+
+    with patch("mediatools.core.config.get_config_dir", return_value=tmp_path):
+        config = load_user_config()
+        assert config == {"max_concurrent_downloads": 4}
+
+
+def test_get_max_concurrent_downloads_returns_default_when_not_configured(tmp_path):
+    """get_max_concurrent_downloads returns default when config.json missing."""
+    with patch("mediatools.core.config.get_config_dir", return_value=tmp_path):
+        result = get_max_concurrent_downloads(default=8)
+        assert result == 8
+
+
+def test_get_max_concurrent_downloads_returns_configured_value(tmp_path):
+    """get_max_concurrent_downloads returns value from config.json."""
+    config_file = tmp_path / "config.json"
+    config_file.write_text('{"max_concurrent_downloads": 4}', encoding="utf-8")
+
+    with patch("mediatools.core.config.get_config_dir", return_value=tmp_path):
+        result = get_max_concurrent_downloads(default=8)
+        assert result == 4
+
+
+def test_get_max_concurrent_downloads_clamps_to_minimum(tmp_path):
+    """get_max_concurrent_downloads clamps values below 1 to 1."""
+    config_file = tmp_path / "config.json"
+    config_file.write_text('{"max_concurrent_downloads": -5}', encoding="utf-8")
+
+    with patch("mediatools.core.config.get_config_dir", return_value=tmp_path):
+        result = get_max_concurrent_downloads(default=8)
+        assert result == 1
+
+
+def test_get_max_concurrent_downloads_clamps_to_maximum(tmp_path):
+    """get_max_concurrent_downloads clamps values above 16 to 16."""
+    config_file = tmp_path / "config.json"
+    config_file.write_text('{"max_concurrent_downloads": 100}', encoding="utf-8")
+
+    with patch("mediatools.core.config.get_config_dir", return_value=tmp_path):
+        result = get_max_concurrent_downloads(default=8)
+        assert result == 16
+
+
+def test_get_max_concurrent_downloads_returns_default_on_invalid_type(tmp_path):
+    """get_max_concurrent_downloads returns default when value is not an int."""
+    config_file = tmp_path / "config.json"
+    config_file.write_text('{"max_concurrent_downloads": "four"}', encoding="utf-8")
+
+    with patch("mediatools.core.config.get_config_dir", return_value=tmp_path):
+        result = get_max_concurrent_downloads(default=8)
+        assert result == 8

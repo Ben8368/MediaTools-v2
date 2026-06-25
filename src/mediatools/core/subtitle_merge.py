@@ -4,11 +4,25 @@ YouTube automatic captions often break sentences in the middle, producing
 cues like ``"welcome back to the"`` followed by ``"channel. Today we're
 diving into"``.  This module re-groups captions by sentence boundaries
 while respecting temporal continuity and maximum duration/line constraints.
+
+Supports multi-language sentence boundaries including:
+- Western: . ! ?
+- CJK (Chinese/Japanese/Korean): 。！？
+- Arabic: ؟ ۔
+- Devanagari (Hindi/etc): । ।।
 """
 
 from __future__ import annotations
 
 from mediatools.core.subtitle import Caption
+
+# Sentence-ending punctuation across multiple writing systems
+SENTENCE_ENDINGS = frozenset({
+    ".", "!", "?",           # Western (Latin, Cyrillic, etc.)
+    "。", "！", "？",        # CJK full-width
+    "؟", "۔",               # Arabic question mark, Urdu full stop
+    "।", "।।",              # Devanagari danda (single and double)
+})
 
 
 def merge_short_captions(
@@ -81,7 +95,7 @@ def _split_group_by_sentences(
 
     sentence_breaks: list[int] = []
     for i, (_, _, word) in enumerate(all_words):
-        if word and word[-1] in ".!?":
+        if word and word[-1] in SENTENCE_ENDINGS:
             sentence_breaks.append(i)
 
     if not sentence_breaks:

@@ -6,6 +6,7 @@ Follows native conventions on Windows/macOS and XDG Base Directory on Linux/Unix
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -118,3 +119,45 @@ def ensure_dir(path: Path) -> Path:
     """
     path.mkdir(parents=True, exist_ok=True)
     return path.resolve()
+
+
+def load_user_config() -> dict[str, object]:
+    """Load user configuration from config.json in the config directory.
+
+    Returns:
+        Parsed configuration dict, or empty dict if file does not exist or is invalid.
+
+    Example config.json:
+        {
+            "max_concurrent_downloads": 4,
+            "default_subtitle_language": "en"
+        }
+    """
+    config_file = get_config_dir() / "config.json"
+    if not config_file.exists():
+        return {}
+
+    try:
+        text = config_file.read_text(encoding="utf-8")
+        data = json.loads(text)
+        if not isinstance(data, dict):
+            return {}
+        return data
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def get_max_concurrent_downloads(default: int = 8) -> int:
+    """Return the max concurrent downloads setting from config or default.
+
+    Args:
+        default: Fallback value if not configured (default: 8).
+
+    Returns:
+        Configured max_concurrent_downloads, clamped to range [1, 16].
+    """
+    config = load_user_config()
+    value = config.get("max_concurrent_downloads", default)
+    if not isinstance(value, int):
+        return default
+    return max(1, min(value, 16))

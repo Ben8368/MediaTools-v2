@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from mediatools.core.subtitle import Caption
-from mediatools.core.subtitle_merge import merge_short_captions
+from mediatools.core.subtitle_merge import SENTENCE_ENDINGS, merge_short_captions
 
 
 def test_merge_preserves_original_duration_when_split():
@@ -59,3 +59,49 @@ def test_merge_respects_sentence_boundaries():
     assert len(result) >= 2, "Sentence boundaries should be preserved"
     # First caption should end after first sentence
     assert "First sentence." in " ".join(result[0].lines)
+
+
+def test_sentence_endings_includes_multilingual_punctuation():
+    """SENTENCE_ENDINGS constant must include multi-language punctuation."""
+    # Western
+    assert "." in SENTENCE_ENDINGS
+    assert "!" in SENTENCE_ENDINGS
+    assert "?" in SENTENCE_ENDINGS
+
+    # CJK full-width
+    assert "。" in SENTENCE_ENDINGS
+    assert "！" in SENTENCE_ENDINGS
+    assert "？" in SENTENCE_ENDINGS
+
+    # Arabic
+    assert "؟" in SENTENCE_ENDINGS
+    assert "۔" in SENTENCE_ENDINGS
+
+    # Devanagari
+    assert "।" in SENTENCE_ENDINGS
+    assert "।।" in SENTENCE_ENDINGS
+
+
+def test_merge_recognizes_cjk_sentence_boundaries():
+    """Merging must recognize CJK full-width punctuation as sentence boundaries."""
+    captions = [
+        Caption(start_ms=0, end_ms=2000, lines=("你好世界。",)),
+        Caption(start_ms=2000, end_ms=4000, lines=("今天天气很好。",)),
+    ]
+    result = merge_short_captions(captions, max_duration_ms=7000, max_lines=2)
+
+    # Should produce at least 2 captions (one per CJK sentence)
+    assert len(result) >= 2, "CJK sentence boundaries should be preserved"
+
+
+def test_merge_recognizes_arabic_question_mark():
+    """Merging must recognize Arabic question mark as sentence boundary."""
+    captions = [
+        Caption(start_ms=0, end_ms=2000, lines=("كيف حالك؟",)),
+        Caption(start_ms=2000, end_ms=4000, lines=("أنا بخير۔",)),
+    ]
+    result = merge_short_captions(captions, max_duration_ms=7000, max_lines=2)
+
+    # Should produce at least 2 captions (one per Arabic sentence)
+    assert len(result) >= 2, "Arabic sentence boundaries should be preserved"
+
