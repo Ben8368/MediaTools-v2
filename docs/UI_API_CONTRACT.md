@@ -50,7 +50,7 @@ Submits a validated download task and returns a task record.
 {
   "task_id": "fetch-20260625-001",
   "status": "queued",
-  "summary_json": "downloads/summary.json"
+  "url_count": 1
 }
 ```
 
@@ -67,9 +67,56 @@ Returns active and recent task rows for the workbench list.
     "status": "running",
     "progress": 0.42,
     "stage": "downloading",
+    "created_at": 1782390000.0,
+    "updated_at": 1782390002.0,
+    "started_at": 1782390001.0,
+    "completed_at": null,
+    "params": {
+      "urls": ["https://example.com/video"],
+      "url": "https://example.com/video"
+    },
+    "result": {},
     "output_files": []
   }
 ]
+```
+
+### `POST /api/fetch/tasks/{task_id}/cancel`
+
+Marks a queued or running task as cancelled in the local task registry.
+The current subprocess-backed downloader may still finish its underlying `yt-dlp`
+process; a future process-runner change is required for hard cancellation.
+
+```json
+{
+  "ok": true,
+  "task": {
+    "id": "fetch-20260625-001",
+    "status": "cancelled",
+    "stage": "cancel_requested"
+  }
+}
+```
+
+### `DELETE /api/fetch/tasks/{task_id}`
+
+Deletes one task record from the local task registry.
+
+```json
+{ "ok": true, "deleted": 1 }
+```
+
+### `DELETE /api/fetch/tasks`
+
+Deletes completed, failed, cancelled, paused, or partial task records. When
+`task_ids` is provided, only matching finished records are removed.
+
+```json
+{ "task_ids": ["fetch-20260625-001"] }
+```
+
+```json
+{ "ok": true, "deleted": 1 }
 ```
 
 ## Migration Rule

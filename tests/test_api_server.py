@@ -20,6 +20,8 @@ class TestTaskStore:
         task = Task(task_id="t1", title="Test", status="queued")
         store.add(task)
         assert store.get("t1") is task
+        assert task.created_at > 0
+        assert task.updated_at >= task.created_at
 
     def test_update_fields(self) -> None:
         store = TaskStore()
@@ -40,6 +42,35 @@ class TestTaskStore:
         store.add(Task(task_id="a"))
         store.add(Task(task_id="b"))
         assert len(store.list_all()) == 2
+
+    def test_persists_tasks_to_json(self, tmp_path) -> None:
+        storage_path = tmp_path / "tasks.json"
+        store = TaskStore(storage_path=storage_path)
+        store.add(Task(task_id="persisted", title="Stored", status="completed"))
+
+        reloaded = TaskStore(storage_path=storage_path)
+        task = reloaded.get("persisted")
+        assert task is not None
+        assert task.title == "Stored"
+        assert task.status == "completed"
+
+    def test_cancel_marks_task_without_deleting(self) -> None:
+        store = TaskStore()
+        store.add(Task(task_id="running", status="running", progress=0.5))
+        task = store.cancel("running")
+        assert task is not None
+        assert task.status == "cancelled"
+        assert task.cancel_requested is True
+
+    def test_clear_finished_keeps_running_tasks(self) -> None:
+        store = TaskStore()
+        store.add(Task(task_id="done", status="completed"))
+        store.add(Task(task_id="failed", status="failed"))
+        store.add(Task(task_id="running", status="running"))
+        assert store.clear_finished() == 2
+        assert store.get("done") is None
+        assert store.get("failed") is None
+        assert store.get("running") is not None
 
     def test_thread_safety(self) -> None:
         store = TaskStore()
@@ -167,21 +198,22 @@ class TestDraftToOptions:
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="class")
-def api_server():
-    server = start_api_server(port=0)
+def api_server(tmp_path_factory: pytest.TempPathFactory):
+    storage_path = tmp_path_factory.mktemp("api-server") / "tasks.json"
+    server = start_api_server(port=0, storage_path=storage_path)
     port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     time.sleep(0.1)
-    yield f"http://127.0.0.1:{port}"
+    yield f"http://127.0.0.1:{port}", server
     server.shutdown()
     thread.join(timeout=1)
 
 
 class TestAPIServerIntegration:
     @pytest.fixture(autouse=True)
-    def inject_base_url(self, api_server: str) -> None:
-        self.base_url = api_server
+    def inject_base_url(self, api_server) -> None:
+        self.base_url, self.server = api_server
 
     def _url(self, path: str) -> str:
         return f"{self.base_url}{path}"
@@ -238,6 +270,37 @@ class TestAPIServerIntegration:
         resp = urllib.request.urlopen(self._url("/api/fetch/tasks"))
         data = json.loads(resp.read())
         assert isinstance(data, list)
+        if data:
+            assert "created_at" in data[0]
+
+    def test_fetch_cancel_endpoint_marks_task_cancelled(self) -> None:
+        import urllib.request
+        self.server.server_store.add(Task(task_id="cancel-me", status="running"))
+
+        cancel_req = urllib.request.Request(
+            self._url("/api/fetch/tasks/cancel-me/cancel"),
+            data=json.dumps({}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        cancel_resp = urllib.request.urlopen(cancel_req)
+        data = json.loads(cancel_resp.read())
+        assert data["task"]["status"] == "cancelled"
+
+    def test_fetch_clear_endpoint_removes_finished_tasks(self) -> None:
+        import urllib.request
+        self.server.server_store.add(Task(task_id="clear-me", status="completed"))
+        draft = {"task_ids": ["clear-me"]}
+        req = urllib.request.Request(
+            self._url("/api/fetch/tasks"),
+            data=json.dumps(draft).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="DELETE",
+        )
+        resp = urllib.request.urlopen(req)
+        data = json.loads(resp.read())
+        assert data["ok"] is True
+        assert data["deleted"] == 1
 
     def test_404_for_unknown_route(self) -> None:
         import urllib.error

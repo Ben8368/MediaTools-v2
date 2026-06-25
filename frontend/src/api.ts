@@ -78,6 +78,9 @@ export async function submitFetch(draft: Record<string, unknown>) {
 
 export const getActiveTasks = () => get('/api/fetch/tasks')
 export const getWeeklyHistory = () => get('/api/fetch/tasks')
+export const cancelTask = (taskId: string) => post(`/api/fetch/tasks/${encodeURIComponent(taskId)}/cancel`)
+export const deleteTaskRecord = (taskId: string) => del(`/api/fetch/tasks/${encodeURIComponent(taskId)}`)
+export const clearTaskRecords = (taskIds?: string[]) => del('/api/fetch/tasks', { task_ids: taskIds || [] })
 
 // ----- Stub functions (v2 not implemented yet) -----
 // These functions are from Legacy MediaTools and not yet implemented in v2
@@ -93,11 +96,8 @@ export const getSystemMetrics = v2NotReady('getSystemMetrics')
 export const getModules = v2NotReady('getModules')
 export const getWorkspace = v2NotReady('getWorkspace')
 export const setWorkspace = v2NotReady('setWorkspace')
-export const cancelTask = v2NotReady('cancelTask')
 export const getTask = v2NotReady('getTask')
 export const getTaskList = v2NotReady('getTaskList')
-export const deleteTaskRecord = v2NotReady('deleteTaskRecord')
-export const clearTaskRecords = v2NotReady('clearTaskRecords')
 export const fetchLogs = v2NotReady('fetchLogs')
 export const fetchLogMetadata = v2NotReady('fetchLogMetadata')
 export const clearLogs = v2NotReady('clearLogs')

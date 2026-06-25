@@ -23,7 +23,11 @@ export function isTaskCancellable(task: Pick<DownloadTask, 'status'>): boolean {
 }
 
 export function isTaskRetryable(task: Pick<DownloadTask, 'status' | 'params'>): boolean {
-  return ['failed', 'cancelled', 'completed'].includes(task.status) && typeof task.params?.url === 'string'
+  const urls = task.params?.urls
+  return (
+    ['failed', 'cancelled', 'completed'].includes(task.status) &&
+    (typeof task.params?.url === 'string' || (Array.isArray(urls) && urls.some((value) => typeof value === 'string' && value.trim())))
+  )
 }
 
 export function isTaskClearable(task: Pick<DownloadTask, 'status'>): boolean {
@@ -75,6 +79,13 @@ export function inferPlatformFromExtractor(extractor: string): DownloadPlatform 
 export function getTaskSourceUrl(task: DownloadTask): string {
   const params = task.params ?? {}
   if (typeof params.url === 'string' && params.url.trim()) return params.url.trim()
+  if (Array.isArray(params.urls)) {
+    const firstUrl = params.urls.find((value) => typeof value === 'string' && value.trim())
+    if (typeof firstUrl === 'string') return firstUrl.trim()
+  }
+  if (typeof task.source_url === 'string' && task.source_url.trim() && !task.source_url.endsWith(' URLs')) {
+    return task.source_url.trim()
+  }
   return (task.name || '').trim()
 }
 
@@ -187,15 +198,17 @@ export function createOptimisticTask(url: string, payload: Record<string, unknow
 
 export function buildRetryPayload(task: DownloadTask): Record<string, unknown> | null {
   const params = task.params ?? {}
-  const url = typeof params.url === 'string' ? params.url : ''
-  if (!url) return null
+  const urls = Array.isArray(params.urls)
+    ? params.urls.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    : typeof params.url === 'string' && params.url.trim()
+      ? [params.url.trim()]
+      : task.source_url && !task.source_url.endsWith(' URLs')
+        ? [task.source_url]
+        : []
+  if (urls.length === 0) return null
   return {
-    url,
-    platform: typeof params.platform === 'string' ? params.platform : 'auto',
-    output_dir: typeof params.output_dir === 'string' ? params.output_dir : '',
-    quality: typeof params.quality === 'string' ? params.quality : 'h264',
-    subtitles: typeof params.subtitles === 'boolean' ? params.subtitles : true,
-    analyze: false,
+    ...params,
+    urls,
   }
 }
 

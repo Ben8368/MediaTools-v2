@@ -4,6 +4,56 @@ import { getActiveTasks, getWeeklyHistory } from '@/api'
 import { mergeTasks } from '@/apps/downloader/helpers'
 import type { DownloadTask } from '@/apps/downloader/types'
 
+type ApiTask = {
+  id?: string
+  task_id?: string
+  title?: string
+  source_url?: string
+  status?: DownloadTask['status']
+  progress?: number
+  stage?: string
+  created_at?: number
+  updated_at?: number | null
+  started_at?: number | null
+  completed_at?: number | null
+  params?: Record<string, unknown>
+  result?: Record<string, unknown>
+  output_files?: string[]
+  error?: string | null
+}
+
+function mapApiTaskToDownloadTask(task: ApiTask): DownloadTask {
+  const id = task.id || task.task_id || ''
+  const title = task.title || task.source_url || 'Untitled'
+  const outputFiles = Array.isArray(task.output_files) ? task.output_files : []
+  return {
+    id,
+    name: title,
+    title: task.title || '',
+    source_url: task.source_url || '',
+    type: 'download',
+    status: task.status || 'pending',
+    progress: typeof task.progress === 'number' ? task.progress : 0,
+    stage: task.stage || 'queued',
+    created_at: typeof task.created_at === 'number' ? task.created_at : 0,
+    updated_at: typeof task.updated_at === 'number' ? task.updated_at : null,
+    started_at: typeof task.started_at === 'number' ? task.started_at : null,
+    completed_at: typeof task.completed_at === 'number' ? task.completed_at : null,
+    params: task.params || {},
+    result: task.result && Object.keys(task.result).length > 0 ? task.result : outputFiles.length > 0 ? { files: outputFiles } : undefined,
+    output_files: outputFiles,
+    error: task.error || undefined,
+  }
+}
+
+function normalizeTaskList(response: unknown): ApiTask[] {
+  if (Array.isArray(response)) return response as ApiTask[]
+  if (response && typeof response === 'object' && Array.isArray((response as { tasks?: unknown }).tasks)) {
+    return (response as { tasks: ApiTask[] }).tasks
+  }
+  return []
+}
+
 export function useDownloaderTaskData() {
   const [tasks, setTasks] = useState<DownloadTask[]>([])
   const [historyTasks, setHistoryTasks] = useState<DownloadTask[]>([])
@@ -16,24 +66,7 @@ export function useDownloaderTaskData() {
     loadingRef.current = true
     try {
       const activeRes = await getActiveTasks()
-      // v2 API returns array directly, not {tasks: [...]}
-      const activeTasks: DownloadTask[] = Array.isArray(activeRes) ? activeRes : (activeRes.tasks || [])
-
-      // Map v2 API response to DownloadTask format
-      const mappedTasks = activeTasks.map((task: any) => ({
-        id: task.id || task.task_id,
-        name: task.title || 'Untitled',
-        type: 'download' as const,
-        status: task.status || 'pending',
-        progress: task.progress || 0,
-        stage: task.stage || 'queued',
-        created_at: Date.now() / 1000, // v2 doesn't return created_at yet
-        source_url: task.source_url || '',
-        title: task.title || '',
-        output_files: task.output_files || [],
-        error: task.error || null,
-        result: task.output_files && task.output_files.length > 0 ? { files: task.output_files } : undefined,
-      }))
+      const mappedTasks = normalizeTaskList(activeRes).map(mapApiTaskToDownloadTask)
 
       mappedTasks.sort((a, b) => b.created_at - a.created_at)
       setTasks(mappedTasks)
@@ -49,23 +82,7 @@ export function useDownloaderTaskData() {
     historyLoadingRef.current = true
     try {
       const historyRes = await getWeeklyHistory()
-      // v2 API returns same endpoint as active tasks for now
-      const history: DownloadTask[] = Array.isArray(historyRes) ? historyRes : (historyRes.tasks || [])
-
-      const mappedHistory = history.map((task: any) => ({
-        id: task.id || task.task_id,
-        name: task.title || 'Untitled',
-        type: 'download' as const,
-        status: task.status || 'pending',
-        progress: task.progress || 0,
-        stage: task.stage || 'queued',
-        created_at: Date.now() / 1000,
-        source_url: task.source_url || '',
-        title: task.title || '',
-        output_files: task.output_files || [],
-        error: task.error || null,
-        result: task.output_files && task.output_files.length > 0 ? { files: task.output_files } : undefined,
-      }))
+      const mappedHistory = normalizeTaskList(historyRes).map(mapApiTaskToDownloadTask)
 
       mappedHistory.sort((a, b) => b.created_at - a.created_at)
       setHistoryTasks(mappedHistory)

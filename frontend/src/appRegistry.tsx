@@ -12,14 +12,15 @@ export type RegisteredApp = {
   label: string
   icon: string
   component: ComponentType
+  status: 'stable' | 'beta' | 'legacy' | 'hidden'
   launcherVisible?: boolean
 }
 
 export const appRegistry: RegisteredApp[] = [
-  { id: 'dashboard', label: '控制台', title: '控制台', icon: APP_ICON_PATHS.dashboard, component: DashboardApp, launcherVisible: false },
-  { id: 'fetcher', label: '下载', title: '下载', icon: APP_ICON_PATHS.fetcher, component: DownloaderApp },
-  { id: 'settings', label: '设置', title: '设置', icon: APP_ICON_PATHS.settings, component: SettingsApp, launcherVisible: false },
-  { id: 'logs', label: '日志', title: '日志', icon: APP_ICON_PATHS.logs, component: LogViewer, launcherVisible: false },
+  { id: 'dashboard', label: '控制台', title: '控制台', icon: APP_ICON_PATHS.dashboard, component: DashboardApp, status: 'hidden', launcherVisible: false },
+  { id: 'fetcher', label: '下载', title: '下载', icon: APP_ICON_PATHS.fetcher, component: DownloaderApp, status: 'stable' },
+  { id: 'settings', label: '设置', title: '设置', icon: APP_ICON_PATHS.settings, component: SettingsApp, status: 'beta', launcherVisible: false },
+  { id: 'logs', label: '日志', title: '日志', icon: APP_ICON_PATHS.logs, component: LogViewer, status: 'hidden', launcherVisible: false },
 ]
 
 const appRegistryById = new Map(appRegistry.map((app) => [app.id, app]))
@@ -40,5 +41,5 @@ export function getAppMetadata(appId: string): Pick<RegisteredApp, 'id' | 'title
 }
 
 export function getLauncherApps(): RegisteredApp[] {
-  return appRegistry.filter((app) => app.launcherVisible !== false)
+  return appRegistry.filter((app) => app.launcherVisible !== false && (app.status === 'stable' || app.status === 'beta'))
 }

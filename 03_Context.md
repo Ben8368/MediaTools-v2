@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-25 18:00:43 +0800
+> **更新时间：** 2026-06-25 21:44:13 +0800
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本、rolling 字幕清理、句子级合并与并发锁硬化已完成；Legacy 前端技术栈考古完成，v2 轻前端下载工作台壳层已启动，本地 API 适配层已完成，后端 4 个端点全部上线，前端接线完毕
-> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；字幕 rolling 重复清理后 Windows 标准验证通过（141 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本轮黄灯优化后 Windows 标准验证通过（160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；文档勾选同步与 `.omo/` 忽略规则更新后 Windows 标准验证通过（161 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；Legacy 风格轻前端壳层接入后 Windows 标准验证通过（Python 161 passed, 6 skipped；ruff 通过；frontend npm ci / 3 tests / build 通过；npm audit 0 vulnerabilities；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）
+> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本、rolling 字幕清理、句子级合并与并发锁硬化已完成；Legacy 前端技术栈考古完成，v2 轻前端下载工作台与本地 API 适配层已接线；本轮已补齐任务记录持久化、时间戳契约、取消/删除/清空/重试基础操作与 Legacy 入口状态标记
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；字幕 rolling 重复清理后 Windows 标准验证通过（141 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本轮黄灯优化后 Windows 标准验证通过（160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；文档勾选同步与 `.omo/` 忽略规则更新后 Windows 标准验证通过（161 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；Legacy 风格轻前端壳层接入后 Windows 标准验证通过（Python 161 passed, 6 skipped；ruff 通过；frontend npm ci / 3 tests / build 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本轮前端/任务黄灯收敛后 Windows 标准验证通过（Python 187 passed, 6 skipped；ruff 通过；frontend 53 passed, 3 skipped；build 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`；npm audit 仍有 7 个 dev 依赖漏洞）
 
 ## 2. 本轮阻断项
 
@@ -117,15 +117,15 @@
 - [x] review 黄灯优化：字幕长句按词时间边界切分，避免超过 `max_duration_ms`；`--max-concurrent 0` 等非正数转为项目错误；清理测试文件末尾空行；同步 README / 治理文档
 - [x] 本轮标准验证通过：Windows 中 `python scripts/verify.py` 通过（160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本机用户级 site-packages 权限问题通过仓库外临时 `PYTHONUSERBASE` 绕开
 - [x] Legacy 前端考古与 v2 壳层启动
-- [x] 本地 API 适配层：实现 docs/UI_API_CONTRACT.md 中 4 个端点（doctor、fetch/plan、fetch/tasks 提交与列表），基于 Python stdlib http.server 纯标准库实现，无第三方 Web 框架依赖；18 个 API 服务器测试全部通过；前端 pi.ts / App.tsx 已接线到真实后端：确认旧版为 Vite + React + TypeScript + Vitest；v2 `frontend/` 初始化下载工作台壳层、API 契约文档与前端测试/构建；`scripts/verify.py` 已纳入 `npm ci`、frontend test/build
+- [x] 本地 API 适配层：实现 docs/UI_API_CONTRACT.md 中 4 个端点（doctor、fetch/plan、fetch/tasks 提交与列表），基于 Python stdlib http.server 纯标准库实现，无第三方 Web 框架依赖；18 个 API 服务器测试全部通过；前端 `api.ts` / App.tsx 已接线到真实后端：确认旧版为 Vite + React + TypeScript + Vitest；v2 `frontend/` 初始化下载工作台壳层、API 契约文档与前端测试/构建；`scripts/verify.py` 已纳入 `npm ci`、frontend test/build
+- [x] 轻前端黄灯收敛：任务记录拆到 `api_tasks.py` 并持久化到数据目录 JSON；API 增加取消、删除、清空记录端点；任务列表返回 created/updated/started/completed 时间戳和 params/result；下载工作台停止/删除/重试按钮接真实 API；任务映射改为类型化共享函数；appRegistry 增加 stable/beta/hidden 状态标记。
 
 ## 6. 下一步建议
 
 Phase 3 当前优先级：
-1. **本地 API 适配层**：实现 `docs/UI_API_CONTRACT.md` 中的 doctor、fetch plan、fetch task 提交与任务列表接口，复用现有 Python core / CLI 边界。
-2. **轻前端下载工作台接线**：把当前壳层从本地 dry-run 预览接到 API 适配层，保留 Legacy 的左侧导航、中间窗口、右侧状态布局。
-3. **轻前端主观验收**：用户确认视觉密度、排版和使用路径是否贴近 Legacy；主观项通过后再标记用户可见功能完成。
-4. **后续功能评估**：下载与轻前端稳定后，再评估视频切片、资产扫描 / 搜索 / 统计。
+1. **轻前端主观验收**：用户确认视觉密度、排版、停止/删除/重试交互和使用路径是否贴近 Legacy；主观项通过后再标记用户可见功能完成。
+2. **剩余黄灯评估**：npm dev 依赖漏洞需单独评估 Vite/Vitest 大版本升级；真实下载中断仍只是任务层取消，若要杀 yt-dlp 子进程需重构外部进程封装；WebSocket/SSE 推送需等任务进度模型进一步稳定。
+3. **后续功能评估**：下载与轻前端稳定后，再评估视频切片、资产扫描 / 搜索 / 统计。
 
 ## 7. 维护边界备忘
 

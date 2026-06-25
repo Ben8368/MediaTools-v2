@@ -4,6 +4,8 @@ export type DownloadTask = {
   id: string
   type: string
   name: string
+  title?: string
+  source_url?: string
   status: DownloadTaskStatus
   progress: number
   stage: string
@@ -15,6 +17,7 @@ export type DownloadTask = {
   params?: Record<string, unknown>
   state?: Record<string, unknown>
   result?: Record<string, unknown>
+  output_files?: string[]
   error?: string
 }
 

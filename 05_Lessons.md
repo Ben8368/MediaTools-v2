@@ -246,3 +246,15 @@
 - **背景：** 实现下载工作台的本地 API 适配层，需要 HTTP 服务器暴露 doctor、fetch plan、fetch task 和任务列表接口。评估方案时有 `flask`/`fastapi` 等第三方选项。
 - **经验：** `http.server.HTTPServer` + `ThreadingMixIn` + `BaseHTTPRequestHandler` 组合足以支撑轻前端 API 需求，无需引入 Web 框架。关键决策点：① 不依赖 `pip install` 任何新包；② 任务存储用内存 dict + `threading.Lock` 满足当前串行/低并发场景；③ `Vite dev server` 的 proxy 自动处理 CORS，无需在 Python 层加 CORS 头。后续若需要 WebSocket 推送、鉴权或持久化任务记录，再评估是否需要框架。
 - **状态：** 已采纳
+
+### L-040：API 任务模型增长时应拆出存储模块
+- **时间：** 2026-06-25 21:44:13 +08:00
+- **背景：** 为轻前端补齐任务持久化、时间戳、取消/删除/清空接口时，若继续把 `Task`/`TaskStore` 堆在 `api_server.py`，会触发 `scripts/verify.py` 的 500 行硬限制。
+- **经验：** API server 只保留路由、请求解析和调度；任务记录、持久化、状态变更放在独立 `api_tasks.py`。这样既满足行数治理，也为后续硬取消 subprocess、任务历史查询、SQLite 迁移预留自然边界。
+- **状态：** 已采纳
+
+### L-041：本机权限异常时可把验证缓存指向工作区临时目录
+- **时间：** 2026-06-25 21:44:13 +08:00
+- **背景：** Windows 本机的用户级 Python site-packages、pytest temp、npm cache 目录可能出现权限拒绝，导致 `python scripts/verify.py` 在安装或 `npm ci` 阶段失败，而代码测试本身无误。
+- **经验：** 先判断失败是否指向用户目录权限；若是，可临时设置 `PYTHONUSERBASE`、`PYTEST_ADDOPTS=--basetemp ...`、`npm_config_cache` 到仓库忽略的临时目录后复跑标准验证。不要把这类环境问题误判为代码回归。
+- **状态：** 已采纳

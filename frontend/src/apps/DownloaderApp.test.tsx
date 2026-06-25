@@ -5,6 +5,9 @@ import { DownloaderApp } from '@/apps/DownloaderApp'
 import { computeStats, isTaskCancellable } from '@/apps/downloader/helpers'
 
 const apiMocks = vi.hoisted(() => ({
+  cancelTask: vi.fn(),
+  clearTaskRecords: vi.fn(),
+  deleteTaskRecord: vi.fn(),
   getActiveTasks: vi.fn(),
   getWeeklyHistory: vi.fn(),
   submitFetch: vi.fn(),
@@ -56,11 +59,17 @@ describe('DownloaderApp interactions', () => {
     apiMocks.getActiveTasks.mockReset()
     apiMocks.getWeeklyHistory.mockReset()
     apiMocks.submitFetch.mockReset()
+    apiMocks.cancelTask.mockReset()
+    apiMocks.clearTaskRecords.mockReset()
+    apiMocks.deleteTaskRecord.mockReset()
     apiMocks.getWeeklyHistory.mockResolvedValue([])
     apiMocks.submitFetch.mockResolvedValue({ task_id: 'new-task', status: 'queued' })
+    apiMocks.cancelTask.mockResolvedValue({ ok: true })
+    apiMocks.clearTaskRecords.mockResolvedValue({ ok: true, deleted: 1 })
+    apiMocks.deleteTaskRecord.mockResolvedValue({ ok: true, deleted: 1 })
   })
 
-  it('shows not-implemented message when stopping tasks', async () => {
+  it('cancels selected running tasks', async () => {
     apiMocks.getActiveTasks.mockResolvedValue([
       {
         id: 'task-1',
@@ -83,7 +92,7 @@ describe('DownloaderApp interactions', () => {
     fireEvent.click(stopButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/停止任务功能暂未实现/)).toBeInTheDocument()
+      expect(apiMocks.cancelTask).toHaveBeenCalledWith('task-1')
     })
   })
 
@@ -276,7 +285,7 @@ describe('DownloaderApp interactions', () => {
     expect(screen.getByLabelText('select-all-downloads')).toHaveTextContent('取消')
   })
 
-  it('shows not-implemented message when clearing records', async () => {
+  it('clears selected finished records', async () => {
     apiMocks.getActiveTasks.mockResolvedValue([])
     apiMocks.getWeeklyHistory.mockResolvedValue([
         {
@@ -304,11 +313,11 @@ describe('DownloaderApp interactions', () => {
     fireEvent.click(screen.getByLabelText('delete-download-records'))
 
     await waitFor(() => {
-      expect(screen.getByText(/清除记录功能暂未实现/)).toBeInTheDocument()
+      expect(apiMocks.clearTaskRecords).toHaveBeenCalledWith(['task-5', 'task-6'])
     })
   })
 
-  it('shows not-implemented message when clearing selected records', async () => {
+  it('deletes a single selected finished record', async () => {
     apiMocks.getActiveTasks.mockResolvedValue([])
     apiMocks.getWeeklyHistory.mockResolvedValue([
         {
@@ -329,7 +338,7 @@ describe('DownloaderApp interactions', () => {
     fireEvent.click(screen.getByLabelText('delete-download-records'))
 
     await waitFor(() => {
-      expect(screen.getByText(/清除记录功能暂未实现/)).toBeInTheDocument()
+      expect(apiMocks.deleteTaskRecord).toHaveBeenCalledWith('task-7')
     })
   })
 

@@ -11,93 +11,19 @@ import sys
 import threading
 import time
 import uuid
-from collections.abc import Sequence
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from socketserver import ThreadingMixIn
 from typing import Any
 from urllib.parse import urlparse
 
+from mediatools.api_tasks import Task, TaskStore
 from mediatools.commands.doctor import build_doctor_report
-from mediatools.core.config import get_max_concurrent_downloads
+from mediatools.core.config import get_data_dir, get_max_concurrent_downloads
 from mediatools.core.fetch import FetchOptions, fetch_many, make_fetch_options
 from mediatools.core.fetch_types import validate_url
 
 DEFAULT_MAX_CONCURRENT = 8
-
-
-# ---------------------------------------------------------------------------
-# In-memory task store
-# ---------------------------------------------------------------------------
-
-class Task:
-    """Lightweight task record tracked in memory."""
-
-    __slots__ = (
-        "id", "title", "source_url", "status", "progress",
-        "stage", "output_files", "error",
-    )
-
-    def __init__(
-        self,
-        task_id: str,
-        title: str = "",
-        source_url: str = "",
-        status: str = "queued",
-        progress: float = 0.0,
-        stage: str = "queued",
-        output_files: Sequence[str] | None = None,
-        error: str | None = None,
-    ) -> None:
-        self.id = task_id
-        self.title = title
-        self.source_url = source_url
-        self.status = status
-        self.progress = progress
-        self.stage = stage
-        self.output_files = list(output_files) if output_files else []
-        self.error = error
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "id": self.id,
-            "title": self.title,
-            "source_url": self.source_url,
-            "status": self.status,
-            "progress": self.progress,
-            "stage": self.stage,
-            "output_files": list(self.output_files),
-            "error": self.error,
-        }
-
-
-class TaskStore:
-    """Thread-safe in-memory task registry."""
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._tasks: dict[str, Task] = {}
-
-    def add(self, task: Task) -> None:
-        with self._lock:
-            self._tasks[task.id] = task
-
-    def update(self, task_id: str, **fields: object) -> None:
-        with self._lock:
-            task = self._tasks.get(task_id)
-            if task is None:
-                return
-            for key, value in fields.items():
-                if hasattr(task, key):
-                    setattr(task, key, value)
-
-    def get(self, task_id: str) -> Task | None:
-        with self._lock:
-            return self._tasks.get(task_id)
-
-    def list_all(self) -> list[Task]:
-        with self._lock:
-            return list(self._tasks.values())
 
 
 # ---------------------------------------------------------------------------
@@ -196,8 +122,18 @@ def _run_download_task(
         max_concurrent = get_max_concurrent_downloads(DEFAULT_MAX_CONCURRENT)
         workers = min(max_workers, max_concurrent)
 
-        store.update(task_id, status="running", stage="connecting")
+        if store.is_cancel_requested(task_id):
+            return
+        store.update(
+            task_id,
+            status="running",
+            stage="connecting",
+            started_at=time.time(),
+            progress=0.05,
+        )
         result = fetch_many(options, dry_run=False, max_workers=workers, timeout=3600.0)
+        if store.is_cancel_requested(task_id):
+            return
 
         payload = result.to_dict()
         items = payload.get("items", [])
@@ -223,9 +159,24 @@ def _run_download_task(
             status = "completed"
             stage = "completed"
 
-        store.update(task_id, status=status, stage=stage, progress=1.0, output_files=output_files)
+        store.update(
+            task_id,
+            status=status,
+            stage=stage,
+            progress=1.0,
+            output_files=output_files,
+            completed_at=time.time(),
+            result=payload,
+        )
     except Exception as exc:
-        store.update(task_id, status="failed", stage="failed", progress=0.0, error=str(exc))
+        store.update(
+            task_id,
+            status="failed",
+            stage="failed",
+            progress=0.0,
+            error=str(exc),
+            completed_at=time.time(),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -242,6 +193,7 @@ class APIRequestHandler(BaseHTTPRequestHandler):
     def _route(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
+        parts = [part for part in path.split("/") if part]
 
         if path == "/api/doctor" and self.command == "GET":
             self._handle_doctor()
@@ -251,6 +203,21 @@ class APIRequestHandler(BaseHTTPRequestHandler):
             self._handle_fetch_submit()
         elif path == "/api/fetch/tasks" and self.command == "GET":
             self._handle_fetch_list()
+        elif path == "/api/fetch/tasks" and self.command == "DELETE":
+            self._handle_fetch_clear()
+        elif (
+            len(parts) == 4
+            and parts[:3] == ["api", "fetch", "tasks"]
+            and self.command == "DELETE"
+        ):
+            self._handle_fetch_delete(parts[3])
+        elif (
+            len(parts) == 5
+            and parts[:3] == ["api", "fetch", "tasks"]
+            and parts[4] == "cancel"
+            and self.command == "POST"
+        ):
+            self._handle_fetch_cancel(parts[3])
         else:
             _json_response(self, {"error": "Not Found"}, status=404)
 
@@ -260,10 +227,13 @@ class APIRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         self._route()
 
+    def do_DELETE(self) -> None:
+        self._route()
+
     def do_OPTIONS(self) -> None:
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
@@ -355,6 +325,7 @@ class APIRequestHandler(BaseHTTPRequestHandler):
                 source_url=first_url if len(options) == 1 else f"{len(options)} URLs",
                 status="queued",
                 stage="queued",
+                params={**draft, "urls": [opt.url for opt in options], "url": first_url},
             )
             store = self.server.server_store
             store.add(task)
@@ -381,7 +352,32 @@ class APIRequestHandler(BaseHTTPRequestHandler):
 
     def _handle_fetch_list(self) -> None:
         tasks = self.server.server_store.list_all()
-        _json_response(self, [t.to_dict() for t in tasks])
+        sorted_tasks = sorted(tasks, key=lambda task: task.created_at, reverse=True)
+        _json_response(self, [t.to_dict() for t in sorted_tasks])
+
+    def _handle_fetch_cancel(self, task_id: str) -> None:
+        task = self.server.server_store.cancel(task_id)
+        if task is None:
+            _json_response(self, {"error": "Task not found"}, status=404)
+            return
+        _json_response(self, {"ok": True, "task": task.to_dict()})
+
+    def _handle_fetch_delete(self, task_id: str) -> None:
+        deleted = self.server.server_store.delete(task_id)
+        if not deleted:
+            _json_response(self, {"error": "Task not found"}, status=404)
+            return
+        _json_response(self, {"ok": True, "deleted": 1})
+
+    def _handle_fetch_clear(self) -> None:
+        try:
+            draft = _read_json_body(self)
+        except ValueError:
+            draft = {}
+        raw_ids = draft.get("task_ids")
+        task_ids = [str(v) for v in raw_ids] if isinstance(raw_ids, list) else None
+        deleted = self.server.server_store.clear_finished(task_ids)
+        _json_response(self, {"ok": True, "deleted": deleted})
 
 
 # ---------------------------------------------------------------------------
@@ -393,8 +389,10 @@ class ThreadedAPIServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
 
-def start_api_server(port: int = 7860) -> ThreadedAPIServer:
-    store = TaskStore()
+def start_api_server(port: int = 7860, storage_path: Path | None = None) -> ThreadedAPIServer:
+    if storage_path is None:
+        storage_path = get_data_dir() / "api-tasks.json"
+    store = TaskStore(storage_path=storage_path)
     server = ThreadedAPIServer(("127.0.0.1", port), APIRequestHandler)
     server.server_store = store
     print(f"[api] MediaTools API server listening on http://127.0.0.1:{port}", file=sys.stderr)

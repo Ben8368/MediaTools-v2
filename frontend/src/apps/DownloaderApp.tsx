@@ -1,11 +1,12 @@
 // Simplified DownloaderApp for v2 - AI features removed
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { submitFetch } from '@/api'
+import { cancelTask, clearTaskRecords, deleteTaskRecord, submitFetch } from '@/api'
 import { DownloaderAddForm } from '@/apps/downloader/DownloaderAddForm'
 import { DownloaderDetailDrawer } from '@/apps/downloader/DownloaderDetailDrawer'
 import {
   computeStats,
+  buildRetryPayload,
   createOptimisticTask,
   extractTaskDetailRows,
   extractTaskRequestSnapshot,
@@ -183,16 +184,55 @@ export function DownloaderApp() {
   }, [addingTask, submitTaskPayloads, taskUrl])
 
   const clearRecords = useCallback(async () => {
-    setActionError('清除记录功能暂未实现（v2 后续支持）')
-  }, [])
+    if (!selectedClearableTasks.length) return
+    setActionError('')
+    try {
+      const ids = selectedClearableTasks.map((task) => task.id)
+      if (ids.length === 1) {
+        await deleteTaskRecord(ids[0])
+      } else {
+        await clearTaskRecords(ids)
+      }
+      setSelectedIds(new Set())
+      setSelectedTaskId(null)
+      await refreshLists()
+    } catch (err: any) {
+      setActionError(err?.message || '清除记录失败')
+    }
+  }, [refreshLists, selectedClearableTasks])
 
   const stopSelected = useCallback(async () => {
-    setActionError('停止任务功能暂未实现（v2 后续支持）')
-  }, [])
+    if (!selectedTasks.length) return
+    setActionError('')
+    try {
+      await Promise.all(selectedTasks.map((task) => cancelTask(task.id)))
+      await refreshLists()
+    } catch (err: any) {
+      setActionError(err?.message || '停止任务失败')
+    }
+  }, [refreshLists, selectedTasks])
 
   const retrySelected = useCallback(async () => {
-    setActionError('重试任务功能暂未实现（v2 后续支持）')
-  }, [])
+    if (!selectedTasks.length) return
+    setActionError('')
+    try {
+      for (const task of selectedTasks) {
+        const payload = buildRetryPayload(task)
+        if (!payload) throw new Error(`任务 ${task.id} 缺少可重试的 URL`)
+        const urls = Array.isArray(payload.urls) ? payload.urls.filter((url): url is string => typeof url === 'string') : []
+        if (urls.length === 0) throw new Error(`任务 ${task.id} 缺少可重试的 URL`)
+        const result = await submitFetch(payload)
+        const optimisticTask = createOptimisticTask(urls.join(', '), payload, result)
+        setOptimisticTasks((prev) => mergeTasks([optimisticTask], prev))
+        setSelectedTaskId(optimisticTask.id)
+      }
+      setSelectedIds(new Set())
+      setSelectedCategory('all')
+      await refreshLists()
+    } catch (err: any) {
+      setActionError(err?.message || '重试任务失败')
+    }
+  }, [refreshLists, selectedTasks, setOptimisticTasks])
 
   const handleRowMenuAction = useCallback(
     async (action: DownloaderRowMenuAction, task: DownloadTask) => {
@@ -206,13 +246,28 @@ export function DownloaderApp() {
         await navigator.clipboard.writeText(url)
       }
       if (action === 'retry') {
-        setActionError('重试功能暂未实现（v2 后续支持）')
+        const payload = buildRetryPayload(task)
+        if (!payload) {
+          setActionError('此任务缺少可重试的 URL')
+          return
+        }
+        try {
+          const result = await submitFetch(payload)
+          const urls = Array.isArray(payload.urls) ? payload.urls.filter((url): url is string => typeof url === 'string') : []
+          const optimisticTask = createOptimisticTask(urls.join(', '), payload, result)
+          setOptimisticTasks((prev) => mergeTasks([optimisticTask], prev))
+          setSelectedTaskId(optimisticTask.id)
+          setSelectedCategory('all')
+          await refreshLists()
+        } catch (err: any) {
+          setActionError(err?.message || '重试任务失败')
+        }
       }
       if (action === 'ai_analyze') {
         setActionError('AI 分析功能暂未实现（v2 后续支持）')
       }
     },
-    [],
+    [refreshLists, setOptimisticTasks],
   )
 
   const toggleSelectAllVisible = useCallback(() => {

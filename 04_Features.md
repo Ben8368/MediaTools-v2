@@ -246,7 +246,7 @@
   - 前端首屏能完成 URL 输入、批量导入、字幕选项、输出目录、任务状态和结果查看。
   - 前端构建/测试纳入标准验证或独立前端验证脚本。
 - **降级/回滚策略：** 若前端工程引入风险过大，保留 CLI 下载增强作为主路径；轻前端只作为可选本地入口。
-- **状态：** [客观已验证] - 已建立 `docs/UI_COMPAT.md` 与 `docs/UI_API_CONTRACT.md`；v2 `frontend/` 已初始化 Vite + React + TypeScript 下载工作台壳层，`python scripts/verify.py` 纳入 frontend `npm ci`、3 tests、build 并通过；npm audit 0 vulnerabilities。API 适配层已完成，4 个端点全部上线并通过 18 个测试；下一步需进行用户主观 UI 验收。
+- **状态：** [客观已验证] - 已建立 `docs/UI_COMPAT.md` 与 `docs/UI_API_CONTRACT.md`；v2 `frontend/` 已初始化 Vite + React + TypeScript 下载工作台壳层，`python scripts/verify.py` 纳入 frontend `npm ci`、test、build 并通过。API 适配层已完成基础端点并在 Feature-021 中补齐任务持久化与记录操作；下一步需进行用户主观 UI 验收。npm audit 当前仍有 dev 依赖漏洞，需单独评估 Vite/Vitest 大版本升级。
 
 ### Feature-012：下载格式控制与原语言探测 — Phase 3-A+
 - **提交时间：** 2026-06-24
@@ -438,6 +438,28 @@
 - **降级/回滚策略：** 如按词切分对无空格语言仍不够理想，后续可增加字符级或语言特定分词策略；当前保守保持无词边界时不强切单字。
 - **状态：** [客观已验证] - Windows 中 `python scripts/verify.py` 通过：160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`
 
+### Feature-021：轻前端任务黄灯收敛 — Phase 3-B Task Reliability
+- **提交时间：** 2026-06-25
+- **类型：** UI 适配层 / 任务记录可靠性 / 工程维护
+- **描述：** 收敛轻前端 review 中的黄灯项：任务记录从纯内存升级为 JSON 持久化；任务模型补齐 `created_at`、`updated_at`、`started_at`、`completed_at`、`params` 与 `result`；API 增加取消、删除单条、清空完成记录端点；下载工作台的停止、删除、重试按钮接入真实 API；前端任务列表映射抽为类型化共享函数；`appRegistry` 增加 stable/beta/hidden 状态标记，避免 Legacy/隐藏入口混淆。
+- **用户价值：** 本地 API 重启后可保留任务记录；下载工作台的核心记录操作不再显示“暂未实现”；任务时间和重试参数由后端契约提供，列表排序与详情更可信；后续继续扩展任务能力时不再堆叠在 `api_server.py` 单文件内。
+- **前置依赖检查：**
+  - 技术依赖：无新增运行时依赖；任务持久化使用标准库 JSON 文件。
+  - 环境依赖：默认任务记录写入平台数据目录；测试使用临时文件，不写用户真实数据。
+  - 安全影响：删除/清空只影响本地任务记录，不删除已下载媒体文件；取消当前仍为任务层状态标记，未强杀底层 `yt-dlp` subprocess。
+  - 跨平台兼容性：持久化路径复用 `get_data_dir()`；前端 API 使用相对路径和 URL 编码。
+- **预计影响模块：**
+  - 源码：`src/mediatools/api_tasks.py`、`src/mediatools/api_server.py`。
+  - 前端：`frontend/src/api.ts`、`frontend/src/apps/DownloaderApp.tsx`、`frontend/src/apps/downloader/useDownloaderTaskData.ts`、`frontend/src/apps/downloader/helpers.ts`、`frontend/src/appRegistry.tsx`。
+  - 测试：`tests/test_api_server.py`、`frontend/src/apps/DownloaderApp.test.tsx`。
+  - 文档：`03_Context.md`、`04_Features.md`、`05_Lessons.md`、`docs/UI_API_CONTRACT.md`。
+- **验收思路：**
+  - 后端测试覆盖任务 JSON 持久化、取消标记、清空完成记录、HTTP 取消/清空端点。
+  - 前端测试覆盖停止、删除、提交任务等下载工作台交互。
+  - 标准验证覆盖全量 Python pytest、ruff、前端 Vitest 和 Vite build。
+- **降级/回滚策略：** 如 JSON 文件损坏，TaskStore 会忽略该文件并以空任务列表启动；若后续需要硬取消下载，需在外部进程 runner 层引入可终止进程句柄或进度回调，而不是在 HTTP 层伪造。
+- **状态：** [客观已验证] - Windows 中 `python scripts/verify.py` 通过：Python 187 passed, 6 skipped；ruff 通过；frontend 53 passed, 3 skipped；build 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`。剩余黄灯：npm audit 报 7 个 dev 依赖漏洞；硬取消 yt-dlp subprocess 与 WebSocket/SSE 推送仍待后续设计。
+
 ## 3. 首批 MVP 优先级矩阵
 
 > **决策状态：** 用户已确认首批 MVP = A/B/C/D/E（2026-06-24），对应 Feature-005~009。
@@ -486,6 +508,7 @@
 | P3-A Subtitle Workflow | 字幕-only 生产样本打磨 | P0 | yt-dlp | 只下字幕、原语言 SRT、fallback 清理、重复字幕去重、rolling 内容清理、51 URL 真实验收 | Feature-019 |
 | P3-A Subtitle Hardening | 字幕合并与并发控制收口 | P1 | 标准库 | 锁池引用计数、多语言句界、按词时间切分、并发参数校验 | Feature-020 |
 | P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | Vite / React / TypeScript | API 适配层已上线，下一步用户主观 UI 验收 | Feature-011 |
+| P3-B Task Reliability | 轻前端任务黄灯收敛 | P1 | 标准库 / Vite / React | 任务持久化、时间戳契约、记录操作接线、入口状态标记 | Feature-021 |
 | P3-C | 视频切片 | P2 | ffmpeg | 下载落地后再评估 | 待补 |
 | P3-D | 资产扫描 / 搜索 / 统计 | P3 | 标准库优先 | 服务批处理和前端结果管理 | 待补 |
 
