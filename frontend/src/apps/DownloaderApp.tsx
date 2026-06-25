@@ -192,7 +192,6 @@ export function DownloaderApp() {
   const [addingTask, setAddingTask] = useState(false)
   const [taskUrl, setTaskUrl] = useState('')
   const [taskPlatform, setTaskPlatform] = useState<DownloadPlatform>('auto')
-  const [taskQuality, setTaskQuality] = useState('best')
   const [taskSubtitles, setTaskSubtitles] = useState(true)
   const [taskOutputDir, setTaskOutputDir] = useState('')
   const [showDirectoryPicker, setShowDirectoryPicker] = useState(false)
@@ -359,7 +358,7 @@ export function DownloaderApp() {
           url,
           platform: taskPlatform,
           output_dir: taskOutputDir || '',
-          quality: taskQuality,
+          quality: 'h264',
           subtitles: selectedPlatform.supportsSubtitles ? taskSubtitles : false,
           analyze: false,
         }))
@@ -372,7 +371,7 @@ export function DownloaderApp() {
     } finally {
       setAddingTask(false)
     }
-  }, [addingTask, selectedPlatform.supportsSubtitles, submitTaskPayloads, taskOutputDir, taskPlatform, taskQuality, taskSubtitles, taskUrl])
+  }, [addingTask, selectedPlatform.supportsSubtitles, submitTaskPayloads, taskOutputDir, taskPlatform, taskSubtitles, taskUrl])
 
   const clearRecords = useCallback(async () => {
     if (!canClearRecords) return
@@ -545,7 +544,6 @@ export function DownloaderApp() {
             <DownloaderAddForm
               taskUrl={taskUrl}
               taskPlatform={taskPlatform}
-              taskQuality={taskQuality}
               taskSubtitles={taskSubtitles}
               taskOutputDir={taskOutputDir}
               selectedPlatform={selectedPlatform}
@@ -553,7 +551,6 @@ export function DownloaderApp() {
               submitError={submitError}
               onTaskUrlChange={setTaskUrl}
               onTaskPlatformChange={setTaskPlatform}
-              onTaskQualityChange={setTaskQuality}
               onTaskSubtitlesChange={setTaskSubtitles}
               onTaskOutputDirChange={setTaskOutputDir}
               onOpenDirectoryPicker={() => setShowDirectoryPicker(true)}

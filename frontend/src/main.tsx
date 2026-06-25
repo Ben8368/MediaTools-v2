@@ -2,14 +2,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from '@/App'
 import { PhotoshopApp } from '@/apps/MediaToolsApps'
-import { AEApp } from '@/apps/MediaToolsApps'
 import '@/i18n'
 import './styles/app-window.css'
 import './index.css'
 import './styles/app-controls.css'
 import './styles/mediatools-apps.css'
 
-// 检测 CEP 模式：URL 参数 ?cep=photoshop 或 ?cep=ae
+// 检测 CEP 模式：URL 参数 ?cep=photoshop
 const urlParams = new URLSearchParams(window.location.search)
 const cepMode = urlParams.get('cep')
 
@@ -18,9 +17,6 @@ let AppComponent = App
 
 if (cepMode === 'photoshop') {
   AppComponent = PhotoshopApp
-  document.body.style.background = '#1e1e1e'
-} else if (cepMode === 'ae') {
-  AppComponent = AEApp
   document.body.style.background = '#1e1e1e'
 } else {
   // 完整桌面模式才设置壁纸

@@ -16,7 +16,7 @@ describe('RightPanel task grouping', () => {
     apiMocks.getSystemMetrics.mockReset()
     apiMocks.getSystemMetrics.mockResolvedValue({
       runtime: { uptime_seconds: 10 },
-      system: { cpu_percent: 1, memory_percent: 2, gpu_video_encode_percent: 0, gpu_video_encode_available: false },
+      system: { cpu_percent: 1, memory_percent: 2, gpu_percent: 0, gpu_available: false },
       network: { upload: { text: '0 B/s' }, download: { text: '0 B/s' }, upload_bytes_per_sec: 0, download_bytes_per_sec: 0 },
       services: [],
       task_summary: { active_downloads: 2, total_download_records: 5 },
@@ -68,7 +68,7 @@ describe('RightPanel task grouping', () => {
   it('collapses services by default and expands backend module ids', async () => {
     apiMocks.getSystemMetrics.mockResolvedValue({
       runtime: { uptime_seconds: 10 },
-      system: { cpu_percent: 1, memory_percent: 2, gpu_video_encode_percent: 0, gpu_video_encode_available: false },
+      system: { cpu_percent: 1, memory_percent: 2, gpu_percent: 0, gpu_available: false },
       network: { upload: { text: '0 B/s' }, download: { text: '0 B/s' }, upload_bytes_per_sec: 0, download_bytes_per_sec: 0 },
       services: [
         { id: 'frontend', name: '前端', online: true, status: 'ready', runtime_status: 'online', availability_status: 'ready', mode: 'dev', mode_label: '开发' },
@@ -88,7 +88,7 @@ describe('RightPanel task grouping', () => {
     fireEvent.click(screen.getByRole('button', { name: /服务状态/i }))
 
     expect(await screen.findByText('encoder')).toBeInTheDocument()
-    expect(screen.getByText('wechat_moments')).toBeInTheDocument()
+    expect(screen.queryByText('wechat_moments')).not.toBeInTheDocument()
     expect(screen.queryByText('frontend')).not.toBeInTheDocument()
     expect(screen.queryByText('wechat')).not.toBeInTheDocument()
     expect(screen.queryByText('编码转码')).not.toBeInTheDocument()

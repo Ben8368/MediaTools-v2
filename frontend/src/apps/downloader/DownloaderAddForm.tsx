@@ -4,7 +4,6 @@ import type { DownloadPlatform, PlatformOption } from '@/apps/downloader/types'
 type DownloaderAddFormProps = {
   taskUrl: string
   taskPlatform: DownloadPlatform
-  taskQuality: string
   taskSubtitles: boolean
   taskOutputDir: string
   selectedPlatform: PlatformOption
@@ -12,7 +11,6 @@ type DownloaderAddFormProps = {
   submitError: string
   onTaskUrlChange: (value: string) => void
   onTaskPlatformChange: (value: DownloadPlatform) => void
-  onTaskQualityChange: (value: string) => void
   onTaskSubtitlesChange: (value: boolean) => void
   onTaskOutputDirChange: (value: string) => void
   onOpenDirectoryPicker: () => void
@@ -23,7 +21,6 @@ type DownloaderAddFormProps = {
 export function DownloaderAddForm({
   taskUrl,
   taskPlatform,
-  taskQuality,
   taskSubtitles,
   taskOutputDir,
   selectedPlatform,
@@ -31,7 +28,6 @@ export function DownloaderAddForm({
   submitError,
   onTaskUrlChange,
   onTaskPlatformChange,
-  onTaskQualityChange,
   onTaskSubtitlesChange,
   onTaskOutputDirChange,
   onOpenDirectoryPicker,
@@ -63,16 +59,6 @@ export function DownloaderAddForm({
           </select>
           <small className="dl-field-hint">{selectedPlatform.hint}</small>
         </div>
-        <div className="dl-field">
-          <label>质量</label>
-          <select value={taskQuality} onChange={(event) => onTaskQualityChange(event.target.value)}>
-            <option value="best">最佳可用</option>
-            <option value="h264">优先 H.264</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="dl-form-row">
         <div className="dl-field">
           <label>字幕</label>
           <select

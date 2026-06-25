@@ -1,6 +1,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 
 import { getLauncherApps } from '@/appRegistry'
+import { AppIconImage } from '@/components/AppIconImage'
 
 const ICON_ROW_HEIGHT = 86
 const ICON_ROW_GAP = 28
@@ -48,9 +49,7 @@ export function DesktopIcons({ onOpenApp }: { onOpenApp: (id: string) => void })
           className={`app-icon app-icon--${app.id}`}
           onClick={() => onOpenApp(app.id)}
         >
-          <div className="app-icon-img">
-            <img src={app.icon} alt={app.label} />
-          </div>
+          <AppIconImage src={app.icon} alt={app.label} variant="desktop" />
           <span className="app-icon-label">{app.label}</span>
         </div>
       ))}

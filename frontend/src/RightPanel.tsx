@@ -6,9 +6,9 @@ type RuntimeMetrics = {
   system?: {
     cpu_percent?: number
     memory_percent?: number
-    gpu_video_encode_percent?: number
-    gpu_video_encode_available?: boolean
-    gpu_video_encode_detail?: string
+    gpu_percent?: number
+    gpu_available?: boolean
+    gpu_detail?: string
   }
   network?: {
     upload?: { text?: string }
@@ -52,7 +52,7 @@ type RuntimeMetrics = {
 
 const EMPTY_METRICS: RuntimeMetrics = {
   runtime: { uptime_seconds: 0 },
-  system: { cpu_percent: 0, memory_percent: 0, gpu_video_encode_percent: 0, gpu_video_encode_available: false },
+  system: { cpu_percent: 0, memory_percent: 0, gpu_percent: 0, gpu_available: false },
   network: { upload: { text: '0 B/s' }, download: { text: '0 B/s' }, upload_bytes_per_sec: 0, download_bytes_per_sec: 0 },
   services: [],
   tasks: [],
@@ -79,10 +79,9 @@ function serviceName(service: NonNullable<RuntimeMetrics['services']>[number]) {
 }
 
 function normalizeServices(services: NonNullable<RuntimeMetrics['services']>) {
-  const visibleIds = new Set(['fetcher', 'encoder', 'decryptor', 'photoshop', 'auditor', 'wechat_moments'])
+  const visibleIds = new Set(['fetcher', 'encoder', 'decryptor', 'photoshop', 'auditor'])
   return services
     .filter((service) => service.id !== 'frontend')
-    .map((service) => (service.id === 'wechat' ? { ...service, id: 'wechat_moments' } : service))
     .filter((service) => visibleIds.has(service.id))
 }
 
@@ -118,6 +117,49 @@ function appTypeForTaskGroup(type: string, label: string) {
   return ''
 }
 
+function GaugeSvg({ value, color, label, title }: { value: number; color: string; label: string; title?: string }) {
+  const r = 24, cx = 28, cy = 28
+  const circ = 2 * Math.PI * r
+  const offset = circ - (clampPercent(value) / 100) * circ
+  return (
+    <div className="rp-gauge" title={title}>
+      <svg viewBox="0 0 56 56" style={{ shapeRendering: 'geometricPrecision' }}>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="4" />
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={offset} transform={`rotate(-90 ${cx} ${cy})`}
+          style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(0.4,0,0.2,1)', paintOrder: 'stroke' }} />
+        <text x={cx} y={cy - 4} textAnchor="middle" fill="rgba(255,255,255,.55)" fontSize="8.5" fontWeight="500">{label}</text>
+        <text x={cx} y={cy + 7} textAnchor="middle" fill="rgba(255,255,255,.92)" fontSize="9" fontWeight="600">{Math.round(clampPercent(value))}%</text>
+      </svg>
+    </div>
+  )
+}
+
+function DualLineChart({ dataUp, dataDown }: { dataUp: number[]; dataDown: number[] }) {
+  const max = Math.max(...dataUp, ...dataDown, 1)
+  const w = 280, h = 36
+  const up = dataUp.map((p, i) => `${i === 0 ? 'M' : 'L'}${(i / (dataUp.length - 1)) * w},${h - 4 - (p / max) * (h - 8)}`).join(' ')
+  const down = dataDown.map((p, i) => `${i === 0 ? 'M' : 'L'}${(i / (dataDown.length - 1)) * w},${h - 4 - (p / max) * (h - 8)}`).join(' ')
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height: h }}>
+      <defs>
+        <linearGradient id="dup" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#54FFB7" stopOpacity=".25" />
+          <stop offset="100%" stopColor="#54FFB7" stopOpacity=".02" />
+        </linearGradient>
+        <linearGradient id="ddn" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#4AA3FF" stopOpacity=".25" />
+          <stop offset="100%" stopColor="#4AA3FF" stopOpacity=".02" />
+        </linearGradient>
+      </defs>
+      <path d={`${down} L${w},${h} L0,${h} Z`} fill="url(#ddn)" />
+      <path d={down} fill="none" stroke="#4AA3FF" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+      <path d={`${up} L${w},${h} L0,${h} Z`} fill="url(#dup)" />
+      <path d={up} fill="none" stroke="#54FFB7" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
+
 export function RightPanel() {
   const [metrics, setMetrics] = useState<RuntimeMetrics>(EMPTY_METRICS)
   const [netUpData, setNetUpData] = useState<number[]>(Array.from({ length: 40 }, () => 0))
@@ -149,52 +191,9 @@ export function RightPanel() {
 
   useEffect(() => {
     void refresh()
-    const timer = window.setInterval(() => void refresh(), 2000)
+    const timer = window.setInterval(() => void refresh(), 1000)
     return () => window.clearInterval(timer)
   }, [])
-
-  function GaugeSvg({ value, color, label, title }: { value: number; color: string; label: string; title?: string }) {
-    const r = 24, cx = 28, cy = 28
-    const circ = 2 * Math.PI * r
-    const offset = circ - (clampPercent(value) / 100) * circ
-    return (
-      <div className="rp-gauge" title={title}>
-        <svg viewBox="0 0 56 56" style={{ shapeRendering: 'geometricPrecision' }}>
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth="4" />
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round"
-            strokeDasharray={circ} strokeDashoffset={offset} transform={`rotate(-90 ${cx} ${cy})`}
-            style={{ transition: 'stroke-dashoffset 0.3s ease', paintOrder: 'stroke' }} />
-          <text x={cx} y={cy - 4} textAnchor="middle" fill="rgba(255,255,255,.55)" fontSize="8.5" fontWeight="500">{label}</text>
-          <text x={cx} y={cy + 7} textAnchor="middle" fill="rgba(255,255,255,.92)" fontSize="9" fontWeight="600">{Math.round(clampPercent(value))}%</text>
-        </svg>
-      </div>
-    )
-  }
-
-  function DualLineChart({ dataUp, dataDown }: { dataUp: number[]; dataDown: number[] }) {
-    const max = Math.max(...dataUp, ...dataDown, 1)
-    const w = 280, h = 36
-    const up = dataUp.map((p, i) => `${i === 0 ? 'M' : 'L'}${(i / (dataUp.length - 1)) * w},${h - 4 - (p / max) * (h - 8)}`).join(' ')
-    const down = dataDown.map((p, i) => `${i === 0 ? 'M' : 'L'}${(i / (dataDown.length - 1)) * w},${h - 4 - (p / max) * (h - 8)}`).join(' ')
-    return (
-      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height: h }}>
-        <defs>
-          <linearGradient id="dup" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#54FFB7" stopOpacity=".25" />
-            <stop offset="100%" stopColor="#54FFB7" stopOpacity=".02" />
-          </linearGradient>
-          <linearGradient id="ddn" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#4AA3FF" stopOpacity=".25" />
-            <stop offset="100%" stopColor="#4AA3FF" stopOpacity=".02" />
-          </linearGradient>
-        </defs>
-        <path d={`${down} L${w},${h} L0,${h} Z`} fill="url(#ddn)" />
-        <path d={down} fill="none" stroke="#4AA3FF" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
-        <path d={`${up} L${w},${h} L0,${h} Z`} fill="url(#dup)" />
-        <path d={up} fill="none" stroke="#54FFB7" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
-      </svg>
-    )
-  }
 
   const system = metrics.system || EMPTY_METRICS.system!
   const network = metrics.network || EMPTY_METRICS.network!
@@ -231,10 +230,10 @@ export function RightPanel() {
           <GaugeSvg value={system.cpu_percent || 0} color="#7CB3FF" label="CPU" />
           <GaugeSvg value={system.memory_percent || 0} color="#7CB3FF" label="内存" />
           <GaugeSvg
-            value={system.gpu_video_encode_percent || 0}
-            color={system.gpu_video_encode_available ? '#7CB3FF' : '#64748b'}
+            value={system.gpu_percent || 0}
+            color={system.gpu_available ? '#7CB3FF' : '#64748b'}
             label="GPU"
-            title={system.gpu_video_encode_detail}
+            title={system.gpu_detail}
           />
         </div>
         <div className="rp-uptime">

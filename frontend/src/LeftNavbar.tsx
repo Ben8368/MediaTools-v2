@@ -209,7 +209,7 @@ export function LeftNavbar() {
         <Btn
           ariaLabel="power-menu"
           icon={<IconPower />}
-          tooltip={isShuttingDown ? '关闭中...' : '电源'}
+          tooltip={isShuttingDown ? '关闭中...' : '退出'}
           active={showPowerMenu}
           onClick={() => setShowPowerMenu((visible) => !visible)}
           disabled={isShuttingDown}

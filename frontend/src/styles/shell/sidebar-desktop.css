@@ -170,7 +170,12 @@ html, body, #root {
 .app-icon-img img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  display: block;
+}
+
+.app-icon-img--launcher {
+  flex-shrink: 0;
 }
 
 .app-icon--decryptor .app-icon-img {

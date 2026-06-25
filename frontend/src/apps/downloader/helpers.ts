@@ -193,7 +193,7 @@ export function buildRetryPayload(task: DownloadTask): Record<string, unknown> |
     url,
     platform: typeof params.platform === 'string' ? params.platform : 'auto',
     output_dir: typeof params.output_dir === 'string' ? params.output_dir : '',
-    quality: typeof params.quality === 'string' ? params.quality : 'best',
+    quality: typeof params.quality === 'string' ? params.quality : 'h264',
     subtitles: typeof params.subtitles === 'boolean' ? params.subtitles : true,
     analyze: false,
   }
@@ -225,7 +225,7 @@ export function extractTaskDetailRows(task: DownloadTask): DetailRow[] {
     { label: '输出目录', value: (params.output_dir as string) || '默认下载目录' },
     { label: '下载文件', value: (info.local_path as string) || '-' },
     { label: '字幕文件', value: (info.subtitle_path as string) || '-' },
-    { label: '质量策略', value: (params.quality as string) || 'best' },
+    { label: '质量策略', value: (params.quality as string) || 'h264' },
     { label: '提交接口', value: 'POST /api/fetcher/download' },
     { label: '创建时间', value: formatAbsoluteTime(task.created_at) },
     { label: '开始时间', value: formatAbsoluteTime(task.started_at) },

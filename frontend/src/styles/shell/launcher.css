@@ -85,7 +85,11 @@
 .launcher-app:hover { background: rgba(255,255,255,.06); }
 .launcher-app:active { background: rgba(255,255,255,.1); }
 
-.launcher-app img { width: 44px; height: 44px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,.3)); }
+.launcher-app .app-icon-img {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 0;
+}
 
 .launcher-app-name {
   font-size: 10px;

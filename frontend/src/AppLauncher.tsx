@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getLauncherApps } from '@/appRegistry'
+import { AppIconImage } from '@/components/AppIconImage'
 import { useSystemStore } from '@/store'
 
 export function AppLauncher({ onOpenApp }: { onOpenApp: (id: string) => void }) {
@@ -32,7 +33,7 @@ export function AppLauncher({ onOpenApp }: { onOpenApp: (id: string) => void }) 
                 className="launcher-app"
                 onClick={() => { onOpenApp(app.id); setShowLauncher(false) }}
               >
-                <img src={app.icon} alt={app.label} />
+                <AppIconImage src={app.icon} alt={app.label} variant="launcher" />
                 <span className="launcher-app-name">{app.label}</span>
               </div>
             ))}

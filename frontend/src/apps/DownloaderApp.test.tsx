@@ -201,11 +201,9 @@ describe('DownloaderApp interactions', () => {
 
     expect(screen.getByText('下载链接')).toBeInTheDocument()
     expect(screen.getByText('平台')).toBeInTheDocument()
-    expect(screen.getByText('质量')).toBeInTheDocument()
     expect(screen.getByText('字幕')).toBeInTheDocument()
     expect(screen.getByText('目标目录')).toBeInTheDocument()
     expect(screen.getByText('智能识别')).toBeInTheDocument()
-    expect(screen.getByText('最佳可用')).toBeInTheDocument()
     expect(screen.getByText('留空则使用默认下载目录')).toBeInTheDocument()
   })
 
@@ -242,7 +240,12 @@ describe('DownloaderApp interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: '确认添加' }))
 
     await waitFor(() => {
-      expect(apiMocks.runFetcherDownload).toHaveBeenCalled()
+      expect(apiMocks.runFetcherDownload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: 'https://example.com/video',
+          quality: 'h264',
+        }),
+      )
     })
     expect((await screen.findAllByText('https://example.com/video')).length).toBeGreaterThan(0)
   })
