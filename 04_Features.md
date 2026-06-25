@@ -418,6 +418,26 @@
 - **降级/回滚策略：** 若后续需要保留 fallback 字幕，可新增显式参数；默认行为继续优先“一个视频一个原语言 SRT”的干净生产目录。
 - **状态：** [客观已验证] - Windows 中真实 51 URL 字幕-only 批量通过：51 succeeded, 0 failed，仅输出 51 个 SRT；rolling caption 内容去重后 `python scripts/verify.py` 通过：141 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`
 
+### Feature-020：字幕合并与并发控制收口 — Phase 3-A Subtitle Hardening
+- **提交时间：** 2026-06-25
+- **类型：** 可靠性 / 字幕可读性 / 下载并发控制
+- **描述：** 在 review 后继续收敛字幕句子级合并和并发下载边界：同输出目录锁池使用引用计数避免等待线程期间创建第二把锁；字幕合并识别英文、CJK、阿语、天城体等多语言句界；长句按词时间边界切分，既保留原始结束时间，又避免可切分文本超过 `max_duration_ms`；`--max-concurrent` 非正数统一转为项目错误；配置文件 `max_concurrent_downloads` 仅作为上限。
+- **用户价值：** 批量字幕-only 下载在并发场景下更稳定；自动字幕输出更适合阅读；错误输入给出明确提示，避免静默降级为串行。
+- **前置依赖检查：**
+  - 技术依赖：无新增运行时依赖，继续使用标准库。
+  - 环境依赖：自动化测试使用 mock / 纯函数，不触发网络。
+  - 安全影响：并发上限保护下载资源与站点访问压力；不扩大文件写入范围。
+  - 跨平台兼容性：锁、路径和配置均使用标准库；需通过 CI 三平台复核。
+- **预计影响模块：**
+  - 源码：`src/mediatools/core/subtitle_merge.py`、`src/mediatools/core/fetch_postprocess.py`、`src/mediatools/core/config.py`、`src/mediatools/commands/fetch.py`。
+  - 测试：`tests/test_subtitle_merge.py`、`tests/test_fetch_locks.py`、`tests/test_config.py`、`tests/test_cli.py`。
+  - 文档：`README.md`、`03_Context.md`、`04_Features.md`、`05_Lessons.md`、`REFACTOR.md`。
+- **验收思路：**
+  - 单元测试覆盖锁池引用计数、多语言句界、长句按词切分、不截断尾部时长、非正并发数错误。
+  - 标准验证覆盖全量 pytest、ruff、doctor 和文件行数限制。
+- **降级/回滚策略：** 如按词切分对无空格语言仍不够理想，后续可增加字符级或语言特定分词策略；当前保守保持无词边界时不强切单字。
+- **状态：** [客观已验证] - Windows 中 `python scripts/verify.py` 通过：160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`
+
 ## 3. 首批 MVP 优先级矩阵
 
 > **决策状态：** 用户已确认首批 MVP = A/B/C/D/E（2026-06-24），对应 Feature-005~009。
@@ -464,6 +484,7 @@
 | P3-A Perfect Green | 完美绿灯维护收口 | P1 | 标准库 / CI | 拆分预警文件、降低行数风险、升级 CI action 与固定 macOS runner | Feature-017 |
 | P3-A Reliability | review 追补硬化 | P1 | 标准库 | 文件 I/O 统一项目错误、字幕后处理快照边界、并发中断快速收口 | Feature-018 |
 | P3-A Subtitle Workflow | 字幕-only 生产样本打磨 | P0 | yt-dlp | 只下字幕、原语言 SRT、fallback 清理、重复字幕去重、rolling 内容清理、51 URL 真实验收 | Feature-019 |
+| P3-A Subtitle Hardening | 字幕合并与并发控制收口 | P1 | 标准库 | 锁池引用计数、多语言句界、按词时间切分、并发参数校验 | Feature-020 |
 | P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | 待 Legacy 考古 | 先兼容布局和用户路径，再选技术栈 | Feature-011 |
 | P3-C | 视频切片 | P2 | ffmpeg | 下载落地后再评估 | 待补 |
 | P3-D | 资产扫描 / 搜索 / 统计 | P3 | 标准库优先 | 服务批处理和前端结果管理 | 待补 |

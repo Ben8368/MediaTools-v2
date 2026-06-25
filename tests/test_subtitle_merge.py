@@ -6,21 +6,23 @@ from mediatools.core.subtitle import Caption
 from mediatools.core.subtitle_merge import SENTENCE_ENDINGS, merge_short_captions
 
 
-def test_merge_preserves_original_duration_when_split():
-    """Long sentence merged with max_duration constraint must preserve original end_ms."""
-    # 15-second single caption, max_duration=7 seconds, max_lines=2
-    caption = Caption(
-        start_ms=0,
-        end_ms=15000,
-        lines=("This is a long sentence that will be wrapped.",),
-    )
-    result = merge_short_captions([caption], max_duration_ms=7000, max_lines=2)
+def test_merge_preserves_duration_and_respects_max_duration_when_split():
+    """Long merged sentences should preserve end_ms without overlong chunks."""
+    captions = [
+        Caption(start_ms=0, end_ms=5000, lines=("one two three four",)),
+        Caption(start_ms=5000, end_ms=10000, lines=("five six seven eight",)),
+        Caption(start_ms=10000, end_ms=15000, lines=("nine ten eleven twelve.",)),
+    ]
+    result = merge_short_captions(captions, max_duration_ms=7000, max_lines=2)
 
     assert result, "Should return at least one caption"
     assert result[-1].end_ms == 15000, (
         f"Last caption must end at 15000ms to preserve original duration, "
         f"got {result[-1].end_ms}ms (lost {15000 - result[-1].end_ms}ms)"
     )
+    assert all(
+        caption.end_ms - caption.start_ms <= 7000 for caption in result
+    ), "Merged chunks must respect max_duration_ms when word boundaries allow it"
 
 
 def test_merge_short_captions_handles_single_line_long_duration():
@@ -104,4 +106,3 @@ def test_merge_recognizes_arabic_question_mark():
 
     # Should produce at least 2 captions (one per Arabic sentence)
     assert len(result) >= 2, "Arabic sentence boundaries should be preserved"
-

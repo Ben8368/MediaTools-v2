@@ -128,6 +128,8 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
 
 def run(args: argparse.Namespace) -> int:
     urls = _fetch_urls_from_args(args)
+    if args.max_workers < 1:
+        raise MediaToolsError("--max-concurrent must be at least 1.")
     template = FetchOptions(
         url="",  # placeholder — replaced per-URL by make_fetch_options
         output_dir=Path(args.output_dir),

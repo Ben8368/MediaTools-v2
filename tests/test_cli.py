@@ -178,6 +178,24 @@ def test_fetch_timeout_zero_means_no_limit(tmp_path, monkeypatch):
     assert captured["timeout"] is None
 
 
+def test_fetch_rejects_non_positive_max_concurrent(tmp_path, capsys):
+    exit_code = main(
+        [
+            "fetch",
+            "https://example.com/video",
+            str(tmp_path / "downloads"),
+            "--dry-run",
+            "--max-concurrent",
+            "0",
+        ],
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "--max-concurrent must be at least 1" in captured.err
+    assert "Traceback" not in captured.err
+
+
 def test_fetch_dry_run_output_template_overrides_friendly_name(tmp_path, capsys):
     exit_code = main(
         [

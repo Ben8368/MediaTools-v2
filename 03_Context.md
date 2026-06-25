@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-25 11:03:26 +08:00
+> **更新时间：** 2026-06-25 15:22:27 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本与 rolling 字幕内容清理已本地验证，继续转入 Legacy UI 兼容基线
-> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；字幕 rolling 重复清理后 Windows 标准验证通过（141 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）
+> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本、rolling 字幕清理、句子级合并与并发锁硬化已完成，继续转入 Legacy UI 兼容基线
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；字幕 rolling 重复清理后 Windows 标准验证通过（141 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本轮黄灯优化后 Windows 标准验证通过（160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）
 
 ## 2. 本轮阻断项
 
@@ -113,6 +113,9 @@
 - [x] 字幕-only 打磨后标准验证通过：138 passed, 6 skipped；ruff 通过；doctor 发现 Windows `ffmpeg`、`ffprobe`、`yt-dlp`
 - [x] 字幕内容 rolling 重复清理：`subtitle convert` 默认去除连续 cue 的前后行级重叠；`fetch` 下载后仅清理本次新增/变更的 SRT/VTT，再执行原语言优先和语言后缀整理
 - [x] rolling 字幕清理后标准验证通过：141 passed, 6 skipped；ruff 通过；doctor 发现 Windows `ffmpeg`、`ffprobe`、`yt-dlp`
+- [x] review 后续修复：同输出目录锁池改为引用计数，避免等待线程期间创建第二把锁；字幕句子级合并支持多语言句界；下载并发上限支持配置文件控制
+- [x] review 黄灯优化：字幕长句按词时间边界切分，避免超过 `max_duration_ms`；`--max-concurrent 0` 等非正数转为项目错误；清理测试文件末尾空行；同步 README / 治理文档
+- [x] 本轮标准验证通过：Windows 中 `python scripts/verify.py` 通过（160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本机用户级 site-packages 权限问题通过仓库外临时 `PYTHONUSERBASE` 绕开
 
 ## 6. 下一步建议
 

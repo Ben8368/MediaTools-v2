@@ -112,13 +112,10 @@ def _split_group_by_sentences(
             word_start = break_idx + 1
             continue
 
-        sent_start = sentence_words[0][0]
-        sent_end = sentence_words[-1][1]
-        sent_text = " ".join(w[2] for w in sentence_words)
-
-        lines = _wrap_text(sent_text, max_lines)
-        for line_group in _chunk_by_duration(
-            sent_start, sent_end, lines, max_duration_ms
+        for line_group in _chunk_words_by_duration(
+            sentence_words,
+            max_duration_ms,
+            max_lines,
         ):
             results.append(
                 Caption(
@@ -132,12 +129,10 @@ def _split_group_by_sentences(
 
     if word_start < len(all_words):
         remaining = all_words[word_start:]
-        rem_start = remaining[0][0]
-        rem_end = remaining[-1][1]
-        rem_text = " ".join(w[2] for w in remaining)
-        lines = _wrap_text(rem_text, max_lines)
-        for line_group in _chunk_by_duration(
-            rem_start, rem_end, lines, max_duration_ms
+        for line_group in _chunk_words_by_duration(
+            remaining,
+            max_duration_ms,
+            max_lines,
         ):
             results.append(
                 Caption(
@@ -166,34 +161,30 @@ def _wrap_text(text: str, max_lines: int) -> list[str]:
     return lines
 
 
-def _chunk_by_duration(
-    start_ms: int,
-    end_ms: int,
-    lines: list[str],
+def _chunk_words_by_duration(
+    words: list[tuple[int, int, str]],
     max_duration_ms: int,
+    max_lines: int,
 ) -> list[tuple[int, int, tuple[str, ...]]]:
-    """Split lines into chunks that fit within max_duration_ms."""
-    total_duration = end_ms - start_ms
-    if total_duration <= max_duration_ms:
-        return [(start_ms, end_ms, tuple(lines))]
+    """Split timestamped words into chunks that fit within max_duration_ms."""
+    if not words:
+        return []
 
     chunks: list[tuple[int, int, tuple[str, ...]]] = []
-    chunk_dur = max_duration_ms
-    num_chunks = (total_duration + chunk_dur - 1) // chunk_dur
-    lines_per_chunk = max(len(lines) // num_chunks, 1)
+    current: list[tuple[int, int, str]] = []
+    for word in words:
+        if not current:
+            current.append(word)
+            continue
+        candidate_duration = word[1] - current[0][0]
+        if candidate_duration <= max_duration_ms:
+            current.append(word)
+            continue
+        chunks.append(_word_chunk_to_lines(current, max_lines))
+        current = [word]
 
-    cursor = start_ms
-    for i in range(0, len(lines), lines_per_chunk):
-        chunk_lines = lines[i : i + lines_per_chunk]
-        chunk_end = min(cursor + chunk_dur, end_ms)
-        chunks.append((cursor, chunk_end, tuple(chunk_lines)))
-        cursor = chunk_end
-
-    # Ensure the last chunk extends to the original end_ms to prevent
-    # truncation of subtitle display time
-    if chunks and chunks[-1][1] < end_ms:
-        last_start, _, last_lines = chunks[-1]
-        chunks[-1] = (last_start, end_ms, last_lines)
+    if current:
+        chunks.append(_word_chunk_to_lines(current, max_lines))
 
     return chunks
 
