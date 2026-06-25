@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Iterable
 from pathlib import Path
 
 from mediatools.core.errors import MediaToolsError
@@ -162,7 +163,11 @@ def _normalize_language(language: str | None) -> str:
         raise MediaToolsError("Filename language may only contain letters, numbers, '-' or '_'.")
     return normalized
 
-def strip_subtitle_language_suffix(output_dir: str | Path) -> None:
+def strip_subtitle_language_suffix(
+    output_dir: str | Path,
+    *,
+    candidates: Iterable[str | Path] | None = None,
+) -> None:
     """Remove subtitle language suffixes only when doing so is unambiguous.
 
     yt-dlp writes subtitle files as <video-base>.<lang>.<fmt> (e.g.
@@ -182,7 +187,19 @@ def strip_subtitle_language_suffix(output_dir: str | Path) -> None:
         return
 
     subs: dict[str, list[Path]] = {}
-    for child in sorted(dir_path.iterdir()):
+    children = (
+        (Path(candidate) for candidate in candidates)
+        if candidates is not None
+        else dir_path.iterdir()
+    )
+    for child in sorted(children):
+        if not child.is_absolute():
+            child = dir_path / child
+        try:
+            child.relative_to(dir_path)
+        except ValueError:
+            logger.warning("Skipping subtitle outside output directory: %s", child)
+            continue
         m = SUBTITLE_LANG_RE.match(child.name)
         if m and child.suffix.lower() in SUBTITLE_EXTS:
             base, _lang, sub_ext = m.group(1, 2, 3)

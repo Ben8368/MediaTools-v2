@@ -170,8 +170,11 @@ def _fetch_urls_from_args(args: argparse.Namespace) -> list[str]:
 
 
 def _write_json_file(path: Path, payload: dict[str, object]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError as exc:
+        raise MediaToolsError(f"Could not write summary JSON: {path}") from exc
 
 
 def _print_fetch_summary(payload: dict[str, object], *, dry_run: bool) -> None:

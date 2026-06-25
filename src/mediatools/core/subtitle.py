@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from mediatools.core.errors import MediaToolsError
+from mediatools.core.errors import MediaFileError, MediaToolsError
 from mediatools.core.paths import normalize
 
 TIME_LINE_RE = re.compile(
@@ -58,15 +58,32 @@ def convert_subtitle_file(
     source = source_format or input_file.suffix.lstrip(".")
     target = target_format or output_file.suffix.lstrip(".")
 
-    text = input_file.read_text(encoding="utf-8-sig")
+    if not input_file.exists():
+        raise MediaFileError("Input subtitle file does not exist.", path=str(input_file))
+    if not input_file.is_file():
+        raise MediaFileError("Input subtitle path is not a file.", path=str(input_file))
+
+    try:
+        text = input_file.read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        raise MediaFileError(
+            "Could not read input subtitle file.",
+            path=str(input_file),
+        ) from exc
     converted = convert_subtitle_text(
         text,
         source_format=source,
         target_format=target,
         clean_tags=clean_tags,
     )
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    output_file.write_text(converted, encoding="utf-8", newline="\n")
+    try:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_text(converted, encoding="utf-8", newline="\n")
+    except OSError as exc:
+        raise MediaFileError(
+            "Could not write output subtitle file.",
+            path=str(output_file),
+        ) from exc
     return output_file
 
 

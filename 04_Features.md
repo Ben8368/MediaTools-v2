@@ -375,6 +375,27 @@
 - **降级/回滚策略：** 如新版 action major 在 GitHub runner 上出现兼容问题，可回退到已验证的上一 major，同时保留 `macos-15` 固定 runner。
 - **状态：** [客观已验证] - macOS venv 中 `python scripts/verify.py` 通过：127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`；最新推送 CI 三平台绿灯
 
+### Feature-018：review 追补硬化 — Phase 3-A Reliability
+- **提交时间：** 2026-06-25
+- **类型：** 可靠性 / CLI 错误体验 / 下载后处理边界
+- **描述：** 修复 review 追补项：字幕转换输入缺失、`fetch --input-file` 误传目录、`--summary-json` 写入失败等文件 I/O 异常统一转为 `MediaToolsError`/`MediaFileError`，避免 CLI 泄露 Python traceback；下载完成后的字幕语言后缀清理改为基于下载前后快照，只处理本次 yt-dlp 新增或变更的字幕文件，避免误改历史字幕；并发下载收到 `KeyboardInterrupt` 时取消未完成 future 并以 `shutdown(wait=False, cancel_futures=True)` 尽快返回 partial summary。
+- **用户价值：** 用户输错路径或权限不足时看到稳定的一行错误；同一输出目录中的旧字幕不会被新下载任务误重命名；并发下载中断时更容易拿到可追踪的失败摘要。
+- **前置依赖检查：**
+  - 技术依赖：无新增运行时依赖；继续使用标准库、pytest、ruff。
+  - 环境依赖：真实下载仍依赖 PATH 中的 `yt-dlp`；本次验证使用 mock 与 CLI dry-run 覆盖，不触发网络。
+  - 安全影响：收紧文件 I/O 错误边界，不扩大下载目录写入范围。
+  - 跨平台兼容性：路径与异常处理均使用 `pathlib`、标准异常和现有错误模型。
+- **预计影响模块：**
+  - 源码：`src/mediatools/core/subtitle.py`、`src/mediatools/core/fetch.py`、`src/mediatools/core/fetch_naming.py`、`src/mediatools/commands/fetch.py`。
+  - 测试：`tests/test_subtitle.py`、`tests/test_fetch.py`、`tests/test_fetch_parallel.py`、`tests/test_cli.py`。
+  - 文档：`03_Context.md`、`04_Features.md`、`05_Lessons.md`。
+- **验收思路：**
+  - CLI 回归测试覆盖缺失字幕、input-file 目录、summary-json 目录三类 traceback 风险。
+  - 单元测试覆盖旧字幕不被本次下载后处理误改名，以及并发中断时 executor 非等待关闭。
+  - 标准验证覆盖全量 pytest、ruff、doctor 和文件行数限制。
+- **降级/回滚策略：** 如后续需要基于 yt-dlp 产物 manifest 做更精确后处理，可保留当前快照机制作为保守兜底；如并发中断仍需终止已运行子进程，再扩展 subprocess 层的进程终止能力。
+- **状态：** [客观已验证] - Windows 中 `python scripts/verify.py` 通过：135 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`
+
 ## 3. 首批 MVP 优先级矩阵
 
 > **决策状态：** 用户已确认首批 MVP = A/B/C/D/E（2026-06-24），对应 Feature-005~009。
@@ -419,6 +440,7 @@
 | P3-A Safety | 下载安全边界与批量结果硬化 | P0 | 标准库 | URL 预校验、模板路径边界、重复 URL summary、多语言字幕保留 | Feature-015 |
 | P3-A Maintenance | review 黄灯收敛 | P1 | 标准库 | CLI 日志接入、默认下载超时、命令分发映射、runner Protocol | Feature-016 |
 | P3-A Perfect Green | 完美绿灯维护收口 | P1 | 标准库 / CI | 拆分预警文件、降低行数风险、升级 CI action 与固定 macOS runner | Feature-017 |
+| P3-A Reliability | review 追补硬化 | P1 | 标准库 | 文件 I/O 统一项目错误、字幕后处理快照边界、并发中断快速收口 | Feature-018 |
 | P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | 待 Legacy 考古 | 先兼容布局和用户路径，再选技术栈 | Feature-011 |
 | P3-C | 视频切片 | P2 | ffmpeg | 下载落地后再评估 | 待补 |
 | P3-D | 资产扫描 / 搜索 / 统计 | P3 | 标准库优先 | 服务批处理和前端结果管理 | 待补 |

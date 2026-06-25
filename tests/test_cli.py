@@ -205,6 +205,57 @@ def test_fetch_requires_url_or_input_file(capsys):
     assert "Provide a fetch URL or --input-file" in capsys.readouterr().err
 
 
+def test_subtitle_missing_input_reports_clean_error(tmp_path, capsys):
+    exit_code = main(
+        [
+            "subtitle",
+            "convert",
+            str(tmp_path / "missing.vtt"),
+            str(tmp_path / "target.srt"),
+        ],
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "Input subtitle file does not exist" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_fetch_input_file_directory_reports_clean_error(tmp_path, capsys):
+    exit_code = main(
+        [
+            "fetch",
+            str(tmp_path / "downloads"),
+            "--input-file",
+            str(tmp_path),
+            "--dry-run",
+        ],
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "Fetch input path is not a file" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_fetch_summary_json_directory_reports_clean_error(tmp_path, capsys):
+    exit_code = main(
+        [
+            "fetch",
+            "https://example.com/video",
+            str(tmp_path / "downloads"),
+            "--dry-run",
+            "--summary-json",
+            str(tmp_path),
+        ],
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "Could not write summary JSON" in captured.err
+    assert "Traceback" not in captured.err
+
+
 def test_fetch_dry_run_accepts_input_file(tmp_path, capsys):
     input_file = tmp_path / "urls.txt"
     input_file.write_text("https://example.com/one\nhttps://example.com/two\n", encoding="utf-8")

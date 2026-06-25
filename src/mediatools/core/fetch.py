@@ -8,6 +8,8 @@ from pathlib import Path
 from mediatools.core.errors import MediaToolsError
 from mediatools.core.fetch_auth import build_auth_args
 from mediatools.core.fetch_naming import (
+    SUBTITLE_EXTS,
+    SUBTITLE_LANG_RE,
     build_output_template,
     strip_subtitle_language_suffix,
 )
@@ -87,9 +89,15 @@ def load_fetch_urls(input_file: str | Path) -> list[str]:
     path = normalize(Path(input_file))
     if not path.exists():
         raise MediaToolsError(f"Fetch input file does not exist: {path}")
+    if not path.is_file():
+        raise MediaToolsError(f"Fetch input path is not a file: {path}")
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        raise MediaToolsError(f"Could not read fetch input file: {path}") from exc
     urls = [
         line.strip()
-        for line in path.read_text(encoding="utf-8-sig").splitlines()
+        for line in text.splitlines()
         if line.strip() and not line.lstrip().startswith("#")
     ]
     if not urls:
@@ -135,10 +143,14 @@ def fetch_media(
     """Run yt-dlp for a single download operation."""
     output_dir = normalize(options.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    subtitle_snapshot = _subtitle_snapshot(output_dir)
     normalized_options = copy_options(options, output_dir=output_dir)
     kwargs = {"runner": runner} if runner is not None else {}
     result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
-    strip_subtitle_language_suffix(output_dir)
+    strip_subtitle_language_suffix(
+        output_dir,
+        candidates=_changed_subtitles(output_dir, subtitle_snapshot),
+    )
     return result
 
 
@@ -251,34 +263,36 @@ def _fetch_parallel(
     results_map: dict[int, FetchItemResult] = {}
     interrupted = False
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_index = {
-            executor.submit(
-                _fetch_one,
-                opts,
-                runner=runner,
-                timeout=timeout,
-            ): index
-            for index, opts in enumerate(options_list)
-        }
-        try:
-            for future in as_completed(future_to_index):
-                index = future_to_index[future]
-                try:
-                    results_map[index] = future.result()
-                except Exception:
-                    opts = options_list[index]
-                    results_map[index] = FetchItemResult(
-                        url=opts.url,
-                        status="failed",
-                        output_dir=normalize(opts.output_dir),
-                        command=(),
-                        error="Unexpected error during fetch.",
-                    )
-        except KeyboardInterrupt:
-            interrupted = True
-            for future in future_to_index:
-                future.cancel()
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    future_to_index = {
+        executor.submit(
+            _fetch_one,
+            opts,
+            runner=runner,
+            timeout=timeout,
+        ): index
+        for index, opts in enumerate(options_list)
+    }
+    try:
+        for future in as_completed(future_to_index):
+            index = future_to_index[future]
+            try:
+                results_map[index] = future.result()
+            except Exception:
+                opts = options_list[index]
+                results_map[index] = FetchItemResult(
+                    url=opts.url,
+                    status="failed",
+                    output_dir=normalize(opts.output_dir),
+                    command=(),
+                    error="Unexpected error during fetch.",
+                )
+    except KeyboardInterrupt:
+        interrupted = True
+        for future in future_to_index:
+            future.cancel()
+    finally:
+        executor.shutdown(wait=not interrupted, cancel_futures=interrupted)
 
     # Reconstitute results in original order, filling in gaps from interruption
     results: list[FetchItemResult] = []
@@ -304,3 +318,43 @@ def _safe_fetch_command(options: FetchOptions) -> tuple[str, ...]:
         return ("yt-dlp", *build_fetch_args(options))
     except MediaToolsError:
         return ("yt-dlp",)
+
+
+def _subtitle_snapshot(output_dir: Path) -> dict[str, tuple[int, int]]:
+    """Record subtitle file state before yt-dlp runs."""
+    snapshot: dict[str, tuple[int, int]] = {}
+    if not output_dir.is_dir():
+        return snapshot
+    for child in output_dir.iterdir():
+        if not _is_language_subtitle(child):
+            continue
+        try:
+            stat = child.stat()
+        except OSError:
+            continue
+        snapshot[child.name] = (stat.st_size, stat.st_mtime_ns)
+    return snapshot
+
+
+def _changed_subtitles(output_dir: Path, before: dict[str, tuple[int, int]]) -> tuple[Path, ...]:
+    """Return subtitle files created or changed by the just-finished download."""
+    changed: list[Path] = []
+    if not output_dir.is_dir():
+        return ()
+    for child in output_dir.iterdir():
+        if not _is_language_subtitle(child):
+            continue
+        try:
+            stat = child.stat()
+        except OSError:
+            continue
+        state = (stat.st_size, stat.st_mtime_ns)
+        if before.get(child.name) != state:
+            changed.append(child)
+    return tuple(changed)
+
+
+def _is_language_subtitle(path: Path) -> bool:
+    return path.is_file() and path.suffix.lower() in SUBTITLE_EXTS and bool(
+        SUBTITLE_LANG_RE.match(path.name),
+    )

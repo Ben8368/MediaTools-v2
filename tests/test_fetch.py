@@ -50,6 +50,11 @@ def test_load_fetch_urls_rejects_invalid_url(tmp_path):
         load_fetch_urls(input_file)
 
 
+def test_load_fetch_urls_rejects_directory(tmp_path):
+    with pytest.raises(MediaToolsError, match="not a file"):
+        load_fetch_urls(tmp_path)
+
+
 def test_make_fetch_options_requires_urls(tmp_path):
     with pytest.raises(MediaToolsError):
         make_fetch_options([], FetchOptions(url="", output_dir=tmp_path))
@@ -139,6 +144,23 @@ def test_fetch_many_records_keyboard_interrupt(tmp_path, monkeypatch):
 
     assert result.failed == 1
     assert "Interrupted by user" in str(result.items[0].error)
+
+
+def test_fetch_media_only_postprocesses_changed_subtitles(tmp_path, monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+    old_subtitle = tmp_path / "old.en.srt"
+    old_subtitle.write_text("OLD", encoding="utf-8")
+
+    def runner(command, **kwargs):
+        (tmp_path / "new.en.srt").write_text("NEW", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    fetch_media(FetchOptions(url="https://example.com/video", output_dir=tmp_path), runner=runner)
+
+    assert old_subtitle.exists()
+    assert not (tmp_path / "old.srt").exists()
+    assert not (tmp_path / "new.en.srt").exists()
+    assert (tmp_path / "new.srt").read_text(encoding="utf-8") == "NEW"
 
 
 def test_make_fetch_options_accepts_new_fields(tmp_path):

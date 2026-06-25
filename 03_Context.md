@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-25 05:13:33 +08:00
+> **更新时间：** 2026-06-25 10:03:41 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流已验收，review 完美绿灯收口已本地与 CI 验证，转入 Legacy UI 兼容基线
-> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；review 完美绿灯收口后 macOS venv 标准验证通过（127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`）；最新推送 CI 三平台绿灯
+> **当前阶段：** Phase 3 - 下载工作流已验收，review 追补硬化已本地验证，继续转入 Legacy UI 兼容基线
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；review 完美绿灯收口后 macOS venv 标准验证通过（127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`）；review 追补硬化后 Windows 标准验证通过（135 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；上次推送 CI 三平台绿灯
 
 ## 2. 本轮阻断项
 
@@ -106,6 +106,8 @@
 - [x] review 黄灯收敛后标准验证通过：127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`
 - [x] review 完美绿灯收口：拆分 `core/fetch.py` 的认证/语言解析职责；拆分 `tests/test_fetch.py` 的参数构造与语言解析测试；所有 Python 文件降至 350 行预警线以下；CI 升级到 `actions/checkout@v7` / `actions/setup-python@v6` 并固定 macOS runner 为 `macos-15`
 - [x] 完美绿灯收口后标准验证通过：127 passed, 6 skipped；ruff 通过；doctor 发现 `/opt/homebrew/bin/ffmpeg`、`ffprobe`、`yt-dlp`；最新推送 CI 三平台绿灯
+- [x] review 追补硬化：字幕转换、fetch input-file、summary JSON 的文件 I/O 失败统一转为项目错误；字幕语言后缀后处理仅处理本次下载新增/变更字幕；并发下载 Ctrl-C 触发 executor 非等待关闭
+- [x] review 追补硬化后标准验证通过：135 passed, 6 skipped；ruff 通过；doctor 发现 Windows `ffmpeg`、`ffprobe`、`yt-dlp`
 
 ## 6. 下一步建议
 

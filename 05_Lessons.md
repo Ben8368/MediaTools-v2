@@ -204,3 +204,15 @@
 - **背景：** `verify.py` 的 500 行硬限制已通过，但 `core/fetch.py` 超过 350 行预警线、`tests/test_fetch.py` 接近 500 行评估线；CI 虽绿，但 GitHub Actions 仍提示 Node runtime 与 macOS runner 迁移 annotation。
 - **经验：** “绿灯完美”不仅是测试通过，还要消除会误导后续接手者的维护预警。大文件应按真实职责拆分，而不是为了行数制造空壳；CI annotation 若可通过稳定 action 版本和固定 runner 消除，也应在进入下一阶段前收口。
 - **状态：** 已采纳
+
+### L-033：CLI 文件 I/O 必须转为项目错误
+- **时间：** 2026-06-25 10:03:41 +08:00
+- **背景：** review 追补发现 `subtitle convert` 输入文件不存在、`fetch --input-file` 误传目录、`--summary-json` 写入目录时会冒出 Python traceback，违反 CLI 层统一错误体验。
+- **经验：** 任何用户输入路径触发的 `read_text`、`write_text`、`mkdir` 等 I/O 操作，都应先做存在性/文件类型检查，并把 `OSError` 转为 `MediaToolsError` 或更具体的 `MediaFileError`。CLI 回归测试不仅要断言错误消息，还要断言 stderr 不包含 `Traceback`。
+- **状态：** 已采纳
+
+### L-034：下载后处理不能默认扫描整个输出目录
+- **时间：** 2026-06-25 10:03:41 +08:00
+- **背景：** 字幕语言后缀清理原先在每次下载后扫描整个输出目录，可能把历史字幕文件也顺手重命名；并发下载时还可能扩大竞争窗口。
+- **经验：** 下载后处理应尽量限制在本次任务产物范围内。若外部工具暂时没有稳定 manifest，可在调用前后记录目标目录中相关文件的快照，只处理新增或发生变化的候选文件；未来若引入 yt-dlp 产物清单，可再替换为更精确的 manifest 驱动。
+- **状态：** 已采纳

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import subprocess
 
 from mediatools.core.fetch import FetchOptions, fetch_many
@@ -115,3 +116,52 @@ def test_fetch_many_concurrent_keeps_duplicate_urls_as_separate_items(tmp_path, 
     assert download_count == 2
     assert result.items[0].output_dir == (tmp_path / "one").resolve()
     assert result.items[1].output_dir == (tmp_path / "two").resolve()
+
+
+def test_fetch_many_concurrent_interrupt_shuts_down_without_wait(tmp_path, monkeypatch):
+    class FakeFuture:
+        def __init__(self) -> None:
+            self.cancelled = False
+
+        def cancel(self) -> None:
+            self.cancelled = True
+
+    class FakeExecutor:
+        def __init__(self, max_workers):
+            self.max_workers = max_workers
+            self.futures: list[FakeFuture] = []
+            self.shutdown_call: tuple[bool, bool] | None = None
+
+        def submit(self, *args, **kwargs):
+            future = FakeFuture()
+            self.futures.append(future)
+            return future
+
+        def shutdown(self, *, wait=True, cancel_futures=False):
+            self.shutdown_call = (wait, cancel_futures)
+
+    fake_executor = FakeExecutor(max_workers=2)
+
+    def fake_executor_factory(max_workers):
+        assert max_workers == 2
+        return fake_executor
+
+    def interrupted_as_completed(futures):
+        raise KeyboardInterrupt
+        yield from futures
+
+    monkeypatch.setattr(concurrent.futures, "ThreadPoolExecutor", fake_executor_factory)
+    monkeypatch.setattr(concurrent.futures, "as_completed", interrupted_as_completed)
+
+    result = fetch_many(
+        [
+            FetchOptions(url="https://example.com/a", output_dir=tmp_path),
+            FetchOptions(url="https://example.com/b", output_dir=tmp_path),
+        ],
+        max_workers=2,
+    )
+
+    assert result.failed == 2
+    assert all("Interrupted by user" in str(item.error) for item in result.items)
+    assert all(future.cancelled for future in fake_executor.futures)
+    assert fake_executor.shutdown_call == (False, True)
