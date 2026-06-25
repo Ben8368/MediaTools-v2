@@ -222,7 +222,14 @@ def strip_subtitle_language_suffix(
                 continue
             logger.warning("Keeping subtitle %s because %s already exists.", src.name, dest.name)
             continue
-        src.rename(dest)
+        try:
+            src.rename(dest)
+        except OSError:
+            logger.warning(
+                "Keeping language suffixes for %s because it could not be renamed.",
+                src.name,
+            )
+            continue
         logger.debug("Renamed subtitle %s -> %s", src.name, dest.name)
 
 
