@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-25 10:46:30 +08:00
+> **更新时间：** 2026-06-25 11:03:26 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本打磨已本地验证，继续转入 Legacy UI 兼容基线
-> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；字幕-only 打磨后 Windows 标准验证通过（138 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）
+> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本与 rolling 字幕内容清理已本地验证，继续转入 Legacy UI 兼容基线
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；字幕 rolling 重复清理后 Windows 标准验证通过（141 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）
 
 ## 2. 本轮阻断项
 
@@ -111,6 +111,8 @@
 - [x] 字幕-only 生产样本打磨：`--subtitles-only` 默认尝试人工+自动字幕且不再传视频格式预设；`--sub-langs original` 输出优先保留 `*-orig` 原语言字幕并清理 fallback/重复字幕；同输出目录字幕下载后处理加锁，避免并发 rename 竞态
 - [x] 真实 51 URL 字幕-only 批量验收通过：51 succeeded, 0 failed；输出 51 个 SRT，无视频文件；重复 URL 不再留下额外 `*-orig.srt`
 - [x] 字幕-only 打磨后标准验证通过：138 passed, 6 skipped；ruff 通过；doctor 发现 Windows `ffmpeg`、`ffprobe`、`yt-dlp`
+- [x] 字幕内容 rolling 重复清理：`subtitle convert` 默认去除连续 cue 的前后行级重叠；`fetch` 下载后仅清理本次新增/变更的 SRT/VTT，再执行原语言优先和语言后缀整理
+- [x] rolling 字幕清理后标准验证通过：141 passed, 6 skipped；ruff 通过；doctor 发现 Windows `ffmpeg`、`ffprobe`、`yt-dlp`
 
 ## 6. 下一步建议
 

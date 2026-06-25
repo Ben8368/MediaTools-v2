@@ -35,6 +35,7 @@ from mediatools.core.fetch_types import (
 )
 from mediatools.core.ffmpeg import ProcessRunner, ToolResult, run_ytdlp
 from mediatools.core.paths import normalize
+from mediatools.core.subtitle import clean_subtitle_file
 
 
 def build_fetch_args(options: FetchOptions) -> list[str]:
@@ -164,6 +165,8 @@ def fetch_media(
         kwargs = {"runner": runner} if runner is not None else {}
         result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
         changed = changed_subtitles(output_dir, before)
+        for subtitle in changed:
+            clean_subtitle_file(subtitle)
         if prefer_original_subtitles:
             changed = prune_original_subtitle_fallbacks(output_dir, candidates=changed)
         strip_subtitle_language_suffix(output_dir, candidates=changed)

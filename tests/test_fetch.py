@@ -163,6 +163,34 @@ def test_fetch_media_only_postprocesses_changed_subtitles(tmp_path, monkeypatch)
     assert (tmp_path / "new.srt").read_text(encoding="utf-8") == "NEW"
 
 
+def test_fetch_media_cleans_rolling_subtitle_text(tmp_path, monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+    rolling_srt = """1
+00:00:00,000 --> 00:00:02,030
+Picture this, you have an idea, a real
+
+2
+00:00:02,030 --> 00:00:02,040
+Picture this, you have an idea, a real
+
+3
+00:00:02,040 --> 00:00:04,070
+Picture this, you have an idea, a real
+one, not a shower thought, a product
+"""
+
+    def runner(command, **kwargs):
+        (tmp_path / "video.en.srt").write_text(rolling_srt, encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    fetch_media(FetchOptions(url="https://example.com/video", output_dir=tmp_path), runner=runner)
+
+    cleaned = (tmp_path / "video.srt").read_text(encoding="utf-8")
+    assert "Picture this, you have an idea, a real\n\n2" in cleaned
+    assert "Picture this, you have an idea, a real\none, not" not in cleaned
+    assert "one, not a shower thought, a product" in cleaned
+
+
 def test_fetch_media_prefers_original_subtitle_over_fallback(tmp_path, monkeypatch):
     monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
 

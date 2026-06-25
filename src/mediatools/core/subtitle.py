@@ -31,11 +31,14 @@ def convert_subtitle_text(
     source_format: str,
     target_format: str,
     clean_tags: bool = True,
+    clean_rolling: bool = True,
 ) -> str:
     """Convert subtitle text between ``srt`` and ``vtt``."""
     source = _normalize_format(source_format)
     target = _normalize_format(target_format)
     captions = parse_subtitle(text, subtitle_format=source, clean_tags=clean_tags)
+    if clean_rolling:
+        captions = clean_rolling_captions(captions)
 
     if target == "srt":
         return serialize_srt(captions)
@@ -51,6 +54,7 @@ def convert_subtitle_file(
     source_format: str | None = None,
     target_format: str | None = None,
     clean_tags: bool = True,
+    clean_rolling: bool = True,
 ) -> Path:
     """Convert a subtitle file and write the result with UTF-8 encoding."""
     input_file = normalize(input_path)
@@ -75,6 +79,7 @@ def convert_subtitle_file(
         source_format=source,
         target_format=target,
         clean_tags=clean_tags,
+        clean_rolling=clean_rolling,
     )
     try:
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -85,6 +90,36 @@ def convert_subtitle_file(
             path=str(output_file),
         ) from exc
     return output_file
+
+
+def clean_subtitle_file(path: str | Path) -> Path:
+    """Rewrite an SRT or WebVTT file after removing rolling duplicate text."""
+    subtitle_file = normalize(path)
+    subtitle_format = subtitle_file.suffix.lstrip(".").lower()
+    if subtitle_format not in {"srt", "vtt"}:
+        return subtitle_file
+    if not subtitle_file.exists() or not subtitle_file.is_file():
+        return subtitle_file
+    try:
+        text = subtitle_file.read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        raise MediaFileError(
+            "Could not read subtitle file for cleanup.",
+            path=str(subtitle_file),
+        ) from exc
+    captions = parse_subtitle(text, subtitle_format=subtitle_format, clean_tags=True)
+    if not captions:
+        return subtitle_file
+    captions = clean_rolling_captions(captions)
+    cleaned = serialize_srt(captions) if subtitle_format == "srt" else serialize_vtt(captions)
+    try:
+        subtitle_file.write_text(cleaned, encoding="utf-8", newline="\n")
+    except OSError as exc:
+        raise MediaFileError(
+            "Could not write cleaned subtitle file.",
+            path=str(subtitle_file),
+        ) from exc
+    return subtitle_file
 
 
 def parse_subtitle(
@@ -128,6 +163,24 @@ def serialize_vtt(captions: list[Caption]) -> str:
         ]
         blocks.append("\n".join(block))
     return "\n\n".join(blocks) + "\n"
+
+
+def clean_rolling_captions(captions: list[Caption]) -> list[Caption]:
+    """Remove repeated rolling subtitle prefixes from consecutive cues."""
+    cleaned: list[Caption] = []
+    previous_lines: tuple[str, ...] = ()
+    for caption in captions:
+        lines = _remove_line_overlap(previous_lines, caption.lines)
+        if lines:
+            cleaned.append(
+                Caption(
+                    start_ms=caption.start_ms,
+                    end_ms=caption.end_ms,
+                    lines=lines,
+                ),
+            )
+        previous_lines = caption.lines
+    return cleaned
 
 
 def parse_timestamp(value: str) -> int:
@@ -211,6 +264,19 @@ def _clean_line(line: str, *, clean_tags: bool) -> str:
     if clean_tags:
         cleaned = TAG_RE.sub("", cleaned)
     return cleaned
+
+
+def _remove_line_overlap(
+    previous_lines: tuple[str, ...],
+    current_lines: tuple[str, ...],
+) -> tuple[str, ...]:
+    if not previous_lines or not current_lines:
+        return current_lines
+    limit = min(len(previous_lines), len(current_lines))
+    for overlap in range(limit, 0, -1):
+        if previous_lines[-overlap:] == current_lines[:overlap]:
+            return current_lines[overlap:]
+    return current_lines
 
 
 def _normalize_format(value: str) -> str:
