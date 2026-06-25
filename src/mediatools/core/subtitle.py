@@ -39,6 +39,7 @@ def convert_subtitle_text(
     captions = parse_subtitle(text, subtitle_format=source, clean_tags=clean_tags)
     if clean_rolling:
         captions = clean_rolling_captions(captions)
+        captions = merge_short_captions(captions)
 
     if target == "srt":
         return serialize_srt(captions)
@@ -111,6 +112,7 @@ def clean_subtitle_file(path: str | Path) -> Path:
     if not captions:
         return subtitle_file
     captions = clean_rolling_captions(captions)
+    captions = merge_short_captions(captions)
     cleaned = serialize_srt(captions) if subtitle_format == "srt" else serialize_vtt(captions)
     try:
         subtitle_file.write_text(cleaned, encoding="utf-8", newline="\n")
@@ -181,6 +183,16 @@ def clean_rolling_captions(captions: list[Caption]) -> list[Caption]:
             )
         previous_lines = caption.lines
     return cleaned
+
+
+def merge_short_captions(captions: list[Caption], **kwargs: object) -> list[Caption]:
+    """Merge time-adjacent cues into natural sentence-length blocks.
+
+    Delegated to ``subtitle_merge`` module to keep this file under 500 lines.
+    """
+    from mediatools.core.subtitle_merge import merge_short_captions as _merge
+
+    return _merge(captions, **kwargs)  # type: ignore[arg-type]
 
 
 def parse_timestamp(value: str) -> int:
