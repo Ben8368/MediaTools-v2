@@ -187,19 +187,7 @@ def strip_subtitle_language_suffix(
         return
 
     subs: dict[str, list[Path]] = {}
-    children = (
-        (Path(candidate) for candidate in candidates)
-        if candidates is not None
-        else dir_path.iterdir()
-    )
-    for child in sorted(children):
-        if not child.is_absolute():
-            child = dir_path / child
-        try:
-            child.relative_to(dir_path)
-        except ValueError:
-            logger.warning("Skipping subtitle outside output directory: %s", child)
-            continue
+    for child in _candidate_paths(dir_path, candidates):
         m = SUBTITLE_LANG_RE.match(child.name)
         if m and child.suffix.lower() in SUBTITLE_EXTS:
             base, _lang, sub_ext = m.group(1, 2, 3)
@@ -218,8 +206,106 @@ def strip_subtitle_language_suffix(
         if dest == src:
             continue
         if dest.exists():
+            if _same_file_content(src, dest):
+                try:
+                    src.unlink()
+                    logger.debug(
+                        "Removed duplicate subtitle %s; %s already exists.",
+                        src.name,
+                        dest.name,
+                    )
+                except OSError:
+                    logger.warning(
+                        "Keeping duplicate subtitle %s because it could not be removed.",
+                        src.name,
+                    )
+                continue
             logger.warning("Keeping subtitle %s because %s already exists.", src.name, dest.name)
             continue
         src.rename(dest)
         logger.debug("Renamed subtitle %s -> %s", src.name, dest.name)
+
+
+def prune_original_subtitle_fallbacks(
+    output_dir: str | Path,
+    *,
+    candidates: Iterable[str | Path],
+) -> tuple[Path, ...]:
+    """Keep the best ``*-orig`` subtitle when original-language fallbacks collide.
+
+    ``--sub-langs original`` expands to a small fallback list such as
+    ``pt-BR-orig,pt-BR,pt-orig,pt``.  YouTube may return multiple matches,
+    which is useful for fallback but noisy for users.  Prefer the most
+    specific ``*-orig`` file and delete the other fallback subtitles for the
+    same target name before the language suffix is stripped.
+    """
+    dir_path = Path(output_dir)
+    groups: dict[str, list[tuple[Path, str]]] = {}
+    remaining: dict[Path, None] = {}
+    for child in _candidate_paths(dir_path, candidates):
+        remaining[child] = None
+        match = SUBTITLE_LANG_RE.match(child.name)
+        if not match or child.suffix.lower() not in SUBTITLE_EXTS:
+            continue
+        base, language, sub_ext = match.group(1, 2, 3)
+        groups.setdefault(f"{base}.{sub_ext}", []).append((child, language))
+
+    for target_name, entries in groups.items():
+        originals = [(path, lang) for path, lang in entries if lang.endswith("-orig")]
+        if not originals:
+            continue
+        keep, keep_lang = max(originals, key=lambda item: _language_specificity(item[1]))
+        for path, _language in entries:
+            if path == keep:
+                continue
+            try:
+                path.unlink()
+                remaining.pop(path, None)
+                logger.debug(
+                    "Removed subtitle fallback %s for original language %s -> %s.",
+                    path.name,
+                    keep_lang,
+                    target_name,
+                )
+            except OSError:
+                logger.warning(
+                    "Keeping subtitle fallback %s because it could not be removed.",
+                    path.name,
+                )
+
+    return tuple(remaining)
+
+
+def _candidate_paths(
+    dir_path: Path,
+    candidates: Iterable[str | Path] | None,
+) -> list[Path]:
+    children = (
+        (Path(candidate) for candidate in candidates)
+        if candidates is not None
+        else dir_path.iterdir()
+    )
+    result: list[Path] = []
+    for child in children:
+        if not child.is_absolute():
+            child = dir_path / child
+        try:
+            child.relative_to(dir_path)
+        except ValueError:
+            logger.warning("Skipping subtitle outside output directory: %s", child)
+            continue
+        result.append(child)
+    return sorted(result)
+
+
+def _language_specificity(language: str) -> tuple[int, int, str]:
+    base = language.removesuffix("-orig")
+    return (1 if language.endswith("-orig") else 0, base.count("-"), base)
+
+
+def _same_file_content(left: Path, right: Path) -> bool:
+    try:
+        return left.read_bytes() == right.read_bytes()
+    except OSError:
+        return False
 

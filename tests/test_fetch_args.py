@@ -18,7 +18,25 @@ def test_build_fetch_args_for_subtitles_only(tmp_path):
 
     assert "--skip-download" in args
     assert "--write-subs" in args
+    assert "--write-auto-subs" in args
     assert "en,zh" in args
+    assert "-t" not in args
+
+
+def test_build_fetch_args_for_subtitles_only_respects_explicit_manual_choice(tmp_path):
+    args = build_fetch_args(
+        FetchOptions(
+            url="https://example.com/video",
+            output_dir=tmp_path,
+            subtitles_only=True,
+            write_subtitles=True,
+            subtitle_languages="en",
+        ),
+    )
+
+    assert "--skip-download" in args
+    assert "--write-subs" in args
+    assert "--write-auto-subs" not in args
 
 
 def test_build_fetch_args_for_auto_subtitles(tmp_path):

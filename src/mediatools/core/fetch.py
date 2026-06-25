@@ -8,10 +8,14 @@ from pathlib import Path
 from mediatools.core.errors import MediaToolsError
 from mediatools.core.fetch_auth import build_auth_args
 from mediatools.core.fetch_naming import (
-    SUBTITLE_EXTS,
-    SUBTITLE_LANG_RE,
     build_output_template,
+    prune_original_subtitle_fallbacks,
     strip_subtitle_language_suffix,
+)
+from mediatools.core.fetch_postprocess import (
+    changed_subtitles,
+    output_dir_lock,
+    subtitle_snapshot,
 )
 from mediatools.core.fetch_resolution import (
     probe_language,
@@ -58,7 +62,7 @@ def build_fetch_args(options: FetchOptions) -> list[str]:
             cookies_from_browser=options.cookies_from_browser,
         ),
     )
-    if options.preset:
+    if options.preset and not options.subtitles_only:
         args.extend(["-t", options.preset])
     if options.merge_format:
         args.extend(["--merge-output-format", options.merge_format])
@@ -66,11 +70,12 @@ def build_fetch_args(options: FetchOptions) -> list[str]:
         args.extend(["--remux-video", options.remux_video])
     if options.format_sort:
         args.extend(["-S", options.format_sort])
-    if options.write_subtitles or options.subtitles_only:
+    write_subtitles, write_auto_subtitles = _effective_subtitle_flags(options)
+    if write_subtitles:
         args.extend(["--write-subs", "--sub-langs", options.subtitle_languages])
-    if options.write_auto_subtitles:
+    if write_auto_subtitles:
         args.append("--write-auto-subs")
-        if not (options.write_subtitles or options.subtitles_only):
+        if not write_subtitles:
             args.extend(["--sub-langs", options.subtitle_languages])
     if options.convert_subs:
         args.extend(["--convert-subs", options.convert_subs])
@@ -82,6 +87,15 @@ def build_fetch_args(options: FetchOptions) -> list[str]:
         args.extend(["--download-archive", str(normalize(options.download_archive))])
     args.append(options.url)
     return args
+
+
+def _effective_subtitle_flags(options: FetchOptions) -> tuple[bool, bool]:
+    """Return manual/automatic subtitle flags after subtitle-only defaults."""
+    if not options.subtitles_only:
+        return options.write_subtitles, options.write_auto_subtitles
+    if options.write_subtitles or options.write_auto_subtitles:
+        return options.write_subtitles, options.write_auto_subtitles
+    return True, True
 
 
 def load_fetch_urls(input_file: str | Path) -> list[str]:
@@ -139,19 +153,21 @@ def fetch_media(
     *,
     runner: ProcessRunner | None = None,
     timeout: float | None = None,
+    prefer_original_subtitles: bool = False,
 ) -> ToolResult:
     """Run yt-dlp for a single download operation."""
     output_dir = normalize(options.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    subtitle_snapshot = _subtitle_snapshot(output_dir)
-    normalized_options = copy_options(options, output_dir=output_dir)
-    kwargs = {"runner": runner} if runner is not None else {}
-    result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
-    strip_subtitle_language_suffix(
-        output_dir,
-        candidates=_changed_subtitles(output_dir, subtitle_snapshot),
-    )
-    return result
+    with output_dir_lock(output_dir):
+        output_dir.mkdir(parents=True, exist_ok=True)
+        before = subtitle_snapshot(output_dir)
+        normalized_options = copy_options(options, output_dir=output_dir)
+        kwargs = {"runner": runner} if runner is not None else {}
+        result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
+        changed = changed_subtitles(output_dir, before)
+        if prefer_original_subtitles:
+            changed = prune_original_subtitle_fallbacks(output_dir, candidates=changed)
+        strip_subtitle_language_suffix(output_dir, candidates=changed)
+        return result
 
 
 def _fetch_one(
@@ -179,7 +195,12 @@ def _fetch_one(
         )
         resolved = _resolve_sub_langs(options, probed_lang=probed_lang)
         resolved = _resolve_filename_language(resolved, probed_lang=probed_lang)
-        result = fetch_media(resolved, runner=runner, timeout=timeout)
+        result = fetch_media(
+            resolved,
+            runner=runner,
+            timeout=timeout,
+            prefer_original_subtitles=options.subtitle_languages == "original",
+        )
         return FetchItemResult(
             url=resolved.url,
             status="succeeded",
@@ -278,14 +299,14 @@ def _fetch_parallel(
             index = future_to_index[future]
             try:
                 results_map[index] = future.result()
-            except Exception:
+            except Exception as exc:
                 opts = options_list[index]
                 results_map[index] = FetchItemResult(
                     url=opts.url,
                     status="failed",
                     output_dir=normalize(opts.output_dir),
-                    command=(),
-                    error="Unexpected error during fetch.",
+                    command=_safe_fetch_command(opts),
+                    error=f"Unexpected error during fetch: {exc}",
                 )
     except KeyboardInterrupt:
         interrupted = True
@@ -318,43 +339,3 @@ def _safe_fetch_command(options: FetchOptions) -> tuple[str, ...]:
         return ("yt-dlp", *build_fetch_args(options))
     except MediaToolsError:
         return ("yt-dlp",)
-
-
-def _subtitle_snapshot(output_dir: Path) -> dict[str, tuple[int, int]]:
-    """Record subtitle file state before yt-dlp runs."""
-    snapshot: dict[str, tuple[int, int]] = {}
-    if not output_dir.is_dir():
-        return snapshot
-    for child in output_dir.iterdir():
-        if not _is_language_subtitle(child):
-            continue
-        try:
-            stat = child.stat()
-        except OSError:
-            continue
-        snapshot[child.name] = (stat.st_size, stat.st_mtime_ns)
-    return snapshot
-
-
-def _changed_subtitles(output_dir: Path, before: dict[str, tuple[int, int]]) -> tuple[Path, ...]:
-    """Return subtitle files created or changed by the just-finished download."""
-    changed: list[Path] = []
-    if not output_dir.is_dir():
-        return ()
-    for child in output_dir.iterdir():
-        if not _is_language_subtitle(child):
-            continue
-        try:
-            stat = child.stat()
-        except OSError:
-            continue
-        state = (stat.st_size, stat.st_mtime_ns)
-        if before.get(child.name) != state:
-            changed.append(child)
-    return tuple(changed)
-
-
-def _is_language_subtitle(path: Path) -> bool:
-    return path.is_file() and path.suffix.lower() in SUBTITLE_EXTS and bool(
-        SUBTITLE_LANG_RE.match(path.name),
-    )

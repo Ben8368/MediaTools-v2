@@ -19,7 +19,8 @@
 - [x] 最小 CLI 脚手架验证
 - [x] Phase 1 核心架构（路径、日志、错误处理、配置）
 - [x] Phase 2 首批 MVP 功能迁移与真实样本验收
-- [ ] Phase 3 下载工作流增强与 Legacy 风格轻前端准备
+- [x] Phase 3 下载工作流增强与字幕生产样本打磨
+- [ ] Legacy 风格轻前端准备
 
 详见 [`REFACTOR.md`](REFACTOR.md)
 
@@ -45,6 +46,7 @@ python -m mediatools screenshot input.mp4 shot.png --time 00:00:05
 python -m mediatools screenshot input.mp4 frames --interval 5
 python -m mediatools fetch "https://example.com/video" downloads --write-subs
 python -m mediatools fetch "https://example.com/video" downloads --write-auto-subs --sub-langs en
+python -m mediatools fetch downloads --input-file urls.txt --subtitles-only --sub-langs original --convert-subs srt --summary-json downloads/summary.json
 python -m mediatools fetch downloads --input-file urls.txt --dry-run
 python -m mediatools fetch downloads --input-file urls.txt --write-info-json --download-archive downloads/archive.txt --summary-json downloads/summary.json
 python -m mediatools fetch "https://example.com/playlist" downloads --cookies-from-browser safari --preset mp4
@@ -53,7 +55,7 @@ python -m mediatools fetch "https://example.com/video" downloads --preset mp4 --
 ```
 
 `probe`、`encode`、`screenshot` 需要本机 PATH 中可找到 `ffmpeg`/`ffprobe`；
-`fetch` 需要本机 PATH 中可找到 `yt-dlp`，并只接受 `http` / `https` URL。默认使用 `--preset mp4`，优先得到 H264+AAC+MP4；单条下载默认超时为 3600 秒，如需长任务不限时可传 `--timeout 0`；`--write-subs` 下载人工字幕，`--write-auto-subs` 下载自动字幕；`--input-file` 支持一行一个 URL 的批量任务；`--dry-run` 只预览计划；`--summary-json` 输出结构化结果，便于后续前端读取。若站点要求登录态或反机器人确认，可显式传 `--cookies-from-browser safari|chrome|firefox` 或 `--cookies path/to/cookies.txt`；二者互斥，且不会默认读取浏览器登录态。
+`fetch` 需要本机 PATH 中可找到 `yt-dlp`，并只接受 `http` / `https` URL。默认使用 `--preset mp4`，优先得到 H264+AAC+MP4；单条下载默认超时为 3600 秒，如需长任务不限时可传 `--timeout 0`；`--write-subs` 下载人工字幕，`--write-auto-subs` 下载自动字幕；`--subtitles-only` 只下载字幕、不下载视频，若未显式指定字幕类型，会默认同时尝试人工字幕和自动字幕；`--sub-langs original --convert-subs srt` 可下载原语言字幕并转为 SRT；`--input-file` 支持一行一个 URL 的批量任务；`--dry-run` 只预览计划；`--summary-json` 输出结构化结果，便于后续前端读取。若站点要求登录态或反机器人确认，可显式传 `--cookies-from-browser safari|chrome|firefox` 或 `--cookies path/to/cookies.txt`；二者互斥，且不会默认读取浏览器登录态。
 
 下载默认使用友好命名模板 `{lang}-{author}-{title}-{platform}.{ext}`。真实下载前会根据链接自动探测语言并映射为短码，例如 `KR`、`EN`、`JP`、`SC`、`TC`、`AR`、`PT`；作者、标题、平台名由 yt-dlp 元数据自动填充。`--name-template` 可调整字段顺序，支持 `{lang}`、`{author}`、`{title}`、`{platform}`、`{id}`、`{ext}`；`--name-language` 可手动覆盖语言码。默认传递 `--windows-filenames` 给 yt-dlp，以处理作者名和标题中本地文件系统不可用的字符；如需关闭可用 `--no-windows-filenames`。高级用法仍可用原始 yt-dlp `--output-template`，它会覆盖友好模板；模板必须相对输出目录，不能使用绝对路径或 `..` 路径片段。
 

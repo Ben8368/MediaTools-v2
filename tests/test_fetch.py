@@ -163,6 +163,25 @@ def test_fetch_media_only_postprocesses_changed_subtitles(tmp_path, monkeypatch)
     assert (tmp_path / "new.srt").read_text(encoding="utf-8") == "NEW"
 
 
+def test_fetch_media_prefers_original_subtitle_over_fallback(tmp_path, monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+
+    def runner(command, **kwargs):
+        (tmp_path / "video.en-orig.srt").write_text("ORIGINAL", encoding="utf-8")
+        (tmp_path / "video.en.srt").write_text("FALLBACK", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    fetch_media(
+        FetchOptions(url="https://example.com/video", output_dir=tmp_path),
+        runner=runner,
+        prefer_original_subtitles=True,
+    )
+
+    assert not (tmp_path / "video.en-orig.srt").exists()
+    assert not (tmp_path / "video.en.srt").exists()
+    assert (tmp_path / "video.srt").read_text(encoding="utf-8") == "ORIGINAL"
+
+
 def test_make_fetch_options_accepts_new_fields(tmp_path):
     template = FetchOptions(
         url="",  # placeholder — replaced per-URL

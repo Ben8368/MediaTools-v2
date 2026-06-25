@@ -396,6 +396,27 @@
 - **降级/回滚策略：** 如后续需要基于 yt-dlp 产物 manifest 做更精确后处理，可保留当前快照机制作为保守兜底；如并发中断仍需终止已运行子进程，再扩展 subprocess 层的进程终止能力。
 - **状态：** [客观已验证] - Windows 中 `python scripts/verify.py` 通过：135 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`
 
+### Feature-019：字幕-only 生产样本打磨 — Phase 3-A Subtitle Workflow
+- **提交时间：** 2026-06-25
+- **类型：** 字幕下载体验 / 真实批量样本验证
+- **描述：** 针对用户提供的 51 条 YouTube/Shorts 链接打磨字幕-only 工作流：`--subtitles-only` 在未显式指定字幕类型时默认同时尝试人工字幕和自动字幕，且不再传递无意义的视频格式预设；`--sub-langs original` 下载到 `*-orig` 与普通语言 fallback 时，优先保留最具体的 `*-orig` 原语言字幕并整理为干净 `.srt`；重复 URL 产生的同内容字幕会自动去重；同一输出目录的字幕后处理加锁，避免并发下载时的 rename 竞态。
+- **用户价值：** 用户只需一条命令即可批量下载原语言 SRT 字幕且不下载视频；生产目录中不会出现成对的 `.xx-orig.srt` / `.xx.srt` 或重复残留文件；批量重复链接也能保持输出目录干净。
+- **前置依赖检查：**
+  - 技术依赖：无新增运行时依赖；继续复用系统 `yt-dlp` 与 yt-dlp 内置 `--convert-subs srt`。
+  - 环境依赖：真实批量验证依赖网络与 PATH 中的 `yt-dlp`；自动化测试仍使用 mock，不触网。
+  - 安全影响：不扩大下载写入范围；继续只接受 http/https URL。
+  - 跨平台兼容性：路径与文件比较使用 `pathlib` 和标准库；Windows 真实验证通过。
+- **预计影响模块：**
+  - 源码：`src/mediatools/core/fetch.py`、`src/mediatools/core/fetch_naming.py`、`src/mediatools/core/fetch_postprocess.py`。
+  - 测试：`tests/test_fetch_args.py`、`tests/test_fetch.py`、`tests/test_fetch_naming.py`。
+  - 文档：`README.md`、`03_Context.md`、`04_Features.md`、`05_Lessons.md`。
+- **验收思路：**
+  - 单元测试覆盖 `--subtitles-only` 默认字幕开关、不传 `-t mp4`、显式字幕类型选择、原语言优先清理、重复字幕内容去重。
+  - 真实样本验证覆盖 51 条 YouTube/Shorts 字幕-only 批量下载，目标为 `51 succeeded, 0 failed` 且仅输出 SRT。
+  - 标准验证覆盖全量 pytest、ruff、doctor 和文件行数限制。
+- **降级/回滚策略：** 若后续需要保留 fallback 字幕，可新增显式参数；默认行为继续优先“一个视频一个原语言 SRT”的干净生产目录。
+- **状态：** [客观已验证] - Windows 中真实 51 URL 字幕-only 批量通过：51 succeeded, 0 failed，仅输出 51 个 SRT；`python scripts/verify.py` 通过：138 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`
+
 ## 3. 首批 MVP 优先级矩阵
 
 > **决策状态：** 用户已确认首批 MVP = A/B/C/D/E（2026-06-24），对应 Feature-005~009。
@@ -441,6 +462,7 @@
 | P3-A Maintenance | review 黄灯收敛 | P1 | 标准库 | CLI 日志接入、默认下载超时、命令分发映射、runner Protocol | Feature-016 |
 | P3-A Perfect Green | 完美绿灯维护收口 | P1 | 标准库 / CI | 拆分预警文件、降低行数风险、升级 CI action 与固定 macOS runner | Feature-017 |
 | P3-A Reliability | review 追补硬化 | P1 | 标准库 | 文件 I/O 统一项目错误、字幕后处理快照边界、并发中断快速收口 | Feature-018 |
+| P3-A Subtitle Workflow | 字幕-only 生产样本打磨 | P0 | yt-dlp | 只下字幕、原语言 SRT、fallback 清理、重复字幕去重、51 URL 真实验收 | Feature-019 |
 | P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | 待 Legacy 考古 | 先兼容布局和用户路径，再选技术栈 | Feature-011 |
 | P3-C | 视频切片 | P2 | ffmpeg | 下载落地后再评估 | 待补 |
 | P3-D | 资产扫描 / 搜索 / 统计 | P3 | 标准库优先 | 服务批处理和前端结果管理 | 待补 |

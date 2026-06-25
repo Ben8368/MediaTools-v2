@@ -143,6 +143,18 @@ def test_strip_subtitle_language_suffix_does_not_overwrite_existing_target(tmp_p
     assert (tmp_path / "video.en.srt").exists()
 
 
+def test_strip_subtitle_language_suffix_removes_duplicate_existing_target(tmp_path):
+    """Duplicate subtitle content is removed when the clean target already exists."""
+    (tmp_path / "video.srt").write_text("SAME")
+    (tmp_path / "video.en-orig.srt").write_text("SAME")
+
+    from mediatools.core.fetch_naming import strip_subtitle_language_suffix
+    strip_subtitle_language_suffix(tmp_path)
+
+    assert (tmp_path / "video.srt").read_text() == "SAME"
+    assert not (tmp_path / "video.en-orig.srt").exists()
+
+
 def test_strip_subtitle_language_suffix_skips_video_files(tmp_path):
     """Video files without a language segment should be untouched."""
     (tmp_path / "KR-Ben-Title-youtube.mp4").write_text("bogus")
