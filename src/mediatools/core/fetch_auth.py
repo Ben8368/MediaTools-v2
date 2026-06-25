@@ -21,3 +21,18 @@ def build_auth_args(
     if cookies_from_browser:
         return ["--cookies-from-browser", cookies_from_browser]
     return []
+
+
+def redact_cookies(args: list[str]) -> list[str]:
+    """Return a copy of *args* with ``--cookies`` file paths replaced by ``[REDACTED]``."""
+    result: list[str] = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--cookies" and i + 1 < len(args):
+            result.append(args[i])
+            result.append("[REDACTED]")
+            i += 2
+            continue
+        result.append(args[i])
+        i += 1
+    return result

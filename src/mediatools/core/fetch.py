@@ -6,7 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from mediatools.core.errors import MediaToolsError
-from mediatools.core.fetch_auth import build_auth_args
+from mediatools.core.fetch_auth import build_auth_args, redact_cookies
 from mediatools.core.fetch_naming import (
     build_output_template,
     prune_original_subtitle_fallbacks,
@@ -346,14 +346,4 @@ def _safe_fetch_command(options: FetchOptions) -> tuple[str, ...]:
         args = build_fetch_args(options)
     except MediaToolsError:
         return ("yt-dlp",)
-    redacted: list[str] = []
-    i = 0
-    while i < len(args):
-        if args[i] == "--cookies" and i + 1 < len(args):
-            redacted.append(args[i])
-            redacted.append("[REDACTED]")
-            i += 2
-            continue
-        redacted.append(args[i])
-        i += 1
-    return ("yt-dlp", *redacted)
+    return ("yt-dlp", *redact_cookies(args))

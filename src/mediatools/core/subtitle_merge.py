@@ -198,25 +198,13 @@ def _chunk_by_duration(
     return chunks
 
 
-def _group_by_duration(
-    group: list[Caption],
-    max_duration_ms: int,
+def _word_chunk_to_lines(
+    words: list[tuple[int, int, str]],
     max_lines: int,
-) -> list[Caption]:
-    """Fallback: group captions by duration limit without sentence boundaries."""
-    results: list[Caption] = []
-    buffer: list[Caption] = [group[0]]
-
-    for cap in group[1:]:
-        total_dur = buffer[-1].end_ms - buffer[0].start_ms
-        if total_dur + (cap.end_ms - cap.start_ms) <= max_duration_ms:
-            buffer.append(cap)
-        else:
-            results.append(_merge_captions(buffer, max_lines))
-            buffer = [cap]
-
-    results.append(_merge_captions(buffer, max_lines))
-    return results
+) -> tuple[int, int, tuple[str, ...]]:
+    """Convert one timestamped word chunk to wrapped subtitle lines."""
+    text = " ".join(word[2] for word in words)
+    return words[0][0], words[-1][1], tuple(_wrap_text(text, max_lines))
 
 
 def _merge_captions(caps: list[Caption], max_lines: int) -> Caption:

@@ -7,11 +7,14 @@ Follows native conventions on Windows/macOS and XDG Base Directory on Linux/Unix
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 from pathlib import Path
 
 from mediatools.core.paths import normalize
+
+logger = logging.getLogger(__name__)
 
 
 def _platform_dir(
@@ -141,9 +144,14 @@ def load_user_config() -> dict[str, object]:
         text = config_file.read_text(encoding="utf-8")
         data = json.loads(text)
         if not isinstance(data, dict):
+            logger.warning("Config file %s is not a JSON object, ignoring.", config_file)
             return {}
         return data
-    except (OSError, json.JSONDecodeError):
+    except json.JSONDecodeError:
+        logger.warning("Config file %s contains invalid JSON, ignoring.", config_file)
+        return {}
+    except OSError as exc:
+        logger.warning("Could not read config file %s: %s", config_file, exc)
         return {}
 
 

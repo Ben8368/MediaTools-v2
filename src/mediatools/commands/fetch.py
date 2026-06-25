@@ -10,6 +10,7 @@ from pathlib import Path
 from mediatools.core.config import get_max_concurrent_downloads
 from mediatools.core.errors import MediaToolsError
 from mediatools.core.fetch import FetchOptions, fetch_many, load_fetch_urls, make_fetch_options
+from mediatools.core.fetch_auth import redact_cookies
 
 DEFAULT_FETCH_TIMEOUT_SECONDS = 3600.0
 DEFAULT_MAX_CONCURRENT_DOWNLOADS = 8
@@ -190,18 +191,7 @@ def _write_json_file(path: Path, payload: dict[str, object]) -> None:
 
 def _redact_cookies_in_command(command: list[object]) -> list[object]:
     """Return a copy of command with --cookies file paths redacted."""
-    result: list[object] = []
-    i = 0
-    while i < len(command):
-        part = str(command[i])
-        if part == "--cookies" and i + 1 < len(command):
-            result.append(part)
-            result.append("[REDACTED]")
-            i += 2
-            continue
-        result.append(command[i])
-        i += 1
-    return result
+    return redact_cookies([str(c) for c in command])
 
 
 def _redact_cookies_in_payload(payload: dict[str, object]) -> dict[str, object]:

@@ -46,7 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show the MediaTools version and exit.",
     )
 
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(dest="command", required=False)
     register_doctor(subparsers)
     register_probe(subparsers)
     register_subtitle(subparsers)
