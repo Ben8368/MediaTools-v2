@@ -124,29 +124,53 @@ def _read_json_body(handler: BaseHTTPRequestHandler) -> dict[str, object]:
     return result
 
 
+def _normalize_urls(raw: object) -> list[str]:
+    """Accept both string[] and newline-separated string for URLs."""
+    if isinstance(raw, list):
+        return [str(u).strip() for u in raw if str(u).strip()]
+    if isinstance(raw, str):
+        return [line.strip() for line in raw.splitlines() if line.strip()]
+    raise ValueError("urls must be a string or array of strings")
+
+
+def _resolve_subtitle_flags(draft: dict[str, object]) -> tuple[bool, bool]:
+    """Resolve subtitle flags from either new or legacy field names.
+
+    Supports:
+    - subtitle_mode: "manual" | "auto" | "both" | "none" (new)
+    - write_subs / write_auto_subs: bool (legacy, from frontend)
+    """
+    # New-style field takes precedence
+    subtitle_mode = str(draft.get("subtitle_mode", ""))
+    if subtitle_mode:
+        if subtitle_mode == "manual":
+            return True, False
+        if subtitle_mode == "auto":
+            return False, True
+        if subtitle_mode == "both":
+            return True, True
+        # "none" or unrecognized
+        return False, False
+
+    # Legacy-style fields from frontend
+    write_subs = bool(draft.get("write_subs", False))
+    write_auto_subs = bool(draft.get("write_auto_subs", False))
+    return write_subs, write_auto_subs
+
+
 def _draft_to_fetch_options(draft: dict[str, object]) -> list[FetchOptions]:
-    urls_raw: str = str(draft.get("urls", ""))
-    urls = [line.strip() for line in urls_raw.splitlines() if line.strip()]
+    urls = _normalize_urls(draft.get("urls", ""))
     if not urls:
         raise ValueError("至少需要输入一个 URL")
 
     output_dir = Path(str(draft.get("output_dir", "downloads")))
     subtitles_only = bool(draft.get("subtitles_only"))
-    subtitle_mode = str(draft.get("subtitle_mode", "both"))
     sub_langs = str(draft.get("sub_langs", "original"))
     convert_subs = str(draft.get("convert_subs", "srt"))
     preset = str(draft.get("preset", "mp4"))
     name_template = str(draft.get("name_template", ""))
 
-    write_subs = False
-    write_auto_subs = False
-    if subtitle_mode == "manual":
-        write_subs = True
-    elif subtitle_mode == "auto":
-        write_auto_subs = True
-    elif subtitle_mode == "both":
-        write_subs = True
-        write_auto_subs = True
+    write_subs, write_auto_subs = _resolve_subtitle_flags(draft)
 
     template = FetchOptions(
         url="",

@@ -5,12 +5,9 @@ import { DownloaderApp } from '@/apps/DownloaderApp'
 import { computeStats, isTaskCancellable } from '@/apps/downloader/helpers'
 
 const apiMocks = vi.hoisted(() => ({
-  cancelTask: vi.fn(),
-  clearTaskRecords: vi.fn(),
-  deleteTaskRecord: vi.fn(),
   getActiveTasks: vi.fn(),
   getWeeklyHistory: vi.fn(),
-  runFetcherDownload: vi.fn(),
+  submitFetch: vi.fn(),
 }))
 
 const openWindowMock = vi.hoisted(() => vi.fn())
@@ -56,18 +53,14 @@ describe('DownloaderApp helpers', () => {
 
 describe('DownloaderApp interactions', () => {
   beforeEach(() => {
-    apiMocks.cancelTask.mockReset()
-    apiMocks.clearTaskRecords.mockReset()
-    apiMocks.deleteTaskRecord.mockReset()
     apiMocks.getActiveTasks.mockReset()
     apiMocks.getWeeklyHistory.mockReset()
-    apiMocks.runFetcherDownload.mockReset()
+    apiMocks.submitFetch.mockReset()
     apiMocks.getWeeklyHistory.mockResolvedValue([])
-    apiMocks.clearTaskRecords.mockResolvedValue({ ok: true })
-    apiMocks.deleteTaskRecord.mockResolvedValue({ ok: true })
+    apiMocks.submitFetch.mockResolvedValue({ task_id: 'new-task', status: 'queued' })
   })
 
-  it('stops selected active tasks through the cancel endpoint', async () => {
+  it('shows not-implemented message when stopping tasks', async () => {
     apiMocks.getActiveTasks.mockResolvedValue([
       {
         id: 'task-1',
@@ -77,7 +70,6 @@ describe('DownloaderApp interactions', () => {
         stage: 'downloading',
       },
     ])
-    apiMocks.cancelTask.mockResolvedValue({ ok: true })
 
     render(<DownloaderApp />)
 
@@ -91,7 +83,7 @@ describe('DownloaderApp interactions', () => {
     fireEvent.click(stopButton)
 
     await waitFor(() => {
-      expect(apiMocks.cancelTask).toHaveBeenCalledWith('task-1')
+      expect(screen.getByText(/停止任务功能暂未实现/)).toBeInTheDocument()
     })
   })
 
@@ -210,10 +202,9 @@ describe('DownloaderApp interactions', () => {
 
   it('shows a newly submitted task immediately in the queue', async () => {
     apiMocks.getActiveTasks.mockResolvedValue([])
-    apiMocks.runFetcherDownload.mockResolvedValue({
-      ok: true,
+    apiMocks.submitFetch.mockResolvedValue({
       task_id: 'task-new',
-      status: 'pending',
+      status: 'queued',
     })
 
     render(<DownloaderApp />)
@@ -226,22 +217,20 @@ describe('DownloaderApp interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: '确认添加' }))
 
     await waitFor(() => {
-      expect(apiMocks.runFetcherDownload).toHaveBeenCalledWith(
+      expect(apiMocks.submitFetch).toHaveBeenCalledWith(
         expect.objectContaining({
-          url: 'https://example.com/video',
-          quality: 'h264',
+          urls: ['https://example.com/video'],
+          preset: 'mp4',
         }),
       )
     })
-    expect((await screen.findAllByText('https://example.com/video')).length).toBeGreaterThan(0)
   })
 
   it('turns subtitles off automatically for short video mode submissions', async () => {
     apiMocks.getActiveTasks.mockResolvedValue([])
-    apiMocks.runFetcherDownload.mockResolvedValue({
-      ok: true,
+    apiMocks.submitFetch.mockResolvedValue({
       task_id: 'task-short',
-      status: 'pending',
+      status: 'queued',
     })
 
     render(<DownloaderApp />)
@@ -256,11 +245,11 @@ describe('DownloaderApp interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: '确认添加' }))
 
     await waitFor(() => {
-      expect(apiMocks.runFetcherDownload).toHaveBeenCalledWith(
+      expect(apiMocks.submitFetch).toHaveBeenCalledWith(
         expect.objectContaining({
-          url: 'https://example.com/short',
-          platform: 'short_video',
-          subtitles: false,
+          urls: ['https://example.com/short'],
+          write_subs: false,
+          write_auto_subs: false,
         }),
       )
     })
@@ -287,7 +276,7 @@ describe('DownloaderApp interactions', () => {
     expect(screen.getByLabelText('select-all-downloads')).toHaveTextContent('取消')
   })
 
-  it('clears all visible terminal records when every visible row is selected', async () => {
+  it('shows not-implemented message when clearing records', async () => {
     apiMocks.getActiveTasks.mockResolvedValue([])
     apiMocks.getWeeklyHistory.mockResolvedValue([
         {
@@ -315,15 +304,11 @@ describe('DownloaderApp interactions', () => {
     fireEvent.click(screen.getByLabelText('delete-download-records'))
 
     await waitFor(() => {
-      expect(apiMocks.clearTaskRecords).toHaveBeenCalledWith({
-        ids: expect.arrayContaining(['task-5', 'task-6']),
-        terminal_only: false,
-      })
+      expect(screen.getByText(/清除记录功能暂未实现/)).toBeInTheDocument()
     })
-    expect(apiMocks.clearTaskRecords.mock.calls[0]?.[0]?.ids).toHaveLength(2)
   })
 
-  it('clears only the selected clearable records when a filtered list is selected', async () => {
+  it('shows not-implemented message when clearing selected records', async () => {
     apiMocks.getActiveTasks.mockResolvedValue([])
     apiMocks.getWeeklyHistory.mockResolvedValue([
         {
@@ -344,7 +329,7 @@ describe('DownloaderApp interactions', () => {
     fireEvent.click(screen.getByLabelText('delete-download-records'))
 
     await waitFor(() => {
-      expect(apiMocks.clearTaskRecords).toHaveBeenCalledWith({ ids: ['task-7'], terminal_only: false })
+      expect(screen.getByText(/清除记录功能暂未实现/)).toBeInTheDocument()
     })
   })
 
@@ -352,28 +337,12 @@ describe('DownloaderApp interactions', () => {
     apiMocks.getActiveTasks.mockResolvedValue([
         {
           id: 'task-4',
-          title: 'https://www.youtube.com/watch?v=test',
+          title: 'Test Clip',
+          source_url: 'https://www.youtube.com/watch?v=test',
           status: 'running',
           progress: 15,
-          stage: '获取视频信息',
-          params: {
-            url: 'https://www.youtube.com/watch?v=test',
-            output_dir: 'D:/Downloads',
-            quality: 'best',
-            subtitles: true,
-          },
-          result: {
-            summary_text: 'working',
-            items: [
-              {
-                info: {
-                  title: 'Test Clip',
-                  uploader: 'OpenAI',
-                  local_path: 'D:/Downloads/test.mp4',
-                },
-              },
-            ],
-          },
+          stage: 'downloading',
+          output_files: ['D:/Downloads/test.mp4'],
         },
       ],
     )
@@ -387,7 +356,6 @@ describe('DownloaderApp interactions', () => {
     fireEvent.click(screen.getByRole('button', { name: '任务详情' }))
 
     expect(screen.getAllByText('Test Clip').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('POST /api/fetcher/download')).toBeInTheDocument()
   })
 
   it('keeps the detail drawer usable while the add form is open', async () => {

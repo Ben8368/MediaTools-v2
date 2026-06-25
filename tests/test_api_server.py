@@ -127,6 +127,40 @@ class TestDraftToOptions:
         assert options[0].write_subtitles is False
         assert options[0].write_auto_subtitles is False
 
+    def test_urls_as_string_array(self) -> None:
+        """Frontend sends urls as string[], not newline-separated string."""
+        draft = {
+            "urls": ["https://a.example/1", "https://b.example/2"],
+            "output_dir": "out",
+        }
+        options = _draft_to_fetch_options(draft)
+        assert len(options) == 2
+        assert options[0].url == "https://a.example/1"
+        assert options[1].url == "https://b.example/2"
+
+    def test_legacy_write_subs_fields(self) -> None:
+        """Frontend may send write_subs/write_auto_subs instead of subtitle_mode."""
+        draft = {
+            "urls": "https://example.com/video",
+            "output_dir": "out",
+            "write_subs": True,
+            "write_auto_subs": False,
+        }
+        options = _draft_to_fetch_options(draft)
+        assert options[0].write_subtitles is True
+        assert options[0].write_auto_subtitles is False
+
+    def test_legacy_write_auto_subs_only(self) -> None:
+        draft = {
+            "urls": "https://example.com/video",
+            "output_dir": "out",
+            "write_subs": False,
+            "write_auto_subs": True,
+        }
+        options = _draft_to_fetch_options(draft)
+        assert options[0].write_subtitles is False
+        assert options[0].write_auto_subtitles is True
+
 
 # ---------------------------------------------------------------------------
 # HTTP endpoint integration tests
