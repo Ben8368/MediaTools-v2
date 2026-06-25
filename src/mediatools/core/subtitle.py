@@ -141,7 +141,16 @@ def parse_subtitle(
 
 
 def serialize_srt(captions: list[Caption]) -> str:
-    """Serialize captions as SRT with 1-based cue numbering."""
+    """Serialize captions as SRT with 1-based cue numbering.
+
+    Returns a minimal valid SRT file when *captions* is empty to avoid
+    producing a zero-byte file that some players reject as corrupt.
+    """
+    if not captions:
+        # Return a minimal valid SRT structure — one empty cue at time zero.
+        # This prevents downstream players from treating the file as corrupt.
+        return "1\n00:00:00,000 --> 00:00:01,000\n\n"
+
     blocks = []
     for index, caption in enumerate(captions, start=1):
         block = [
@@ -151,7 +160,7 @@ def serialize_srt(captions: list[Caption]) -> str:
             *caption.lines,
         ]
         blocks.append("\n".join(block))
-    return "\n\n".join(blocks) + ("\n" if blocks else "")
+    return "\n\n".join(blocks) + "\n"
 
 
 def serialize_vtt(captions: list[Caption]) -> str:

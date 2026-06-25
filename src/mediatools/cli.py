@@ -46,6 +46,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show the MediaTools version and exit.",
     )
 
+    # required=False intentionally: when no subcommand is given, we print help
+    # and exit with code 0 (not an error).  This makes bare ``mediatools``
+    # friendly for interactive users while still allowing scripts to check the
+    # return code for success.
     subparsers = parser.add_subparsers(dest="command", required=False)
     register_doctor(subparsers)
     register_probe(subparsers)

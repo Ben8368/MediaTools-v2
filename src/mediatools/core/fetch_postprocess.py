@@ -2,45 +2,59 @@
 
 from __future__ import annotations
 
+import contextlib
+import os
+import sys
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
-from threading import Lock
 
 from mediatools.core.fetch_naming import SUBTITLE_EXTS, SUBTITLE_LANG_RE
 
-_OUTPUT_DIR_LOCKS: dict[Path, Lock] = {}
-_OUTPUT_DIR_LOCK_REFCOUNTS: dict[Path, int] = {}
-_OUTPUT_DIR_LOCKS_GUARD = Lock()
 
+@contextlib.contextmanager
+def output_dir_lock(output_dir: Path) -> Iterator[None]:
+    """Yield a context manager that serializes access to one output directory.
 
-def output_dir_lock(output_dir: Path) -> Lock:
-    """Return a shared lock for writes and post-processing in one output dir.
+    Uses a filesystem-based lock file so that **multiple MediaTools processes**
+    downloading to the same directory cannot corrupt each other's subtitle
+    post-processing.  The lock file is created in the system temp directory
+    with a name derived from the resolved output directory path.
 
-    Uses reference counting to prevent premature removal of locks that are
-    still in use by waiting threads.
+    On Windows, uses ``msvcrt.locking`` for exclusive byte-range locking.
+    On POSIX, uses ``fcntl.flock`` for advisory file locking.
     """
-    with _OUTPUT_DIR_LOCKS_GUARD:
-        lock = _OUTPUT_DIR_LOCKS.get(output_dir)
-        if lock is None:
-            lock = Lock()
-            _OUTPUT_DIR_LOCKS[output_dir] = lock
-            _OUTPUT_DIR_LOCK_REFCOUNTS[output_dir] = 0
-        _OUTPUT_DIR_LOCK_REFCOUNTS[output_dir] += 1
-        return lock
+    resolved = output_dir.resolve()
+    lock_name = str(resolved).replace(os.sep, "_").lstrip("_")
+    lock_path = Path(tempfile.gettempdir()) / f"mediatools_dir_{lock_name}.lock"
 
+    lock_fd = open(lock_path, "w")  # noqa: SIM115 — simple temp lock file
+    try:
+        if sys.platform == "win32":
+            import msvcrt
 
-def cleanup_output_dir_locks(output_dir: Path) -> None:
-    """Decrement the reference count and remove the lock if no longer in use.
-
-    Prevents unbounded growth of ``_OUTPUT_DIR_LOCKS`` while ensuring that
-    locks are not removed while other threads are waiting to acquire them.
-    """
-    with _OUTPUT_DIR_LOCKS_GUARD:
-        count = _OUTPUT_DIR_LOCK_REFCOUNTS.get(output_dir, 0)
-        if count <= 1:
-            _OUTPUT_DIR_LOCKS.pop(output_dir, None)
-            _OUTPUT_DIR_LOCK_REFCOUNTS.pop(output_dir, None)
+            # Lock the entire file (1 byte at offset 0, length 1 MB covers typical use).
+            msvcrt.locking(lock_fd.fileno(), msvcrt.LK_LOCK, 1024 * 1024)
         else:
-            _OUTPUT_DIR_LOCK_REFCOUNTS[output_dir] = count - 1
+            import fcntl
+
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        if sys.platform == "win32":
+            import msvcrt
+
+            try:
+                msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1024 * 1024)
+            except OSError:
+                pass  # Already closed or unlocked
+        else:
+            import fcntl
+
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        lock_fd.close()
+        with contextlib.suppress(OSError):
+            lock_path.unlink(missing_ok=True)
 
 
 def subtitle_snapshot(output_dir: Path) -> dict[str, tuple[int, int]]:

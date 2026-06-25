@@ -199,15 +199,20 @@ def _redact_cookies_in_command(command: list[object]) -> list[object]:
 def _redact_cookies_in_payload(payload: dict[str, object]) -> dict[str, object]:
     """Return a copy of the summary payload with cookie paths redacted in all commands."""
     items = payload.get("items", [])
-    assert isinstance(items, list)
-    redacted_items = []
+    if not isinstance(items, list):
+        return payload  # Graceful degradation: return unchanged payload
+
+    redacted_items: list[dict[str, object]] = []
     for item in items:
-        assert isinstance(item, dict)
+        if not isinstance(item, dict):
+            continue
         new_item = dict(item)
         command = new_item.get("command", [])
-        assert isinstance(command, list)
+        if not isinstance(command, list):
+            command = []
         new_item["command"] = _redact_cookies_in_command(command)
         redacted_items.append(new_item)
+
     new_payload = dict(payload)
     new_payload["items"] = redacted_items
     return new_payload
@@ -221,11 +226,12 @@ def _print_fetch_summary(payload: dict[str, object], *, dry_run: bool) -> None:
         f"{payload['planned']} planned.",
     )
     for item in payload["items"]:
-        assert isinstance(item, dict)
+        if not isinstance(item, dict):
+            continue
         print(f"- {item['status']}: {item['url']}")
         if dry_run:
             command = _redact_cookies_in_command(item.get("command", []))
-            assert isinstance(command, list)
-            print(f"  command: {' '.join(str(part) for part in command)}")
+            if isinstance(command, list):
+                print(f"  command: {' '.join(str(part) for part in command)}")
         if item.get("error"):
             print(f"  error: {item['error']}", file=sys.stderr)

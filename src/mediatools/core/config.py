@@ -16,6 +16,12 @@ from mediatools.core.paths import normalize
 
 logger = logging.getLogger(__name__)
 
+# Simple in-process cache for the user config.  Populated on first access
+# and refreshed when the underlying file changes.
+_config_cache: dict[str, object] | None = None
+_config_cache_file: Path | None = None
+_config_cache_mtime: float = 0.0
+
 
 def _platform_dir(
     *,
@@ -127,6 +133,9 @@ def ensure_dir(path: Path) -> Path:
 def load_user_config() -> dict[str, object]:
     """Load user configuration from config.json in the config directory.
 
+    Uses a simple in-process cache keyed by file modification time to avoid
+    repeated disk reads during concurrent download sessions.
+
     Returns:
         Parsed configuration dict, or empty dict if file does not exist or is invalid.
 
@@ -136,23 +145,53 @@ def load_user_config() -> dict[str, object]:
             "default_subtitle_language": "en"
         }
     """
+    global _config_cache, _config_cache_file, _config_cache_mtime
+
     config_file = get_config_dir() / "config.json"
+
+    # Check cache: same file and mtime means content hasn't changed.
+    if _config_cache is not None and _config_cache_file == config_file:
+        try:
+            current_mtime = config_file.stat().st_mtime
+        except OSError:
+            current_mtime = 0.0
+        if current_mtime == _config_cache_mtime:
+            return _config_cache
+
+    # Cache miss or file changed — reload from disk.
     if not config_file.exists():
-        return {}
+        _config_cache = {}
+        _config_cache_file = config_file
+        _config_cache_mtime = 0.0
+        return _config_cache
 
     try:
+        stat = config_file.stat()
         text = config_file.read_text(encoding="utf-8")
         data = json.loads(text)
         if not isinstance(data, dict):
             logger.warning("Config file %s is not a JSON object, ignoring.", config_file)
-            return {}
-        return data
+            _config_cache = {}
+            _config_cache_file = config_file
+            _config_cache_mtime = stat.st_mtime
+            return _config_cache
+
+        _config_cache = data
+        _config_cache_file = config_file
+        _config_cache_mtime = stat.st_mtime
+        return _config_cache
     except json.JSONDecodeError:
         logger.warning("Config file %s contains invalid JSON, ignoring.", config_file)
-        return {}
+        _config_cache = {}
+        _config_cache_file = config_file
+        _config_cache_mtime = 0.0
+        return _config_cache
     except OSError as exc:
         logger.warning("Could not read config file %s: %s", config_file, exc)
-        return {}
+        _config_cache = {}
+        _config_cache_file = config_file
+        _config_cache_mtime = 0.0
+        return _config_cache
 
 
 def get_max_concurrent_downloads(default: int = 8) -> int:

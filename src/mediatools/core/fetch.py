@@ -14,7 +14,6 @@ from mediatools.core.fetch_naming import (
 )
 from mediatools.core.fetch_postprocess import (
     changed_subtitles,
-    cleanup_output_dir_locks,
     output_dir_lock,
     subtitle_snapshot,
 )
@@ -159,22 +158,19 @@ def fetch_media(
 ) -> ToolResult:
     """Run yt-dlp for a single download operation."""
     output_dir = normalize(options.output_dir)
-    try:
-        with output_dir_lock(output_dir):
-            output_dir.mkdir(parents=True, exist_ok=True)
-            before = subtitle_snapshot(output_dir)
-            normalized_options = copy_options(options, output_dir=output_dir)
-            kwargs = {"runner": runner} if runner is not None else {}
-            result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
-            changed = changed_subtitles(output_dir, before)
-            for subtitle in changed:
-                clean_subtitle_file(subtitle)
-            if prefer_original_subtitles:
-                changed = prune_original_subtitle_fallbacks(output_dir, candidates=changed)
-            strip_subtitle_language_suffix(output_dir, candidates=changed)
-            return result
-    finally:
-        cleanup_output_dir_locks(output_dir)
+    with output_dir_lock(output_dir):
+        output_dir.mkdir(parents=True, exist_ok=True)
+        before = subtitle_snapshot(output_dir)
+        normalized_options = copy_options(options, output_dir=output_dir)
+        kwargs = {"runner": runner} if runner is not None else {}
+        result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
+        changed = changed_subtitles(output_dir, before)
+        for subtitle in changed:
+            clean_subtitle_file(subtitle)
+        if prefer_original_subtitles:
+            changed = prune_original_subtitle_fallbacks(output_dir, candidates=changed)
+        strip_subtitle_language_suffix(output_dir, candidates=changed)
+        return result
 
 
 def _fetch_one(
@@ -285,7 +281,21 @@ def _fetch_parallel(
     timeout: float | None = None,
     max_workers: int,
 ) -> FetchBatchResult:
-    """Run downloads concurrently via ``ThreadPoolExecutor``."""
+    """Run downloads concurrently via ``ThreadPoolExecutor``.
+
+    **Result assembly rules:**
+    1. Futures that complete (success or failure via ``_fetch_one``) populate
+       ``results_map`` immediately.  ``_fetch_one`` never raises — it catches
+       ``MediaToolsError`` and ``KeyboardInterrupt`` and returns a failed
+       ``FetchItemResult`` instead.
+    2. If an *unexpected* exception escapes ``future.result()`` (e.g. a bug
+       inside ``_fetch_one``), it is caught and recorded as a failed result.
+    3. On ``KeyboardInterrupt`` in the main thread, all pending futures are
+       cancelled.  Any futures that were cancelled *before* producing a result
+       will have no entry in ``results_map``; these gaps are filled with an
+       "Interrupted by user" failed result during reconstitution.
+    4. Results are returned in the original URL order, not completion order.
+    """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     results_map: dict[int, FetchItemResult] = {}
@@ -307,6 +317,8 @@ def _fetch_parallel(
             try:
                 results_map[index] = future.result()
             except Exception as exc:
+                # This branch catches bugs inside _fetch_one that are NOT
+                # MediaToolsError or KeyboardInterrupt (both are caught there).
                 opts = options_list[index]
                 results_map[index] = FetchItemResult(
                     url=opts.url,
@@ -322,7 +334,9 @@ def _fetch_parallel(
     finally:
         executor.shutdown(wait=not interrupted, cancel_futures=interrupted)
 
-    # Reconstitute results in original order, filling in gaps from interruption
+    # Reconstitute results in original URL order.
+    # Gaps only occur for futures that were cancelled before producing any
+    # result (i.e. the main-thread KeyboardInterrupt arrived first).
     results: list[FetchItemResult] = []
     for index, opts in enumerate(options_list):
         if index in results_map:
