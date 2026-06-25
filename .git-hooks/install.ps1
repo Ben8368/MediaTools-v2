@@ -33,11 +33,13 @@ Write-Host ""
 Write-Host "Installation complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "The hook will now automatically detect and add co-authors for:" -ForegroundColor Yellow
-Write-Host "  - Claude Code / Claude API" -ForegroundColor White
-Write-Host "  - Cursor" -ForegroundColor White
-Write-Host "  - GitHub Copilot / Codex" -ForegroundColor White
-Write-Host "  - OpenCode" -ForegroundColor White
-Write-Host "  - WorkBuddy" -ForegroundColor White
+Write-Host "  - Claude Code  (CLAUDECODE / CLAUDE_CODE_* / AI_AGENT)" -ForegroundColor White
+Write-Host "  - OpenAI Codex (CODEX_SANDBOX / CODEX_CI / CODEX_THREAD_ID)" -ForegroundColor White
+Write-Host "  - Cursor agent (CURSOR_AGENT / CURSOR_EXTENSION_HOST_ROLE)" -ForegroundColor White
+Write-Host "  - opencode     (OPENCODE_CLIENT / OPENCODE_SESSION)" -ForegroundColor White
+Write-Host ""
+Write-Host "Manual override (if auto-detection misses your tool):" -ForegroundColor Yellow
+Write-Host "  git config mediatools.ai-tool <claude|codex|cursor|opencode>" -ForegroundColor White
 Write-Host ""
 Write-Host "Test it with: git commit -m 'test: verify co-author hook'" -ForegroundColor Cyan
 Write-Host "Then check with: git log -1 --pretty=format:'%B'" -ForegroundColor Cyan

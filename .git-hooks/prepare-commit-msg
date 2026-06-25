@@ -1,82 +1,85 @@
 #!/bin/bash
 # prepare-commit-msg hook
-# Automatically adds Co-Authored-By trailer for AI development tools
+# Automatically adds a Co-Authored-By trailer for the AI development tool
+# that is driving the commit.
 #
-# Install: cp .git-hooks/prepare-commit-msg .git/hooks/ && chmod +x .git/hooks/prepare-commit-msg
+# Detection is based on environment variables that each tool injects into the
+# child process it spawns to run `git` — this is reliable cross-platform
+# (including Windows Git Bash, where `pgrep`/process scanning does not work).
+#
+# Manual override (highest priority):
+#   git config mediatools.ai-tool <claude|codex|cursor|opencode>
+#
+# Install: run .git-hooks/install.ps1  (or copy this file to .git/hooks/)
 
 COMMIT_MSG_FILE=$1
 COMMIT_SOURCE=$2
 
-# Skip if commit message already has Co-Authored-By
+# --- Canonical co-author identities (GitHub-username convention) -----------
+# NB: names are deliberately NOT *_COAUTHOR to avoid colliding with the
+# OPENCODE_COAUTHOR env var that the legacy opencode detection checks for.
+CO_CLAUDE="Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+CO_CODEX="Co-Authored-By: codex <codex@openai.com>"
+CO_CURSOR="Co-Authored-By: Cursor <cursoragent@cursor.com>"
+CO_OPENCODE="Co-Authored-By: opencode <opencode@noreply.local>"
+
+# Skip if the message already carries a Co-Authored-By trailer.
 if grep -qi "Co-Authored-By:" "$COMMIT_MSG_FILE"; then
     exit 0
 fi
 
-# Skip for merge/squash commits
+# Skip for merge/squash commits (not authored interactively).
 if [ "$COMMIT_SOURCE" = "merge" ] || [ "$COMMIT_SOURCE" = "squash" ]; then
     exit 0
 fi
 
-# Detect which AI tool is running
+# Detect which AI tool is running and echo its co-author trailer.
 detect_ai_tool() {
-    # Check environment variables and process list
+    # 1. Explicit manual override via git config.
+    case "$(git config --get mediatools.ai-tool 2>/dev/null)" in
+        claude|claude-code) echo "$CO_CLAUDE"; return ;;
+        codex)              echo "$CO_CODEX";  return ;;
+        cursor)             echo "$CO_CURSOR"; return ;;
+        opencode)           echo "$CO_OPENCODE"; return ;;
+    esac
 
-    # Claude Code CLI
-    if [ -n "$CLAUDE_CODE_SESSION" ] || pgrep -f "claude-code" > /dev/null 2>&1; then
-        echo "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
-        return
+    # 2. Claude Code — sets CLAUDECODE=1 plus session/entrypoint vars,
+    #    and AI_AGENT=claude-code_<version>_agent.
+    if [ -n "$CLAUDECODE" ] || [ -n "$CLAUDE_CODE" ] \
+        || [ -n "$CLAUDE_CODE_SESSION_ID" ] || [ -n "$CLAUDE_CODE_ENTRYPOINT" ] \
+        || [ "${AI_AGENT#claude-code}" != "$AI_AGENT" ]; then
+        echo "$CO_CLAUDE"; return
     fi
 
-    # Cursor
-    if [ -n "$CURSOR_SESSION_ID" ] || pgrep -f "Cursor" > /dev/null 2>&1; then
-        echo "Co-authored-by: Cursor <cursoragent@cursor.com>"
-        return
+    # 3. OpenAI Codex CLI — CODEX_SANDBOX / CODEX_CI / CODEX_THREAD_ID.
+    if [ -n "$CODEX_SANDBOX" ] || [ -n "$CODEX_CI" ] || [ -n "$CODEX_THREAD_ID" ]; then
+        echo "$CO_CODEX"; return
     fi
 
-    # GitHub Copilot / Codex (VS Code extension)
-    if [ -n "$VSCODE_GIT_ASKPASS_NODE" ] && pgrep -f "copilot" > /dev/null 2>&1; then
-        echo "Co-Authored-By: Codex <codex@openai.com>"
-        return
+    # 4. Cursor agent — CURSOR_AGENT, or CURSOR_EXTENSION_HOST_ROLE=agent-exec.
+    if [ -n "$CURSOR_AGENT" ] || [ "$CURSOR_EXTENSION_HOST_ROLE" = "agent-exec" ]; then
+        echo "$CO_CURSOR"; return
     fi
 
-    # OpenCode (字节内部)
-    if [ -n "$OPENCODE_SESSION" ] || [ -n "$OPENCODE_COAUTHOR" ]; then
-        echo "Co-Authored-By: OpenCode <opencode@byted.org>"
-        return
+    # 5. opencode — OPENCODE_CLIENT (current) or legacy session vars.
+    if [ -n "$OPENCODE_CLIENT" ] || [ -n "$OPENCODE_SESSION" ] || [ -n "$OPENCODE_COAUTHOR" ]; then
+        echo "$CO_OPENCODE"; return
     fi
 
-    # WorkBuddy
-    if [ -n "$WORKBUDDY_SESSION" ]; then
-        echo "Co-Authored-By: WorkBuddy <workbuddy@example.com>"
-        return
-    fi
-
-    # Check if running in known AI tool editors
-    if [ -n "$TERM_PROGRAM" ]; then
-        case "$TERM_PROGRAM" in
-            "Cursor")
-                echo "Co-authored-by: Cursor <cursoragent@cursor.com>"
-                return
-                ;;
-        esac
-    fi
-
-    # No AI tool detected - don't add co-author
+    # No AI tool detected.
     echo ""
 }
 
-# Detect AI tool
 AI_COAUTHOR=$(detect_ai_tool)
 
-# If AI tool detected, append co-author
-if [ -n "$AI_COAUTHOR" ]; then
-    # Check if commit message ends with a newline
-    if [ -s "$COMMIT_MSG_FILE" ]; then
-        # Add blank line before co-author if message doesn't end with one
-        tail -c1 "$COMMIT_MSG_FILE" | read -r _ || echo "" >> "$COMMIT_MSG_FILE"
-        echo "" >> "$COMMIT_MSG_FILE"
-        echo "$AI_COAUTHOR" >> "$COMMIT_MSG_FILE"
+if [ -n "$AI_COAUTHOR" ] && [ -s "$COMMIT_MSG_FILE" ]; then
+    # Ensure the file ends with a newline (command substitution strips the
+    # trailing newline, so a non-empty result means the last byte is not one).
+    if [ -n "$(tail -c1 "$COMMIT_MSG_FILE")" ]; then
+        printf '\n' >> "$COMMIT_MSG_FILE"
     fi
+    # Blank separator line, then the trailer.
+    printf '\n%s\n' "$AI_COAUTHOR" >> "$COMMIT_MSG_FILE"
 fi
 
 exit 0
