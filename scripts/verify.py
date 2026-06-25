@@ -17,6 +17,12 @@ ROOT = Path(__file__).resolve().parent.parent
 MAX_PYTHON_FILE_LINES = 500
 LINE_CHECK_DIRS = ("src", "tests", "scripts")
 MIN_PYTHON = (3, 11)
+FRONTEND_DIR = ROOT / "frontend"
+
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
 def run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
@@ -31,10 +37,10 @@ def run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[
     )
 
 
-def step(title: str, command: list[str]) -> None:
+def step(title: str, command: list[str], *, cwd: Path = ROOT) -> None:
     print(f"\n==> {title}")
     print(f"    {' '.join(command)}")
-    result = run(command)
+    result = run(command, cwd=cwd)
     if result.stdout.strip():
         print(result.stdout.rstrip())
     if result.stderr.strip():
@@ -117,6 +123,26 @@ def report_environment() -> None:
         )
 
 
+def verify_frontend() -> None:
+    """Run the frontend verification suite when the light frontend exists."""
+    package_json = FRONTEND_DIR / "package.json"
+    package_lock = FRONTEND_DIR / "package-lock.json"
+    if not package_json.exists():
+        return
+
+    npm = shutil.which("npm")
+    if not npm:
+        print("npm is required because frontend/package.json exists.", file=sys.stderr)
+        raise SystemExit(1)
+
+    if package_lock.exists():
+        step("Install frontend dependencies", [npm, "ci"], cwd=FRONTEND_DIR)
+    else:
+        step("Install frontend dependencies", [npm, "install"], cwd=FRONTEND_DIR)
+    step("Run frontend tests", [npm, "run", "test"], cwd=FRONTEND_DIR)
+    step("Build frontend", [npm, "run", "build"], cwd=FRONTEND_DIR)
+
+
 def main() -> int:
     print(f"MediaTools verify | root={ROOT}")
     check_python_version()
@@ -124,6 +150,7 @@ def main() -> int:
     step("Install editable package", [sys.executable, "-m", "pip", "install", "-e", ".[dev]"])
     step("Run tests", [sys.executable, "-m", "pytest"])
     step("Run ruff", [sys.executable, "-m", "ruff", "check", "."])
+    verify_frontend()
     report_environment()
     print("\n==> Verification passed")
     return 0

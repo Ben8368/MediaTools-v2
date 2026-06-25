@@ -20,7 +20,8 @@
 - [x] Phase 1 核心架构（路径、日志、错误处理、配置）
 - [x] Phase 2 首批 MVP 功能迁移与真实样本验收
 - [x] Phase 3 下载工作流增强与字幕生产样本打磨
-- [ ] Legacy 风格轻前端准备
+- [x] Legacy 风格轻前端准备（技术栈考古 + v2 下载工作台壳层）
+- [ ] 本地 API 适配层与可用下载工作台接线
 
 详见 [`REFACTOR.md`](REFACTOR.md)
 
@@ -87,7 +88,7 @@ MediaTools 支持通过 JSON 配置文件自定义行为。配置文件位置遵
 python scripts/verify.py
 ```
 
-`verify.py` 会依次执行：Python 文件 500 行硬限制检查 → 安装 dev 依赖 → pytest → ruff → CLI 版本 → doctor 环境报告（含外部工具与 PATH 信息）。
+`verify.py` 会依次执行：Python 文件 500 行硬限制检查 → 安装 Python dev 依赖 → pytest → ruff → frontend `npm ci` / test / build → CLI 版本 → doctor 环境报告（含外部工具与 PATH 信息）。
 
 macOS 推荐先使用 Homebrew 或 pyenv 的 Python 3.11+ 创建虚拟环境，再运行验证；不要使用 Apple Command Line Tools 自带的 Python 3.9，也不要向 Homebrew 的全局 Python 环境直接安装包：
 
@@ -133,6 +134,7 @@ mediatools doctor --json
 ### 重构计划
 - [`REFACTOR.md`](REFACTOR.md) - 重构策略与迁移计划
 - [`docs/UI_COMPAT.md`](docs/UI_COMPAT.md) - Legacy UI 兼容基线
+- [`docs/UI_API_CONTRACT.md`](docs/UI_API_CONTRACT.md) - 轻前端与本地 API 适配层契约
 
 ## 📝 License
 

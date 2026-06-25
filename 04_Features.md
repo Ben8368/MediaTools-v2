@@ -231,7 +231,7 @@
 - **类型：** UI / 适配层 / Phase 3 P1
 - **描述：** 在不恢复 Legacy 复杂架构的前提下，建立可边开发边使用的本地轻前端。前端优先服务下载工作台，并保持 Legacy 的布局、视觉节奏和用户路径，降低老用户学习成本。
 - **用户价值：** CLI 已能验证核心能力，但日常下载、批量任务和结果查看更适合图形界面；贴近 Legacy 的 UI 能让用户快速迁移。
-- **Legacy 来源：** 旧前端源码、截图、运行界面、用户熟悉的导航和任务布局。当前 v2 `frontend/` 仅有未跟踪构建/依赖残留，不能直接作为源码基线。
+- **Legacy 来源：** 旧前端源码、截图、运行界面、用户熟悉的导航和任务布局。Legacy 技术栈已确认使用 Vite + React + TypeScript + Vitest；v2 采用同类轻前端路线，但只迁移壳层、空间关系和下载工作台体验，不迁移旧 API 耦合、AI/PS/AE、文件管理和 vendor/构建产物。
 - **前置依赖检查：**
   - 技术依赖：先考古 Legacy 技术栈；若 Legacy 使用 Vite / React / TypeScript 或相近方案，v2 优先采用相近方案。
   - 环境依赖：Node.js 前端工具链仅在进入前端工程后引入；不提交 `node_modules`、`.vite`、`dist`。
@@ -246,7 +246,7 @@
   - 前端首屏能完成 URL 输入、批量导入、字幕选项、输出目录、任务状态和结果查看。
   - 前端构建/测试纳入标准验证或独立前端验证脚本。
 - **降级/回滚策略：** 若前端工程引入风险过大，保留 CLI 下载增强作为主路径；轻前端只作为可选本地入口。
-- **状态：** [待评估] - 已建立 `docs/UI_COMPAT.md` 作为准入基线，下一步需考古 Legacy 技术栈
+- **状态：** [客观已验证] - 已建立 `docs/UI_COMPAT.md` 与 `docs/UI_API_CONTRACT.md`；v2 `frontend/` 已初始化 Vite + React + TypeScript 下载工作台壳层，`python scripts/verify.py` 纳入 frontend `npm ci`、3 tests、build 并通过；npm audit 0 vulnerabilities。下一步需实现本地 API 适配层并进行用户主观 UI 验收。
 
 ### Feature-012：下载格式控制与原语言探测 — Phase 3-A+
 - **提交时间：** 2026-06-24
@@ -485,7 +485,7 @@
 | P3-A Reliability | review 追补硬化 | P1 | 标准库 | 文件 I/O 统一项目错误、字幕后处理快照边界、并发中断快速收口 | Feature-018 |
 | P3-A Subtitle Workflow | 字幕-only 生产样本打磨 | P0 | yt-dlp | 只下字幕、原语言 SRT、fallback 清理、重复字幕去重、rolling 内容清理、51 URL 真实验收 | Feature-019 |
 | P3-A Subtitle Hardening | 字幕合并与并发控制收口 | P1 | 标准库 | 锁池引用计数、多语言句界、按词时间切分、并发参数校验 | Feature-020 |
-| P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | 待 Legacy 考古 | 先兼容布局和用户路径，再选技术栈 | Feature-011 |
+| P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | Vite / React / TypeScript | 壳层已启动，下一步接本地 API 适配层 | Feature-011 |
 | P3-C | 视频切片 | P2 | ffmpeg | 下载落地后再评估 | 待补 |
 | P3-D | 资产扫描 / 搜索 / 统计 | P3 | 标准库优先 | 服务批处理和前端结果管理 | 待补 |
 

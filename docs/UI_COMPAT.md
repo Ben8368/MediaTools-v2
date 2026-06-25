@@ -7,6 +7,7 @@
 - v2 仓库中的 `frontend/` 目前只有 `.vite`、`dist`、`node_modules` 等未跟踪残留，没有可作为基线的源码或 `package.json`。
 - `.agents/` 目前为空是正常状态；项目统一入口仍是根目录 `AGENTS.md`。除非后续需要放置不同 AI 工具的专属补充规则，否则无需强行填充。
 - 轻前端技术栈必须先参考 Legacy。若 Legacy 使用 Vite / React / TypeScript 或相近栈，v2 优先沿用相近方案，便于恢复 UI 样式和组件习惯。
+- Legacy 前端考古确认旧版使用 Vite + React + TypeScript + Vitest，包含桌面式左侧导航、窗口工作区、右侧状态面板和下载工作台组件。v2 采用同类技术栈，但只迁移壳层与下载工作台体验，不迁移旧 API 耦合、AI/PS/AE、文件管理和 vendor/构建产物。
 
 ## 2. 前端兼容原则
 
@@ -35,6 +36,12 @@
 - dry-run 预览与实际下载触发。
 - 任务队列、状态、错误摘要、输出文件入口。
 - doctor 环境状态展示：ffmpeg、ffprobe、yt-dlp 是否可用。
+
+当前实现入口：
+
+- `frontend/` 已初始化为 v2 专用 Vite + React + TypeScript 工程。
+- 首屏保留 Legacy 的桌面式空间关系：左侧导航、中间窗口化下载工作台、右侧环境状态与迁移边界。
+- `docs/UI_API_CONTRACT.md` 记录前端与未来本地 API 适配层的最小契约。
 
 暂缓：
 

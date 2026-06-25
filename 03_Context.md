@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-25 15:22:27 +08:00
+> **更新时间：** 2026-06-25 17:13:24 +08:00
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本、rolling 字幕清理、句子级合并与并发锁硬化已完成，继续转入 Legacy UI 兼容基线
-> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；字幕 rolling 重复清理后 Windows 标准验证通过（141 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本轮黄灯优化后 Windows 标准验证通过（160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）
+> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本、rolling 字幕清理、句子级合并与并发锁硬化已完成；Legacy 前端技术栈考古完成，v2 轻前端下载工作台壳层已启动，继续转入本地 API 适配层
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；字幕 rolling 重复清理后 Windows 标准验证通过（141 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本轮黄灯优化后 Windows 标准验证通过（160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；文档勾选同步与 `.omo/` 忽略规则更新后 Windows 标准验证通过（161 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；Legacy 风格轻前端壳层接入后 Windows 标准验证通过（Python 161 passed, 6 skipped；ruff 通过；frontend npm ci / 3 tests / build 通过；npm audit 0 vulnerabilities；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）
 
 ## 2. 本轮阻断项
 
@@ -116,13 +116,14 @@
 - [x] review 后续修复：同输出目录锁池改为引用计数，避免等待线程期间创建第二把锁；字幕句子级合并支持多语言句界；下载并发上限支持配置文件控制
 - [x] review 黄灯优化：字幕长句按词时间边界切分，避免超过 `max_duration_ms`；`--max-concurrent 0` 等非正数转为项目错误；清理测试文件末尾空行；同步 README / 治理文档
 - [x] 本轮标准验证通过：Windows 中 `python scripts/verify.py` 通过（160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本机用户级 site-packages 权限问题通过仓库外临时 `PYTHONUSERBASE` 绕开
+- [x] Legacy 前端考古与 v2 壳层启动：确认旧版为 Vite + React + TypeScript + Vitest；v2 `frontend/` 初始化下载工作台壳层、API 契约文档与前端测试/构建；`scripts/verify.py` 已纳入 `npm ci`、frontend test/build
 
 ## 6. 下一步建议
 
 Phase 3 当前优先级：
-1. **Legacy UI 兼容基线**：考古 Legacy 前端技术栈、布局、视觉规则和下载工作流，并补全 `docs/UI_COMPAT.md`。
-2. **轻前端接口契约**：先冻结下载工作台所需的输入模型、输出模型、错误模型、任务进度模型和文件安全边界。
-3. **轻前端 MVP**：优先做下载工作台，让项目能边开发边使用；前端只提交任务和展示状态，不复制媒体业务逻辑。
+1. **本地 API 适配层**：实现 `docs/UI_API_CONTRACT.md` 中的 doctor、fetch plan、fetch task 提交与任务列表接口，复用现有 Python core / CLI 边界。
+2. **轻前端下载工作台接线**：把当前壳层从本地 dry-run 预览接到 API 适配层，保留 Legacy 的左侧导航、中间窗口、右侧状态布局。
+3. **轻前端主观验收**：用户确认视觉密度、排版和使用路径是否贴近 Legacy；主观项通过后再标记用户可见功能完成。
 4. **后续功能评估**：下载与轻前端稳定后，再评估视频切片、资产扫描 / 搜索 / 统计。
 
 ## 7. 维护边界备忘

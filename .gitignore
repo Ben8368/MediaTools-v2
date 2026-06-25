@@ -42,6 +42,7 @@ go.work
 .vscode/
 .idea/
 .claude/
+.omo/
 *.swp
 *.swo
 *~
