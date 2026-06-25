@@ -62,25 +62,21 @@ describe('DownloaderApp interactions', () => {
     apiMocks.getActiveTasks.mockReset()
     apiMocks.getWeeklyHistory.mockReset()
     apiMocks.runFetcherDownload.mockReset()
-    apiMocks.getWeeklyHistory.mockResolvedValue({ tasks: [] })
+    apiMocks.getWeeklyHistory.mockResolvedValue([])
     apiMocks.clearTaskRecords.mockResolvedValue({ ok: true })
     apiMocks.deleteTaskRecord.mockResolvedValue({ ok: true })
   })
 
   it('stops selected active tasks through the cancel endpoint', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({
-      tasks: [
-        {
-          id: 'task-1',
-          type: 'download',
-          name: 'Example download',
-          status: 'running',
-          progress: 40,
-          stage: 'downloading',
-          created_at: 1710000000,
-        },
-      ],
-    })
+    apiMocks.getActiveTasks.mockResolvedValue([
+      {
+        id: 'task-1',
+        title: 'Example download',
+        status: 'running',
+        progress: 40,
+        stage: 'downloading',
+      },
+    ])
     apiMocks.cancelTask.mockResolvedValue({ ok: true })
 
     render(<DownloaderApp />)
@@ -100,25 +96,20 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('shift-click extends selection across visible rows', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({
-      tasks: [
+    apiMocks.getActiveTasks.mockResolvedValue([
         {
           id: 'task-a',
-          type: 'download',
-          name: 'Focused task',
+          title: 'Focused task',
           status: 'running',
           progress: 40,
           stage: 'downloading',
-          created_at: 1710000000,
         },
         {
           id: 'task-b',
-          type: 'download',
-          name: 'Second task',
+          title: 'Second task',
           status: 'pending',
           progress: 0,
           stage: 'queued',
-          created_at: 1710000001,
         },
       ],
     })
@@ -135,17 +126,14 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('keeps stop disabled for completed history tasks', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({ tasks: [] })
-    apiMocks.getWeeklyHistory.mockResolvedValue({
-      tasks: [
+    apiMocks.getActiveTasks.mockResolvedValue([])
+    apiMocks.getWeeklyHistory.mockResolvedValue([
         {
           id: 'task-2',
-          type: 'download',
-          name: 'Finished download',
+          title: 'Finished download',
           status: 'completed',
           progress: 100,
           stage: 'done',
-          created_at: 1710000000,
         },
       ],
     })
@@ -160,17 +148,14 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('shows queue and weekly history together on the default all view', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({ tasks: [] })
-    apiMocks.getWeeklyHistory.mockResolvedValue({
-      tasks: [
+    apiMocks.getActiveTasks.mockResolvedValue([])
+    apiMocks.getWeeklyHistory.mockResolvedValue([
         {
           id: 'task-history',
-          type: 'download',
-          name: 'Old completed download',
+          title: 'Old completed download',
           status: 'completed',
           progress: 100,
           stage: 'done',
-          created_at: 1710000000,
         },
       ],
     })
@@ -187,7 +172,7 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('renders readable toolbar, empty state, and add-form labels', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({ tasks: [] })
+    apiMocks.getActiveTasks.mockResolvedValue([])
 
     render(<DownloaderApp />)
 
@@ -209,7 +194,7 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('keeps short-video dropdown labels readable and disables subtitles', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({ tasks: [] })
+    apiMocks.getActiveTasks.mockResolvedValue([])
 
     render(<DownloaderApp />)
 
@@ -224,7 +209,7 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('shows a newly submitted task immediately in the queue', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({ tasks: [] })
+    apiMocks.getActiveTasks.mockResolvedValue([])
     apiMocks.runFetcherDownload.mockResolvedValue({
       ok: true,
       task_id: 'task-new',
@@ -252,7 +237,7 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('turns subtitles off automatically for short video mode submissions', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({ tasks: [] })
+    apiMocks.getActiveTasks.mockResolvedValue([])
     apiMocks.runFetcherDownload.mockResolvedValue({
       ok: true,
       task_id: 'task-short',
@@ -282,17 +267,14 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('selects visible tasks from the current filtered list', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({ tasks: [] })
-    apiMocks.getWeeklyHistory.mockResolvedValue({
-      tasks: [
+    apiMocks.getActiveTasks.mockResolvedValue([])
+    apiMocks.getWeeklyHistory.mockResolvedValue([
         {
           id: 'task-3',
-          type: 'download',
-          name: 'Broken download',
+          title: 'Broken download',
           status: 'failed',
           progress: 12,
           stage: 'failed',
-          created_at: 1710000000,
         },
       ],
     })
@@ -306,26 +288,21 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('clears all visible terminal records when every visible row is selected', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({ tasks: [] })
-    apiMocks.getWeeklyHistory.mockResolvedValue({
-      tasks: [
+    apiMocks.getActiveTasks.mockResolvedValue([])
+    apiMocks.getWeeklyHistory.mockResolvedValue([
         {
           id: 'task-5',
-          type: 'download',
-          name: 'Done A',
+          title: 'Done A',
           status: 'completed',
           progress: 100,
           stage: 'done',
-          created_at: 1710000000,
         },
         {
           id: 'task-6',
-          type: 'download',
-          name: 'Done B',
+          title: 'Done B',
           status: 'failed',
           progress: 10,
           stage: 'failed',
-          created_at: 1710000001,
         },
       ],
     })
@@ -347,17 +324,14 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('clears only the selected clearable records when a filtered list is selected', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({ tasks: [] })
-    apiMocks.getWeeklyHistory.mockResolvedValue({
-      tasks: [
+    apiMocks.getActiveTasks.mockResolvedValue([])
+    apiMocks.getWeeklyHistory.mockResolvedValue([
         {
           id: 'task-7',
-          type: 'download',
-          name: 'Done selected',
+          title: 'Done selected',
           status: 'completed',
           progress: 100,
           stage: 'done',
-          created_at: 1710000000,
         },
       ],
     })
@@ -375,16 +349,13 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('renders task details for the focused row', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({
-      tasks: [
+    apiMocks.getActiveTasks.mockResolvedValue([
         {
           id: 'task-4',
-          type: 'download',
-          name: 'https://www.youtube.com/watch?v=test',
+          title: 'https://www.youtube.com/watch?v=test',
           status: 'running',
           progress: 15,
           stage: '获取视频信息',
-          created_at: 1710000000,
           params: {
             url: 'https://www.youtube.com/watch?v=test',
             output_dir: 'D:/Downloads',
@@ -420,16 +391,13 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('keeps the detail drawer usable while the add form is open', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue({
-      tasks: [
+    apiMocks.getActiveTasks.mockResolvedValue([
         {
           id: 'task-8',
-          type: 'download',
-          name: 'Overlay task',
+          title: 'Overlay task',
           status: 'running',
           progress: 15,
           stage: 'downloading',
-          created_at: 1710000000,
           params: {
             url: 'https://example.com/overlay',
           },
