@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { computeStats, DownloaderApp, isTaskCancellable } from '@/apps/DownloaderApp'
+import { DownloaderApp } from '@/apps/DownloaderApp'
+import { computeStats, isTaskCancellable } from '@/apps/downloader/helpers'
 
 const apiMocks = vi.hoisted(() => ({
   cancelTask: vi.fn(),

@@ -62,21 +62,54 @@ export function wsUrl(path: string) {
   return url.toString()
 }
 
+// ----- v2 API: implemented endpoints -----
 
-// ----- v2 migration: stubs for legacy Flask API functions -----
-const v2NotReady = (name: string) => async (..._args: any[]): Promise<any> => {
-  throw new Error(name + ': 此功能需要旧版 MediaTools Flask 后端，v2 API 尚未实现')
+export async function fetchDoctorStatus() {
+  return request('/api/doctor') as Promise<{ name: string; available: boolean; path?: string }[]>
 }
 
-export const cancelTask = v2NotReady('cancelTask')
-export const cancelJob = v2NotReady('cancelJob')
+export async function fetchPlan(draft: Record<string, unknown>) {
+  return request('/api/fetch/plan', { method: 'POST', body: JSON.stringify(draft) })
+}
+
+export async function submitFetch(draft: Record<string, unknown>) {
+  return request('/api/fetch/tasks', { method: 'POST', body: JSON.stringify(draft) })
+}
+
+export const getActiveTasks = () => get('/api/fetch/tasks')
+export const getWeeklyHistory = () => get('/api/fetch/tasks')
+
+// ----- Stub functions (v2 not implemented yet) -----
+// These functions are from Legacy MediaTools and not yet implemented in v2
+
+const v2NotReady = (name: string) => async (..._args: any[]): Promise<any> => {
+  throw new Error(name + ': 此功能需要旧版 MediaTools 后端，v2 尚未实现')
+}
+
+export function shutdownSystem() { return Promise.resolve({ success: true }) }
 export const restartSystem = v2NotReady('restartSystem')
+export const getSystemStatus = v2NotReady('getSystemStatus')
+export const getSystemMetrics = v2NotReady('getSystemMetrics')
 export const getModules = v2NotReady('getModules')
 export const getWorkspace = v2NotReady('getWorkspace')
 export const setWorkspace = v2NotReady('setWorkspace')
+export const cancelTask = v2NotReady('cancelTask')
+export const getTask = v2NotReady('getTask')
+export const getTaskList = v2NotReady('getTaskList')
+export const deleteTaskRecord = v2NotReady('deleteTaskRecord')
+export const clearTaskRecords = v2NotReady('clearTaskRecords')
+export const fetchLogs = v2NotReady('fetchLogs')
+export const fetchLogMetadata = v2NotReady('fetchLogMetadata')
+export const clearLogs = v2NotReady('clearLogs')
+export const fetchNotifications = v2NotReady('fetchNotifications')
+export const getUnreadNotificationCount = v2NotReady('getUnreadNotificationCount')
+export const markNotificationAsRead = v2NotReady('markNotificationAsRead')
+export const markAllNotificationsAsRead = v2NotReady('markAllNotificationsAsRead')
+export const clearNotifications = v2NotReady('clearNotifications')
+
+// Legacy MediaTools features not planned for v2
 export const runAgent = v2NotReady('runAgent')
 export const testAgentConnection = v2NotReady('testAgentConnection')
-export const runFetcherDownload = v2NotReady('runFetcherDownload')
 export const runEncoder = v2NotReady('runEncoder')
 export const runDecryptor = v2NotReady('runDecryptor')
 export const fetchAssets = v2NotReady('fetchAssets')
@@ -90,9 +123,6 @@ export const fetchFilebrowserTrash = v2NotReady('fetchFilebrowserTrash')
 export const restoreFilebrowserTrash = v2NotReady('restoreFilebrowserTrash')
 export const purgeFilebrowserTrash = v2NotReady('purgeFilebrowserTrash')
 export const emptyFilebrowserTrash = v2NotReady('emptyFilebrowserTrash')
-export const fetchLogs = v2NotReady('fetchLogs')
-export const fetchLogMetadata = v2NotReady('fetchLogMetadata')
-export const clearLogs = v2NotReady('clearLogs')
 export const fetchPhotoshopStatus = v2NotReady('fetchPhotoshopStatus')
 export const scanPhotoshopTicket = v2NotReady('scanPhotoshopTicket')
 export const scanPhotoshopFolder = v2NotReady('scanPhotoshopFolder')
@@ -133,35 +163,8 @@ export const fetchAuditorStatus = v2NotReady('fetchAuditorStatus')
 export const fetchAuditorConfig = v2NotReady('fetchAuditorConfig')
 export const updateAuditorConfig = v2NotReady('updateAuditorConfig')
 export const runAuditorOnce = v2NotReady('runAuditorOnce')
-export const deleteTaskRecord = v2NotReady('deleteTaskRecord')
-export const clearTaskRecords = v2NotReady('clearTaskRecords')
-export const fetchNotifications = v2NotReady('fetchNotifications')
-export const getUnreadNotificationCount = v2NotReady('getUnreadNotificationCount')
-export const markNotificationAsRead = v2NotReady('markNotificationAsRead')
-export const markAllNotificationsAsRead = v2NotReady('markAllNotificationsAsRead')
-export const clearNotifications = v2NotReady('clearNotifications')
 export const fetchPersistedModelConfig = v2NotReady('fetchPersistedModelConfig')
 export const savePersistedModelConfig = v2NotReady('savePersistedModelConfig')
 export const clearPersistedModelConfig = v2NotReady('clearPersistedModelConfig')
-export const getSystemStatus = v2NotReady('getSystemStatus')
-export const getSystemMetrics = v2NotReady('getSystemMetrics')
-
-// ----- v2 API: real implementations -----
-export function shutdownSystem() { return Promise.resolve({ success: true }) }
-export const getTask = v2NotReady('getTask')
-export const getTaskList = v2NotReady('getTaskList')
-
-export const getActiveTasks = () => get('/api/fetch/tasks')
-export const getWeeklyHistory = () => get('/api/fetch/tasks')
-
-export async function fetchDoctorStatus() {
-  return request('/api/doctor') as Promise<{ name: string; available: boolean; path?: string }[]>
-}
-
-export async function fetchPlan(draft: Record<string, unknown>) {
-  return request('/api/fetch/plan', { method: 'POST', body: JSON.stringify(draft) })
-}
-
-export async function submitFetch(draft: Record<string, unknown>) {
-  return request('/api/fetch/tasks', { method: 'POST', body: JSON.stringify(draft) })
-}
+export const cancelJob = v2NotReady('cancelJob')
+export const runFetcherDownload = v2NotReady('runFetcherDownload')

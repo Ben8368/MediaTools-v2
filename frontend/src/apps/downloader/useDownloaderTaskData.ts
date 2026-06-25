@@ -16,10 +16,27 @@ export function useDownloaderTaskData() {
     loadingRef.current = true
     try {
       const activeRes = await getActiveTasks()
-      const allowed = new Set(['download', 'ai_analyze', 'ai_slice'])
-      const activeTasks: DownloadTask[] = (activeRes.tasks || []).filter((task: DownloadTask) => allowed.has(task.type))
-      activeTasks.sort((a, b) => b.created_at - a.created_at)
-      setTasks(activeTasks)
+      // v2 API returns array directly, not {tasks: [...]}
+      const activeTasks: DownloadTask[] = Array.isArray(activeRes) ? activeRes : (activeRes.tasks || [])
+
+      // Map v2 API response to DownloadTask format
+      const mappedTasks = activeTasks.map((task: any) => ({
+        id: task.id || task.task_id,
+        name: task.title || 'Untitled',
+        type: 'download' as const,
+        status: task.status || 'pending',
+        progress: task.progress || 0,
+        stage: task.stage || 'queued',
+        created_at: Date.now() / 1000, // v2 doesn't return created_at yet
+        source_url: task.source_url || '',
+        title: task.title || '',
+        output_files: task.output_files || [],
+        error: task.error || null,
+        result: task.output_files && task.output_files.length > 0 ? { files: task.output_files } : undefined,
+      }))
+
+      mappedTasks.sort((a, b) => b.created_at - a.created_at)
+      setTasks(mappedTasks)
     } catch {
       // Keep the last successful list when polling fails.
     } finally {
@@ -32,10 +49,26 @@ export function useDownloaderTaskData() {
     historyLoadingRef.current = true
     try {
       const historyRes = await getWeeklyHistory()
-      const allowed = new Set(['download', 'ai_analyze', 'ai_slice'])
-      const history: DownloadTask[] = (historyRes.tasks || []).filter((task: DownloadTask) => allowed.has(task.type))
-      history.sort((a, b) => b.created_at - a.created_at)
-      setHistoryTasks(history)
+      // v2 API returns same endpoint as active tasks for now
+      const history: DownloadTask[] = Array.isArray(historyRes) ? historyRes : (historyRes.tasks || [])
+
+      const mappedHistory = history.map((task: any) => ({
+        id: task.id || task.task_id,
+        name: task.title || 'Untitled',
+        type: 'download' as const,
+        status: task.status || 'pending',
+        progress: task.progress || 0,
+        stage: task.stage || 'queued',
+        created_at: Date.now() / 1000,
+        source_url: task.source_url || '',
+        title: task.title || '',
+        output_files: task.output_files || [],
+        error: task.error || null,
+        result: task.output_files && task.output_files.length > 0 ? { files: task.output_files } : undefined,
+      }))
+
+      mappedHistory.sort((a, b) => b.created_at - a.created_at)
+      setHistoryTasks(mappedHistory)
     } catch {
       // Keep the last successful list when polling fails.
     } finally {

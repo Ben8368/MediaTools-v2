@@ -1,17 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+// Simplified DownloaderApp for v2 - AI features removed
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import {
-  cancelTask,
-  clearTaskRecords,
-  runFetcherDownload,
-  analyzeDownloaderAi,
-  sliceDownloaderAi,
-} from '@/api'
-import { DirectoryPickerDialog } from '@/apps/FileManagerApp'
+import { submitFetch } from '@/api'
 import { DownloaderAddForm } from '@/apps/downloader/DownloaderAddForm'
 import { DownloaderDetailDrawer } from '@/apps/downloader/DownloaderDetailDrawer'
 import {
-  buildRetryPayload,
   computeStats,
   createOptimisticTask,
   extractTaskDetailRows,
@@ -28,7 +21,6 @@ import {
   isTaskRetryable,
   mergeTasks,
 } from '@/apps/downloader/helpers'
-import { DownloaderMiniAiChat } from '@/apps/downloader/DownloaderMiniAiChat'
 import { DownloaderSidebar } from '@/apps/downloader/DownloaderSidebar'
 import { DownloaderStatusBar } from '@/apps/downloader/DownloaderStatusBar'
 import { DownloaderTaskTable } from '@/apps/downloader/DownloaderTaskTable'
@@ -36,182 +28,22 @@ import { DownloaderToolbar } from '@/apps/downloader/DownloaderToolbar'
 import type { CategoryKey, DownloadPlatform, DownloadTask, DownloaderRowMenuAction } from '@/apps/downloader/types'
 import { useDownloaderTaskData } from '@/apps/downloader/useDownloaderTaskData'
 
-type AiAnalyzeMode = 'analyze' | 'export'
-
-type SubtitleMode = 'none' | 'hard' | 'soft'
-
-type AiAnalyzeDraft = {
-  mode: AiAnalyzeMode
-  subtitleMode: SubtitleMode
-  padding: number
-  expectedDuration: number
-  extraContext: string
-}
-
-function clampNumber(value: number, min: number, max: number) {
-  if (Number.isNaN(value)) return min
-  return Math.min(max, Math.max(min, value))
-}
-
-type AiAnalyzeDialogProps = {
-  open: boolean
-  task: DownloadTask | null
-  draft: AiAnalyzeDraft
-  onDraftChange: (draft: AiAnalyzeDraft) => void
-  onClose: () => void
-  onSubmit: () => void
-  isSubmitting?: boolean
-  submitProgress?: string
-}
-
-function AiAnalyzeDialog({ open, task, draft, onDraftChange, onClose, onSubmit, isSubmitting, submitProgress }: AiAnalyzeDialogProps) {
-  useEffect(() => {
-    if (!open) return
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose])
-
-  if (!open || !task) return null
-
-  return (
-    <div className="automation-dialog-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        className="automation-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label="AI分析"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header className="automation-dialog-head">
-          <div>
-            <span>AI分析</span>
-            <h3>{getTaskDisplayTitle(task)}</h3>
-            <p>先分析字幕生成片段建议；也可以在分析后直接导出切片。</p>
-          </div>
-          <button className="automation-dialog-close" type="button" onClick={onClose} aria-label="关闭">
-            ×
-          </button>
-        </header>
-
-        <div className="automation-dialog-grid">
-          <label>
-            模式
-            <select
-              value={draft.mode}
-              onChange={(event) => onDraftChange({ ...draft, mode: event.target.value as AiAnalyzeMode })}
-            >
-              <option value="analyze">只分析（生成片段建议）</option>
-              <option value="export">分析并导出切片</option>
-            </select>
-          </label>
-
-          <label>
-            期望切片时长（秒，0 为自由分析）
-            <input
-              type="number"
-              step={0.1}
-              min={0}
-              max={600}
-              value={draft.expectedDuration}
-              onChange={(event) =>
-                onDraftChange({
-                  ...draft,
-                  expectedDuration: clampNumber(Number(event.target.value || 0), 0, 600),
-                })
-              }
-            />
-          </label>
-
-          {draft.mode === 'export' && (
-            <>
-              <label>
-                留白时长（秒）
-                <input
-                  type="number"
-                  step={0.1}
-                  min={0}
-                  max={10}
-                  value={draft.padding}
-                  onChange={(event) =>
-                    onDraftChange({
-                      ...draft,
-                      padding: clampNumber(Number(event.target.value || 0), 0, 10),
-                    })
-                  }
-                />
-              </label>
-
-              <label>
-                字幕处理
-                <select
-                  value={draft.subtitleMode}
-                  onChange={(event) => onDraftChange({ ...draft, subtitleMode: event.target.value as SubtitleMode })}
-                >
-                  <option value="none">否</option>
-                  <option value="hard">硬字幕（烧录到视频）</option>
-                  <option value="soft">软字幕（单独字幕文件）</option>
-                </select>
-              </label>
-            </>
-          )}
-
-          <label style={{ gridColumn: '1 / -1' }}>
-            补充需求（可选）
-            <textarea
-              value={draft.extraContext}
-              placeholder="例如：产品名称/定位/目标人群/口播风格/需要强调的卖点/禁用词..."
-              onChange={(event) => onDraftChange({ ...draft, extraContext: event.target.value })}
-            />
-          </label>
-        </div>
-
-        <footer className="automation-dialog-actions">
-          <button type="button" className="dl-btn" onClick={onClose} disabled={isSubmitting}>
-            取消
-          </button>
-          <button type="button" className="dl-btn dl-btn--primary" onClick={onSubmit} disabled={isSubmitting}>
-            {isSubmitting ? (submitProgress || '处理中...') : draft.mode === 'export' ? '分析并导出' : '开始分析'}
-          </button>
-        </footer>
-      </section>
-    </div>
-  )
-}
-
-export { computeStats, isTaskCancellable } from '@/apps/downloader/helpers'
-
 export function DownloaderApp() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryKey>('all')
   const [searchText, setSearchText] = useState('')
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showAddForm, setShowAddForm] = useState(false)
-  const [addingTask, setAddingTask] = useState(false)
+  const [directoryPickerOpen, setDirectoryPickerOpen] = useState(false)
   const [taskUrl, setTaskUrl] = useState('')
   const [taskPlatform, setTaskPlatform] = useState<DownloadPlatform>('auto')
   const [taskSubtitles, setTaskSubtitles] = useState(true)
   const [taskOutputDir, setTaskOutputDir] = useState('')
-  const [showDirectoryPicker, setShowDirectoryPicker] = useState(false)
+  const [addingTask, setAddingTask] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [actionError, setActionError] = useState('')
   const [detailOpen, setDetailOpen] = useState(false)
-  const [miniAiOpen, setMiniAiOpen] = useState(false)
-  const [aiDialogOpen, setAiDialogOpen] = useState(false)
-  const [aiDialogTask, setAiDialogTask] = useState<DownloadTask | null>(null)
-  const [aiSubmitting, setAiSubmitting] = useState(false)
-  const [aiSubmitProgress, setAiSubmitProgress] = useState('')
-  const [aiTaskId, setAiTaskId] = useState<string | null>(null)
-  const [aiPollInterval, setAiPollInterval] = useState<ReturnType<typeof setInterval> | null>(null)
-  const [aiDraft, setAiDraft] = useState<AiAnalyzeDraft>({
-    mode: 'analyze',
-    subtitleMode: 'none',
-    padding: 0.8,
-    expectedDuration: 0.0,
-    extraContext: '',
-  })
+
   const selectionAnchorIdRef = useRef<string | null>(null)
   const { historyTasks, queueTasks, mergedTasks, fetchHistoryTasks, refreshLists, setOptimisticTasks } = useDownloaderTaskData()
 
@@ -272,27 +104,6 @@ export function DownloaderApp() {
     [mergedTasks, selectedTaskId],
   )
 
-  const taskContextLine = useMemo(() => {
-    if (!selectedTask) return null
-    const url = getTaskSourceUrl(selectedTask)
-    const title = getTaskDisplayTitle(selectedTask)
-    const videoPath = getTaskVideoFilePath(selectedTask)
-    const subtitlePath = getTaskSubtitleFilePath(selectedTask)
-    const params = selectedTask.params ?? {}
-    const outputDir = typeof params.output_dir === 'string' ? params.output_dir.trim() : ''
-
-    const lines = [
-      `任务ID：${selectedTask.id}`,
-      `标题：${title}`,
-      `状态：${selectedTask.status}`,
-    ]
-    if (url) lines.push(`来源链接：${url}`)
-    lines.push(outputDir ? `提交时输出目录：${outputDir}` : '提交时输出目录：未指定（服务端使用工作区默认下载目录）')
-    lines.push(videoPath ? `本地视频路径（落盘）：${videoPath}` : '本地视频路径：（任务 result 中暂无，可能仍在下载、历史未含结果字段，或需刷新列表）')
-    lines.push(subtitlePath ? `本地字幕路径（落盘）：${subtitlePath}` : '本地字幕路径：（任务 result 中暂无；未勾选字幕或未生成文件时为空）')
-    return lines.join('\n')
-  }, [selectedTask])
-
   const hasBulkSelection = selectedIds.size > 0
   const selectedTasks = useMemo(() => {
     if (hasBulkSelection) {
@@ -317,31 +128,37 @@ export function DownloaderApp() {
     if (!filteredTasks.length) return '暂无可显示的下载任务'
     return '没有可删除的记录：仅已完成、已停止或失败的任务可从列表移除。请先选中任务或使用全选。'
   }, [filteredTasks.length, selectedClearableTasks, selectedTasks])
+
   const canSelectAllVisible = filteredTasks.length > 0
   const allVisibleSelected = filteredTasks.length > 0 && filteredTasks.every((task) => selectedIds.has(task.id))
 
   const submitTaskPayloads = useCallback(
-    async (payloads: Record<string, unknown>[]) => {
-      const createdTasks: DownloadTask[] = []
-      for (const payload of payloads) {
-        const result = await runFetcherDownload(payload)
-        if (result?.ok !== true) {
-          throw new Error(result?.error || '服务器返回异常响应')
-        }
-        if (result?.task_id) {
-          createdTasks.push(createOptimisticTask(String(payload.url || ''), payload, result))
-        }
+    async (urls: string[]) => {
+      const draft = {
+        urls: urls,
+        output_dir: taskOutputDir || 'downloads',
+        write_subs: selectedPlatform.supportsSubtitles && taskSubtitles,
+        write_auto_subs: selectedPlatform.supportsSubtitles && taskSubtitles,
+        sub_langs: 'original',
+        convert_subs: 'srt',
+        preset: 'mp4',
+        max_concurrent: 1,
       }
-      if (createdTasks.length > 0) {
-        setOptimisticTasks((prev) => mergeTasks(createdTasks, prev))
-        setSelectedTaskId(createdTasks[0].id)
-        setSelectedIds(new Set())
-        selectionAnchorIdRef.current = createdTasks[0].id
+
+      const result = await submitFetch(draft)
+      if (!result || !result.task_id) {
+        throw new Error('服务器未返回任务 ID')
       }
+
+      const optimisticTask = createOptimisticTask(urls.join(', '), draft, result)
+      setOptimisticTasks((prev) => mergeTasks([optimisticTask], prev))
+      setSelectedTaskId(optimisticTask.id)
+      setSelectedIds(new Set())
+      selectionAnchorIdRef.current = optimisticTask.id
       setSelectedCategory('all')
       await refreshLists()
     },
-    [refreshLists, setOptimisticTasks],
+    [taskOutputDir, selectedPlatform.supportsSubtitles, taskSubtitles, refreshLists, setOptimisticTasks],
   )
 
   const submitNewTask = useCallback(async () => {
@@ -350,20 +167,12 @@ export function DownloaderApp() {
     setSubmitError('')
     setActionError('')
     try {
-      const payloads = taskUrl
+      const urls = taskUrl
         .split('\n')
         .map((url) => url.trim())
         .filter((url) => url.length > 0)
-        .map((url) => ({
-          url,
-          platform: taskPlatform,
-          output_dir: taskOutputDir || '',
-          quality: 'h264',
-          subtitles: selectedPlatform.supportsSubtitles ? taskSubtitles : false,
-          analyze: false,
-        }))
 
-      await submitTaskPayloads(payloads)
+      await submitTaskPayloads(urls)
       setTaskUrl('')
       setShowAddForm(false)
     } catch (err: any) {
@@ -371,137 +180,99 @@ export function DownloaderApp() {
     } finally {
       setAddingTask(false)
     }
-  }, [addingTask, selectedPlatform.supportsSubtitles, submitTaskPayloads, taskOutputDir, taskPlatform, taskSubtitles, taskUrl])
+  }, [addingTask, submitTaskPayloads, taskUrl])
 
   const clearRecords = useCallback(async () => {
-    if (!canClearRecords) return
-    setActionError('')
-    try {
-      const ids = selectedClearableTasks.map((task) => task.id)
-      await clearTaskRecords({ ids, terminal_only: false })
-      setSelectedIds((prev) => {
-        const next = new Set(prev)
-        ids.forEach((id) => next.delete(id))
-        return next
-      })
-      if (selectedTask && ids.includes(selectedTask.id)) {
-        setSelectedTaskId(null)
-      }
-      await refreshLists()
-    } catch (err: any) {
-      setActionError(err?.message || '删除记录失败')
-    }
-  }, [canClearRecords, refreshLists, selectedClearableTasks, selectedTask])
+    setActionError('清除记录功能暂未实现（v2 后续支持）')
+  }, [])
 
   const stopSelected = useCallback(async () => {
-    if (!canStopSelected) return
-    setActionError('')
-    try {
-      await Promise.all(selectedTasks.map((task) => cancelTask(task.id)))
-      setSelectedIds(new Set())
-      await refreshLists()
-    } catch (err: any) {
-      setActionError(err?.message || '停止任务失败')
-    }
-  }, [canStopSelected, refreshLists, selectedTasks])
+    setActionError('停止任务功能暂未实现（v2 后续支持）')
+  }, [])
 
   const retrySelected = useCallback(async () => {
-    if (!canRetrySelected) return
-    setActionError('')
-    try {
-      const payloads = selectedTasks
-        .map((task) => buildRetryPayload(task))
-        .filter((payload): payload is Record<string, unknown> => Boolean(payload))
-      if (!payloads.length) {
-        throw new Error('选中的任务缺少可重试的下载参数')
-      }
-      await submitTaskPayloads(payloads)
-      setSelectedIds(new Set())
-    } catch (err: any) {
-      setActionError(err?.message || '重新提交失败')
-    }
-  }, [canRetrySelected, selectedTasks, submitTaskPayloads])
+    setActionError('重试任务功能暂未实现（v2 后续支持）')
+  }, [])
 
   const handleRowMenuAction = useCallback(
     async (action: DownloaderRowMenuAction, task: DownloadTask) => {
       setActionError('')
-      if (action === 'ai_analyze') {
-        if (task.status !== 'completed') {
-          setActionError('请先等待任务下载完成后再分析字幕。')
-          return
-        }
-        const sub = getTaskSubtitleFilePath(task)
-        if (!sub) {
-          setActionError('未找到字幕文件路径，请确认下载任务包含字幕。')
-          return
-        }
-        setAiDialogTask(task)
-        setAiDialogOpen(true)
-        return
-      }
       if (action === 'copy_url') {
         const url = getTaskSourceUrl(task)
         if (!url) {
-          setActionError('该任务没有可复制的链接')
+          setActionError('此任务缺少来源链接')
           return
         }
-        try {
-          await navigator.clipboard.writeText(url)
-        } catch {
-          setActionError('复制失败，请检查浏览器剪贴板权限')
-        }
-        return
+        await navigator.clipboard.writeText(url)
       }
       if (action === 'retry') {
-        try {
-          const payload = buildRetryPayload(task)
-          if (!payload) throw new Error('无法重试：缺少原始链接参数')
-          await submitTaskPayloads([payload])
-        } catch (err: any) {
-          setActionError(err?.message || '重新提交失败')
-        }
+        setActionError('重试功能暂未实现（v2 后续支持）')
+      }
+      if (action === 'ai_analyze') {
+        setActionError('AI 分析功能暂未实现（v2 后续支持）')
       }
     },
-    [refreshLists, submitTaskPayloads],
+    [],
   )
 
+  const toggleSelectAllVisible = useCallback(() => {
+    if (allVisibleSelected) {
+      setSelectedIds(new Set())
+      selectionAnchorIdRef.current = null
+    } else {
+      setSelectedIds(new Set(filteredTasks.map((task) => task.id)))
+      selectionAnchorIdRef.current = filteredTasks.length > 0 ? filteredTasks[0].id : null
+    }
+  }, [allVisibleSelected, filteredTasks])
+
   const handleRowClick = useCallback(
-    (taskId: string, index: number, event: MouseEvent<HTMLDivElement>) => {
+    (taskId: string, index: number, event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+      const task = filteredTasks.find(t => t.id === taskId)
+      if (!task) return
+
+      const isBulkAction = event.ctrlKey || event.metaKey || event.shiftKey
+      if (!isBulkAction) {
+        setSelectedTaskId(task.id)
+        setSelectedIds(new Set())
+        selectionAnchorIdRef.current = task.id
+        return
+      }
+
       if (event.shiftKey && selectionAnchorIdRef.current) {
-        const anchorIdx = filteredTasks.findIndex((t) => t.id === selectionAnchorIdRef.current)
-        if (anchorIdx >= 0) {
-          const lo = Math.min(anchorIdx, index)
-          const hi = Math.max(anchorIdx, index)
-          const range = filteredTasks.slice(lo, hi + 1).map((t) => t.id)
-          setSelectedIds(new Set(range))
-          setSelectedTaskId(taskId)
+        const anchorIndex = filteredTasks.findIndex((t) => t.id === selectionAnchorIdRef.current)
+        const clickedIndex = index
+        if (anchorIndex !== -1 && clickedIndex !== -1) {
+          const start = Math.min(anchorIndex, clickedIndex)
+          const end = Math.max(anchorIndex, clickedIndex)
+          const rangeIds = new Set(filteredTasks.slice(start, end + 1).map((t) => t.id))
+          setSelectedIds(rangeIds)
           return
         }
       }
-      selectionAnchorIdRef.current = taskId
-      setSelectedTaskId(taskId)
-      setSelectedIds(new Set())
+
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(task.id)) {
+          next.delete(task.id)
+          if (next.size === 0) {
+            selectionAnchorIdRef.current = null
+          }
+        } else {
+          next.add(task.id)
+          selectionAnchorIdRef.current = task.id
+        }
+        return next
+      })
     },
     [filteredTasks],
   )
 
-  const toggleSelectAllVisible = useCallback(() => {
-    if (!filteredTasks.length) return
-    const allSelected = filteredTasks.every((task) => selectedIds.has(task.id))
-    if (allSelected) {
-      setSelectedIds(new Set())
-      selectionAnchorIdRef.current = filteredTasks[0].id
-      setSelectedTaskId(filteredTasks[0].id)
-    } else {
-      const ids = filteredTasks.map((t) => t.id)
-      setSelectedIds(new Set(ids))
-      selectionAnchorIdRef.current = filteredTasks[0].id
-      setSelectedTaskId(filteredTasks[0].id)
-    }
-  }, [filteredTasks, selectedIds])
-
-  const detailRows = selectedTask ? extractTaskDetailRows(selectedTask) : []
-  const detailRequest = selectedTask ? JSON.stringify(extractTaskRequestSnapshot(selectedTask), null, 2) : ''
+  const detailRows = useMemo(() => (selectedTask ? extractTaskDetailRows(selectedTask) : []), [selectedTask])
+  const detailSnapshot = useMemo(() => {
+    if (!selectedTask) return ''
+    const snapshot = extractTaskRequestSnapshot(selectedTask)
+    return typeof snapshot === 'string' ? snapshot : JSON.stringify(snapshot, null, 2)
+  }, [selectedTask])
   const detailState = selectedTask?.state ? JSON.stringify(selectedTask.state, null, 2) : ''
   const detailResult = selectedTask?.result ? JSON.stringify(selectedTask.result, null, 2) : ''
 
@@ -510,16 +281,14 @@ export function DownloaderApp() {
       <DownloaderSidebar
         selectedCategory={selectedCategory}
         stats={stats}
-        miniAiOpen={miniAiOpen}
-        onToggleMiniAi={() => setMiniAiOpen((open) => !open)}
+        miniAiOpen={false}
+        onToggleMiniAi={() => {}} // AI feature removed
         onSelectCategory={(category) => {
           setSelectedCategory(category)
           setSelectedIds(new Set())
           selectionAnchorIdRef.current = null
         }}
       />
-
-      <DownloaderMiniAiChat open={miniAiOpen} onClose={() => setMiniAiOpen(false)} taskContextLine={taskContextLine} />
 
       <main className={`dl-panel ${showAddForm ? 'dl-panel--with-form' : ''}`}>
         <DownloaderToolbar
@@ -553,151 +322,53 @@ export function DownloaderApp() {
               onTaskPlatformChange={setTaskPlatform}
               onTaskSubtitlesChange={setTaskSubtitles}
               onTaskOutputDirChange={setTaskOutputDir}
-              onOpenDirectoryPicker={() => setShowDirectoryPicker(true)}
+              onOpenDirectoryPicker={() => setDirectoryPickerOpen(true)}
               onSubmit={submitNewTask}
-              onClose={() => setShowAddForm(false)}
+              onClose={() => {
+                setShowAddForm(false)
+                setSubmitError('')
+              }}
             />
           )}
 
-          <div className="dl-body">
-            <section className="dl-content">
-              <DownloaderTaskTable
-                filteredTasks={filteredTasks}
-                selectedIds={selectedIds}
-                selectedTaskId={selectedTaskId}
-                onRowClick={handleRowClick}
-                onRowMenuAction={handleRowMenuAction}
-              />
-            </section>
-          </div>
-
-          <DownloaderDetailDrawer
-            open={detailOpen}
-            selectedTask={selectedTask}
-            detailRows={detailRows}
-            detailRequest={detailRequest}
-            detailState={detailState}
-            detailResult={detailResult}
-            actionError={actionError}
-            onClose={() => setDetailOpen(false)}
+          <DownloaderTaskTable
+            filteredTasks={filteredTasks}
+            selectedTaskId={selectedTaskId}
+            selectedIds={selectedIds}
+            onRowClick={handleRowClick}
+            onRowMenuAction={handleRowMenuAction}
           />
 
-          <AiAnalyzeDialog
-            open={aiDialogOpen}
-            task={aiDialogTask}
-            draft={aiDraft}
-            onDraftChange={setAiDraft}
-            onClose={() => {
-              if (aiPollInterval) {
-                clearInterval(aiPollInterval)
-                setAiPollInterval(null)
-              }
-              setAiDialogOpen(false)
-              setAiDialogTask(null)
-              setAiSubmitting(false)
-              setAiSubmitProgress('')
-              setAiTaskId(null)
-            }}
-            isSubmitting={aiSubmitting}
-            submitProgress={aiSubmitProgress}
-            onSubmit={async () => {
-              if (!aiDialogTask || aiSubmitting) return
-              setActionError('')
-              setAiSubmitting(true)
-              setAiSubmitProgress('准备中...')
-
-              if (aiDraft.mode === 'export') {
-                const vid = getTaskVideoFilePath(aiDialogTask)
-                if (!vid) {
-                  setActionError('未找到本地视频文件路径。')
-                  setAiSubmitting(false)
-                  setAiSubmitProgress('')
-                  return
-                }
-              }
-
-              try {
-                let response
-                if (aiDraft.mode === 'export') {
-                  response = await sliceDownloaderAi({
-                    task_id: aiDialogTask.id,
-                    subtitle_mode: aiDraft.subtitleMode,
-                    padding: aiDraft.padding,
-                    expected_duration: aiDraft.expectedDuration,
-                    extra_context: aiDraft.extraContext,
-                  })
-                } else {
-                  response = await analyzeDownloaderAi({
-                    task_id: aiDialogTask.id,
-                    expected_duration: aiDraft.expectedDuration,
-                    extra_context: aiDraft.extraContext,
-                  })
-                }
-
-                if (response?.task_id) {
-                  setAiTaskId(response.task_id)
-                  setAiSubmitProgress('已提交，等待处理...')
-
-                  const eventSource = new EventSource(`/api/downloader/ai/task/${response.task_id}/stream`)
-
-                  eventSource.onmessage = (event) => {
-                    try {
-                      const data = JSON.parse(event.data)
-                      if (data.error) {
-                        setActionError(data.error)
-                        eventSource.close()
-                        setAiSubmitting(false)
-                        setAiSubmitProgress('')
-                      } else if (data.done) {
-                        eventSource.close()
-                        setAiSubmitting(false)
-                        setAiSubmitProgress('')
-                        setAiTaskId(null)
-                        setAiDialogOpen(false)
-                        setAiDialogTask(null)
-                        if (aiPollInterval) {
-                          clearInterval(aiPollInterval)
-                          setAiPollInterval(null)
-                        }
-                        refreshLists()
-                      } else if (data.stage) {
-                        setAiSubmitProgress(`${data.stage}...`)
-                      }
-                    } catch (err) {
-                      console.error('解析流数据失败:', err)
-                    }
-                  }
-
-                  eventSource.onerror = () => {
-                    eventSource.close()
-                    setActionError('连接中断')
-                    setAiSubmitting(false)
-                    setAiSubmitProgress('')
-                  }
-                } else {
-                  setAiSubmitting(false)
-                  setAiSubmitProgress('')
-                }
-              } catch (err: any) {
-                setActionError(err?.message || 'AI分析提交失败')
-                setAiSubmitting(false)
-                setAiSubmitProgress('')
-              }
-            }}
-          />
+          {actionError && <div className="dl-action-error">{actionError}</div>}
         </div>
 
         <DownloaderStatusBar detailOpen={detailOpen} onToggleDetail={() => setDetailOpen((prev) => !prev)} />
       </main>
 
-      <DirectoryPickerDialog
-        open={showDirectoryPicker}
-        value={taskOutputDir}
-        title="选择下载目录"
-        confirmLabel="确认"
-        onClose={() => setShowDirectoryPicker(false)}
-        onPick={setTaskOutputDir}
+      <DownloaderDetailDrawer
+        open={detailOpen}
+        selectedTask={selectedTask}
+        detailRows={detailRows}
+        detailRequest={detailSnapshot}
+        detailState={detailState}
+        detailResult={detailResult}
+        actionError={actionError}
+        onClose={() => setDetailOpen(false)}
       />
+
+      {directoryPickerOpen && (
+        <div>
+          <button type="button" onClick={() => setDirectoryPickerOpen(false)}>
+            关闭目录选择（v2 文件管理功能暂未实现）
+          </button>
+          <input
+            type="text"
+            value={taskOutputDir}
+            onChange={(e) => setTaskOutputDir(e.target.value)}
+            placeholder="输入输出目录路径"
+          />
+        </div>
+      )}
     </div>
   )
 }

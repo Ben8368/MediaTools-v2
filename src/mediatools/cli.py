@@ -19,6 +19,8 @@ from mediatools.commands.probe import register_parser as register_probe
 from mediatools.commands.probe import run as run_probe
 from mediatools.commands.screenshot import register_parser as register_screenshot
 from mediatools.commands.screenshot import run as run_screenshot
+from mediatools.commands.serve import register_parser as register_serve
+from mediatools.commands.serve import run as run_serve
 from mediatools.commands.subtitle import register_parser as register_subtitle
 from mediatools.commands.subtitle import run as run_subtitle
 from mediatools.core.errors import MediaToolsError
@@ -32,6 +34,7 @@ COMMAND_RUNNERS: dict[str, CommandRunner] = {
     "encode": run_encode,
     "screenshot": run_screenshot,
     "fetch": run_fetch,
+    "serve": run_serve,
 }
 
 
@@ -57,6 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
     register_encode(subparsers)
     register_screenshot(subparsers)
     register_fetch(subparsers)
+    register_serve(subparsers)
     return parser
 
 
