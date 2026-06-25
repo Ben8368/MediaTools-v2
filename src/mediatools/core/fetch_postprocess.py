@@ -8,28 +8,39 @@ from threading import Lock
 from mediatools.core.fetch_naming import SUBTITLE_EXTS, SUBTITLE_LANG_RE
 
 _OUTPUT_DIR_LOCKS: dict[Path, Lock] = {}
+_OUTPUT_DIR_LOCK_REFCOUNTS: dict[Path, int] = {}
 _OUTPUT_DIR_LOCKS_GUARD = Lock()
 
 
 def output_dir_lock(output_dir: Path) -> Lock:
-    """Return a shared lock for writes and post-processing in one output dir."""
+    """Return a shared lock for writes and post-processing in one output dir.
+
+    Uses reference counting to prevent premature removal of locks that are
+    still in use by waiting threads.
+    """
     with _OUTPUT_DIR_LOCKS_GUARD:
         lock = _OUTPUT_DIR_LOCKS.get(output_dir)
         if lock is None:
             lock = Lock()
             _OUTPUT_DIR_LOCKS[output_dir] = lock
+            _OUTPUT_DIR_LOCK_REFCOUNTS[output_dir] = 0
+        _OUTPUT_DIR_LOCK_REFCOUNTS[output_dir] += 1
         return lock
 
 
 def cleanup_output_dir_locks(output_dir: Path) -> None:
-    """Remove the lock entry for a finished output directory.
+    """Decrement the reference count and remove the lock if no longer in use.
 
-    Prevents unbounded growth of ``_OUTPUT_DIR_LOCKS`` in long-lived
-    sessions or daemon scenarios.  For a one-shot CLI process this is
-    a no-op (process exits and the OS reclaims memory).
+    Prevents unbounded growth of ``_OUTPUT_DIR_LOCKS`` while ensuring that
+    locks are not removed while other threads are waiting to acquire them.
     """
     with _OUTPUT_DIR_LOCKS_GUARD:
-        _OUTPUT_DIR_LOCKS.pop(output_dir, None)
+        count = _OUTPUT_DIR_LOCK_REFCOUNTS.get(output_dir, 0)
+        if count <= 1:
+            _OUTPUT_DIR_LOCKS.pop(output_dir, None)
+            _OUTPUT_DIR_LOCK_REFCOUNTS.pop(output_dir, None)
+        else:
+            _OUTPUT_DIR_LOCK_REFCOUNTS[output_dir] = count - 1
 
 
 def subtitle_snapshot(output_dir: Path) -> dict[str, tuple[int, int]]:

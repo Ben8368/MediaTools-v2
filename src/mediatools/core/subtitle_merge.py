@@ -175,6 +175,12 @@ def _chunk_by_duration(
         chunks.append((cursor, chunk_end, tuple(chunk_lines)))
         cursor = chunk_end
 
+    # Ensure the last chunk extends to the original end_ms to prevent
+    # truncation of subtitle display time
+    if chunks and chunks[-1][1] < end_ms:
+        last_start, _, last_lines = chunks[-1]
+        chunks[-1] = (last_start, end_ms, last_lines)
+
     return chunks
 
 

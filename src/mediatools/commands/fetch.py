@@ -11,6 +11,7 @@ from mediatools.core.errors import MediaToolsError
 from mediatools.core.fetch import FetchOptions, fetch_many, load_fetch_urls, make_fetch_options
 
 DEFAULT_FETCH_TIMEOUT_SECONDS = 3600.0
+MAX_CONCURRENT_DOWNLOADS = 8
 
 
 def register_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -149,8 +150,15 @@ def run(args: argparse.Namespace) -> int:
     )
     options = make_fetch_options(urls, template)
     timeout = None if args.timeout <= 0 else args.timeout
+    safe_max_workers = min(args.max_workers, MAX_CONCURRENT_DOWNLOADS)
+    if safe_max_workers < args.max_workers:
+        print(
+            f"Warning: --max-concurrent reduced from {args.max_workers} to "
+            f"{MAX_CONCURRENT_DOWNLOADS} (system limit).",
+            file=sys.stderr,
+        )
     result = fetch_many(
-        options, dry_run=args.dry_run, max_workers=args.max_workers, timeout=timeout
+        options, dry_run=args.dry_run, max_workers=safe_max_workers, timeout=timeout
     )
     payload = _redact_cookies_in_payload(result.to_dict())
     if args.summary_json:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import traceback
 from collections.abc import Callable, Sequence
 
 from mediatools import __version__
@@ -73,9 +74,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
     except Exception as exc:
         logger.error(f"Unexpected error: {exc}")
-        Logger(StreamHandler(stream=sys.stderr, show_level=False), level="DEBUG").exception(
-            "Full traceback for unexpected error:",
-        )
+        traceback.print_exc(file=sys.stderr)
         return 2
 
     parser.print_help()
