@@ -14,6 +14,7 @@ from mediatools.core.fetch_naming import (
 )
 from mediatools.core.fetch_postprocess import (
     changed_subtitles,
+    cleanup_output_dir_locks,
     output_dir_lock,
     subtitle_snapshot,
 )
@@ -108,7 +109,7 @@ def load_fetch_urls(input_file: str | Path) -> list[str]:
         raise MediaToolsError(f"Fetch input path is not a file: {path}")
     try:
         text = path.read_text(encoding="utf-8-sig")
-    except OSError as exc:
+    except (OSError, UnicodeError) as exc:
         raise MediaToolsError(f"Could not read fetch input file: {path}") from exc
     urls = [
         line.strip()
@@ -158,19 +159,22 @@ def fetch_media(
 ) -> ToolResult:
     """Run yt-dlp for a single download operation."""
     output_dir = normalize(options.output_dir)
-    with output_dir_lock(output_dir):
-        output_dir.mkdir(parents=True, exist_ok=True)
-        before = subtitle_snapshot(output_dir)
-        normalized_options = copy_options(options, output_dir=output_dir)
-        kwargs = {"runner": runner} if runner is not None else {}
-        result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
-        changed = changed_subtitles(output_dir, before)
-        for subtitle in changed:
-            clean_subtitle_file(subtitle)
-        if prefer_original_subtitles:
-            changed = prune_original_subtitle_fallbacks(output_dir, candidates=changed)
-        strip_subtitle_language_suffix(output_dir, candidates=changed)
-        return result
+    try:
+        with output_dir_lock(output_dir):
+            output_dir.mkdir(parents=True, exist_ok=True)
+            before = subtitle_snapshot(output_dir)
+            normalized_options = copy_options(options, output_dir=output_dir)
+            kwargs = {"runner": runner} if runner is not None else {}
+            result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
+            changed = changed_subtitles(output_dir, before)
+            for subtitle in changed:
+                clean_subtitle_file(subtitle)
+            if prefer_original_subtitles:
+                changed = prune_original_subtitle_fallbacks(output_dir, candidates=changed)
+            strip_subtitle_language_suffix(output_dir, candidates=changed)
+            return result
+    finally:
+        cleanup_output_dir_locks(output_dir)
 
 
 def _fetch_one(
@@ -337,8 +341,19 @@ def _fetch_parallel(
 
 
 def _safe_fetch_command(options: FetchOptions) -> tuple[str, ...]:
-    """Return a best-effort command for failure summaries."""
+    """Return a best-effort command for failure summaries with cookie paths redacted."""
     try:
-        return ("yt-dlp", *build_fetch_args(options))
+        args = build_fetch_args(options)
     except MediaToolsError:
         return ("yt-dlp",)
+    redacted: list[str] = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--cookies" and i + 1 < len(args):
+            redacted.append(args[i])
+            redacted.append("[REDACTED]")
+            i += 2
+            continue
+        redacted.append(args[i])
+        i += 1
+    return ("yt-dlp", *redacted)

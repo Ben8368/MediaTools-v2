@@ -152,9 +152,10 @@ def run(args: argparse.Namespace) -> int:
     result = fetch_many(
         options, dry_run=args.dry_run, max_workers=args.max_workers, timeout=timeout
     )
+    payload = _redact_cookies_in_payload(result.to_dict())
     if args.summary_json:
-        _write_json_file(Path(args.summary_json), result.to_dict())
-    _print_fetch_summary(result.to_dict(), dry_run=args.dry_run)
+        _write_json_file(Path(args.summary_json), payload)
+    _print_fetch_summary(payload, dry_run=args.dry_run)
     return 1 if result.failed else 0
 
 
@@ -177,6 +178,39 @@ def _write_json_file(path: Path, payload: dict[str, object]) -> None:
         raise MediaToolsError(f"Could not write summary JSON: {path}") from exc
 
 
+def _redact_cookies_in_command(command: list[object]) -> list[object]:
+    """Return a copy of command with --cookies file paths redacted."""
+    result: list[object] = []
+    i = 0
+    while i < len(command):
+        part = str(command[i])
+        if part == "--cookies" and i + 1 < len(command):
+            result.append(part)
+            result.append("[REDACTED]")
+            i += 2
+            continue
+        result.append(command[i])
+        i += 1
+    return result
+
+
+def _redact_cookies_in_payload(payload: dict[str, object]) -> dict[str, object]:
+    """Return a copy of the summary payload with cookie paths redacted in all commands."""
+    items = payload.get("items", [])
+    assert isinstance(items, list)
+    redacted_items = []
+    for item in items:
+        assert isinstance(item, dict)
+        new_item = dict(item)
+        command = new_item.get("command", [])
+        assert isinstance(command, list)
+        new_item["command"] = _redact_cookies_in_command(command)
+        redacted_items.append(new_item)
+    new_payload = dict(payload)
+    new_payload["items"] = redacted_items
+    return new_payload
+
+
 def _print_fetch_summary(payload: dict[str, object], *, dry_run: bool) -> None:
     action = "Planned" if dry_run else "Fetched"
     print(
@@ -188,7 +222,7 @@ def _print_fetch_summary(payload: dict[str, object], *, dry_run: bool) -> None:
         assert isinstance(item, dict)
         print(f"- {item['status']}: {item['url']}")
         if dry_run:
-            command = item.get("command", [])
+            command = _redact_cookies_in_command(item.get("command", []))
             assert isinstance(command, list)
             print(f"  command: {' '.join(str(part) for part in command)}")
         if item.get("error"):

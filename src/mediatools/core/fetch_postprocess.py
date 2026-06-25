@@ -21,6 +21,17 @@ def output_dir_lock(output_dir: Path) -> Lock:
         return lock
 
 
+def cleanup_output_dir_locks(output_dir: Path) -> None:
+    """Remove the lock entry for a finished output directory.
+
+    Prevents unbounded growth of ``_OUTPUT_DIR_LOCKS`` in long-lived
+    sessions or daemon scenarios.  For a one-shot CLI process this is
+    a no-op (process exits and the OS reclaims memory).
+    """
+    with _OUTPUT_DIR_LOCKS_GUARD:
+        _OUTPUT_DIR_LOCKS.pop(output_dir, None)
+
+
 def subtitle_snapshot(output_dir: Path) -> dict[str, tuple[int, int]]:
     """Record subtitle file state before yt-dlp runs."""
     snapshot: dict[str, tuple[int, int]] = {}

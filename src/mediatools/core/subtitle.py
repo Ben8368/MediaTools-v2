@@ -222,11 +222,14 @@ def _parse_vtt(text: str, *, clean_tags: bool) -> list[Caption]:
         if stripped.startswith(("NOTE", "STYLE", "REGION")):
             skip_note = True
             continue
-        if skip_note and stripped:
-            continue
-        if skip_note and not stripped:
-            skip_note = False
-            continue
+        if skip_note:
+            if "-->" in stripped:
+                skip_note = False
+            elif not stripped:
+                skip_note = False
+                continue
+            else:
+                continue
         current.append(line)
     for block in _split_blocks("\n".join(current)):
         captions.extend(_caption_from_lines(block.split("\n"), clean_tags=clean_tags))

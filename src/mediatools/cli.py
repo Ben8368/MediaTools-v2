@@ -58,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    logger = Logger(StreamHandler(stream=sys.stderr, show_level=False))
 
     try:
         if args.version:
@@ -68,8 +69,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if runner is not None:
             return runner(args)
     except MediaToolsError as exc:
-        Logger(StreamHandler(stream=sys.stderr, show_level=False)).error(f"Error: {exc.message}")
+        logger.error(f"Error: {exc.message}")
         return 1
+    except Exception as exc:
+        logger.error(f"Unexpected error: {exc}")
+        Logger(StreamHandler(stream=sys.stderr, show_level=False), level="DEBUG").exception(
+            "Full traceback for unexpected error:",
+        )
+        return 2
 
     parser.print_help()
     return 0
