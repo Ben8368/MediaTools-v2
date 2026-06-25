@@ -1,6 +1,14 @@
-import type { DoctorToolState, FetchDraft, PlannedFetch } from './types'
+﻿import type { DoctorToolState, FetchDraft, PlannedFetch } from './types'
+
+const API_BASE = '/api'
 
 const quote = (value: string) => `"${value.replace(/"/g, '\\"')}"`
+
+async function postJSON(path: string, body: unknown): Promise<unknown> {
+  const response = await fetch(`${API_BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (!response.ok) throw new Error((await response.json().catch(() => ({})) as { error?: string }).error || response.statusText)
+  return response.json()
+}
 
 export function normalizeUrls(input: string): string[] {
   return input
@@ -47,15 +55,25 @@ export function buildFetchPlan(draft: FetchDraft): PlannedFetch {
 }
 
 export async function fetchDoctorStatus(): Promise<DoctorToolState[]> {
+  const response = await fetch(`${API_BASE}/doctor`)
+  if (!response.ok) throw new Error(response.statusText)
+  return (await response.json()) as DoctorToolState[]
+}
+
+export async function fetchPlan(draft: FetchDraft) {
+  return postJSON('/fetch/plan', draft) as Promise<{ items: { url: string; command: string; status: string; error?: string }[]; command: string; warnings: string[] }>
+}
+
+export async function submitFetch(draft: FetchDraft) {
+  return postJSON('/fetch/tasks', draft) as Promise<{ task_id: string; status: string; url_count: number }>
+}
+
+export async function pollTasks() {
   try {
-    const response = await fetch('/api/doctor')
+    const response = await fetch(`${API_BASE}/fetch/tasks`)
     if (!response.ok) throw new Error(response.statusText)
-    return (await response.json()) as DoctorToolState[]
+    return (await response.json()) as { id: string; title: string; source_url: string; status: string; progress: number; stage: string; output_files: string[]; error?: string | null }[]
   } catch {
-    return [
-      { name: 'ffmpeg', available: false },
-      { name: 'ffprobe', available: false },
-      { name: 'yt-dlp', available: false },
-    ]
+    return []
   }
 }

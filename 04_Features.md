@@ -246,7 +246,7 @@
   - 前端首屏能完成 URL 输入、批量导入、字幕选项、输出目录、任务状态和结果查看。
   - 前端构建/测试纳入标准验证或独立前端验证脚本。
 - **降级/回滚策略：** 若前端工程引入风险过大，保留 CLI 下载增强作为主路径；轻前端只作为可选本地入口。
-- **状态：** [客观已验证] - 已建立 `docs/UI_COMPAT.md` 与 `docs/UI_API_CONTRACT.md`；v2 `frontend/` 已初始化 Vite + React + TypeScript 下载工作台壳层，`python scripts/verify.py` 纳入 frontend `npm ci`、3 tests、build 并通过；npm audit 0 vulnerabilities。下一步需实现本地 API 适配层并进行用户主观 UI 验收。
+- **状态：** [客观已验证] - 已建立 `docs/UI_COMPAT.md` 与 `docs/UI_API_CONTRACT.md`；v2 `frontend/` 已初始化 Vite + React + TypeScript 下载工作台壳层，`python scripts/verify.py` 纳入 frontend `npm ci`、3 tests、build 并通过；npm audit 0 vulnerabilities。API 适配层已完成，4 个端点全部上线并通过 18 个测试；下一步需进行用户主观 UI 验收。
 
 ### Feature-012：下载格式控制与原语言探测 — Phase 3-A+
 - **提交时间：** 2026-06-24
@@ -485,7 +485,7 @@
 | P3-A Reliability | review 追补硬化 | P1 | 标准库 | 文件 I/O 统一项目错误、字幕后处理快照边界、并发中断快速收口 | Feature-018 |
 | P3-A Subtitle Workflow | 字幕-only 生产样本打磨 | P0 | yt-dlp | 只下字幕、原语言 SRT、fallback 清理、重复字幕去重、rolling 内容清理、51 URL 真实验收 | Feature-019 |
 | P3-A Subtitle Hardening | 字幕合并与并发控制收口 | P1 | 标准库 | 锁池引用计数、多语言句界、按词时间切分、并发参数校验 | Feature-020 |
-| P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | Vite / React / TypeScript | 壳层已启动，下一步接本地 API 适配层 | Feature-011 |
+| P3-B | Legacy 风格轻前端 / 下载工作台 | P1 | Vite / React / TypeScript | API 适配层已上线，下一步用户主观 UI 验收 | Feature-011 |
 | P3-C | 视频切片 | P2 | ffmpeg | 下载落地后再评估 | 待补 |
 | P3-D | 资产扫描 / 搜索 / 统计 | P3 | 标准库优先 | 服务批处理和前端结果管理 | 待补 |
 

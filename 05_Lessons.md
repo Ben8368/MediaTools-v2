@@ -240,3 +240,9 @@
 - **背景：** 评估是否把 Legacy UI 整体同步回来再精简，还是重新写前端。Legacy 前端保留了用户熟悉的桌面式左侧导航、窗口工作区、右侧面板和下载工作台，但也混有旧 API、AI/PS/AE、文件管理、vendor/构建产物等 v2 当前不应继承的复杂度。
 - **经验：** 最优路线是“Legacy UI 壳层移植 + v2 业务逻辑重接”：沿用 Vite + React + TypeScript 的技术路线和空间关系，优先恢复下载工作台的视觉密度与操作路径；旧 API 调用、重型功能和平台耦合不直接迁移。前端验证应纳入 `scripts/verify.py`，但 Node 工具链只作为前端开发依赖，不回流到 Python core 运行时。
 - **状态：** 已采纳
+
+### L-039：Python stdlib HTTP server 足够支撑轻前端 API 适配层
+- **时间：** 2026-06-25 18:00:00 +08:00
+- **背景：** 实现下载工作台的本地 API 适配层，需要 HTTP 服务器暴露 doctor、fetch plan、fetch task 和任务列表接口。评估方案时有 `flask`/`fastapi` 等第三方选项。
+- **经验：** `http.server.HTTPServer` + `ThreadingMixIn` + `BaseHTTPRequestHandler` 组合足以支撑轻前端 API 需求，无需引入 Web 框架。关键决策点：① 不依赖 `pip install` 任何新包；② 任务存储用内存 dict + `threading.Lock` 满足当前串行/低并发场景；③ `Vite dev server` 的 proxy 自动处理 CORS，无需在 Python 层加 CORS 头。后续若需要 WebSocket 推送、鉴权或持久化任务记录，再评估是否需要框架。
+- **状态：** 已采纳

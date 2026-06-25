@@ -2,9 +2,9 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-25 17:13:24 +08:00
+> **更新时间：** 2026-06-25 18:00:43 +0800
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本、rolling 字幕清理、句子级合并与并发锁硬化已完成；Legacy 前端技术栈考古完成，v2 轻前端下载工作台壳层已启动，继续转入本地 API 适配层
+> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本、rolling 字幕清理、句子级合并与并发锁硬化已完成；Legacy 前端技术栈考古完成，v2 轻前端下载工作台壳层已启动，本地 API 适配层已完成，后端 4 个端点全部上线，前端接线完毕
 > **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；字幕 rolling 重复清理后 Windows 标准验证通过（141 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本轮黄灯优化后 Windows 标准验证通过（160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；文档勾选同步与 `.omo/` 忽略规则更新后 Windows 标准验证通过（161 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；Legacy 风格轻前端壳层接入后 Windows 标准验证通过（Python 161 passed, 6 skipped；ruff 通过；frontend npm ci / 3 tests / build 通过；npm audit 0 vulnerabilities；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）
 
 ## 2. 本轮阻断项
@@ -116,7 +116,8 @@
 - [x] review 后续修复：同输出目录锁池改为引用计数，避免等待线程期间创建第二把锁；字幕句子级合并支持多语言句界；下载并发上限支持配置文件控制
 - [x] review 黄灯优化：字幕长句按词时间边界切分，避免超过 `max_duration_ms`；`--max-concurrent 0` 等非正数转为项目错误；清理测试文件末尾空行；同步 README / 治理文档
 - [x] 本轮标准验证通过：Windows 中 `python scripts/verify.py` 通过（160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本机用户级 site-packages 权限问题通过仓库外临时 `PYTHONUSERBASE` 绕开
-- [x] Legacy 前端考古与 v2 壳层启动：确认旧版为 Vite + React + TypeScript + Vitest；v2 `frontend/` 初始化下载工作台壳层、API 契约文档与前端测试/构建；`scripts/verify.py` 已纳入 `npm ci`、frontend test/build
+- [x] Legacy 前端考古与 v2 壳层启动
+- [x] 本地 API 适配层：实现 docs/UI_API_CONTRACT.md 中 4 个端点（doctor、fetch/plan、fetch/tasks 提交与列表），基于 Python stdlib http.server 纯标准库实现，无第三方 Web 框架依赖；18 个 API 服务器测试全部通过；前端 pi.ts / App.tsx 已接线到真实后端：确认旧版为 Vite + React + TypeScript + Vitest；v2 `frontend/` 初始化下载工作台壳层、API 契约文档与前端测试/构建；`scripts/verify.py` 已纳入 `npm ci`、frontend test/build
 
 ## 6. 下一步建议
 

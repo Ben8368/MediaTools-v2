@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { buildFetchPlan, fetchDoctorStatus } from './api'
+import { buildFetchPlan, fetchDoctorStatus, fetchPlan as apiFetchPlan, pollTasks, submitFetch } from './api'
 import type { DoctorToolState, FetchDraft } from './types'
 
 const initialDraft: FetchDraft = {
@@ -16,16 +16,70 @@ const initialDraft: FetchDraft = {
   dryRun: true,
 }
 
+type TaskRecord = {
+  id: string
+  title: string
+  source_url: string
+  status: string
+  progress: number
+  stage: string
+  output_files: string[]
+  error?: string | null
+}
+
 const navItems = ['下载工作台', '媒体工具', '任务记录', '环境状态']
 
 export function App() {
   const [draft, setDraft] = useState<FetchDraft>(initialDraft)
   const [tools, setTools] = useState<DoctorToolState[]>([])
-  const plan = useMemo(() => buildFetchPlan(draft), [draft])
+  const [tasks, setTasks] = useState<TaskRecord[]>([])
+  const [planResult, setPlanResult] = useState<{ items: { url: string; command: string; status: string; error?: string }[]; command: string; warnings: string[] } | null>(null)
+  const [planLoading, setPlanLoading] = useState(false)
+  const [submitLoading, setSubmitLoading] = useState(false)
+  const [planError, setPlanError] = useState<string | null>(null)
+  const pollingRef = useRef<ReturnType<typeof setInterval>>()
+
+  const localPlan = buildFetchPlan(draft)
 
   useEffect(() => {
-    void fetchDoctorStatus().then(setTools)
+    fetchDoctorStatus().then(setTools).catch(() => setTools([]))
   }, [])
+
+  useEffect(() => {
+    pollingRef.current = setInterval(() => {
+      void pollTasks().then(setTasks)
+    }, 2000)
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
+  }, [])
+
+  const activeCount = tasks.filter((t) => t.status === 'running' || t.status === 'queued').length
+
+  const handlePreview = useCallback(async () => {
+    setPlanLoading(true)
+    setPlanError(null)
+    setPlanResult(null)
+    try {
+      const result = await apiFetchPlan(draft)
+      setPlanResult(result)
+    } catch (err) {
+      setPlanError(err instanceof Error ? err.message : '请求失败')
+    } finally {
+      setPlanLoading(false)
+    }
+  }, [draft])
+
+  const handleSubmit = useCallback(async () => {
+    setSubmitLoading(true)
+    try {
+      await submitFetch(draft)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '提交失败')
+    } finally {
+      setSubmitLoading(false)
+    }
+  }, [draft])
+
+  const displayPlan = planResult || { items: localPlan.urls.map((u) => ({ url: u, command: localPlan.command, status: 'planned' })), command: localPlan.command, warnings: localPlan.warnings }
 
   return (
     <div className="desktop-shell">
@@ -47,15 +101,15 @@ export function App() {
         <section className="window-panel" aria-labelledby="download-title">
           <header className="window-titlebar">
             <div>
-              <p className="eyebrow">Legacy layout shell</p>
+              <p className="eyebrow">v2 API 已接线</p>
               <h1 id="download-title">下载工作台</h1>
             </div>
             <div className="titlebar-actions">
-              <button type="button" title="预览命令" onClick={() => setDraft((value) => ({ ...value, dryRun: true }))}>
-                预览
+              <button type="button" title="预览命令" onClick={handlePreview} disabled={planLoading}>
+                {planLoading ? '...' : '预览'}
               </button>
-              <button type="button" title="提交任务" onClick={() => setDraft((value) => ({ ...value, dryRun: false }))}>
-                提交
+              <button type="button" title="提交任务" onClick={handleSubmit} disabled={submitLoading}>
+                {submitLoading ? '...' : '提交'}
               </button>
             </div>
           </header>
@@ -136,21 +190,26 @@ export function App() {
             <section className="task-pane" aria-label="任务预览">
               <div className="pane-head">
                 <span>任务队列</span>
-                <strong>{plan.urls.length}</strong>
+                <strong>{tasks.length} (进行中 {activeCount})</strong>
               </div>
               <div className="task-list">
-                {plan.urls.length ? (
-                  plan.urls.map((url, index) => (
-                    <article className="task-row" key={`${url}-${index}`}>
-                      <span className="task-index">{String(index + 1).padStart(2, '0')}</span>
+                {tasks.length > 0 ? (
+                  tasks.map((task) => (
+                    <article className="task-row" key={task.id}>
+                      <span className="task-index">{task.id.slice(-6)}</span>
                       <div>
-                        <strong>{url}</strong>
-                        <p>{draft.subtitlesOnly ? '字幕-only' : draft.preset === 'mp4' ? 'MP4 视频 + 字幕' : '原始格式'}</p>
+                        <strong>{task.title}</strong>
+                        <p className={task.status === 'failed' ? 'warning' : undefined}>
+                          {task.stage} — {task.status}
+                          {task.error && ` — ${task.error}`}
+                        </p>
                       </div>
                     </article>
                   ))
                 ) : (
-                  <div className="empty-state">等待输入 URL</div>
+                  <div className="empty-state">
+                    {planResult ? '暂无任务，点击"提交"开始下载' : '等待输入 URL'}
+                  </div>
                 )}
               </div>
             </section>
@@ -159,14 +218,19 @@ export function App() {
           <section className="command-panel" aria-label="命令预览">
             <div className="pane-head">
               <span>v2 契约预览</span>
-              <strong>{draft.dryRun ? 'DRY RUN' : 'SUBMIT'}</strong>
+              <strong>{planResult ? 'SERVER' : 'LOCAL'}</strong>
             </div>
-            <code>{plan.command}</code>
-            <p>Summary: {plan.summaryPath}</p>
-            {plan.warnings.map((warning) => (
+            <code>{displayPlan.command}</code>
+            {planError && <p className="warning">{planError}</p>}
+            {displayPlan.warnings.map((warning) => (
               <p className="warning" key={warning}>
                 {warning}
               </p>
+            ))}
+            {displayPlan.items.slice(0, 5).map((item) => (
+              <div key={item.url} style={{ fontSize: '0.75rem', marginBottom: 4, opacity: 0.7 }}>
+                [{item.status}] {item.url}
+              </div>
             ))}
           </section>
         </section>
@@ -175,19 +239,23 @@ export function App() {
       <aside className="right-panel" aria-label="系统状态">
         <div className="panel-card">
           <h2>环境状态</h2>
-          {tools.map((tool) => (
-            <div className="tool-row" key={tool.name}>
-              <span className={tool.available ? 'status-dot ok' : 'status-dot'} />
-              <div>
-                <strong>{tool.name}</strong>
-                <p>{tool.path || '等待后端 doctor 接入'}</p>
+          {tools.length > 0 ? (
+            tools.map((tool) => (
+              <div className="tool-row" key={tool.name}>
+                <span className={tool.available ? 'status-dot ok' : 'status-dot'} />
+                <div>
+                  <strong>{tool.name}</strong>
+                  <p>{tool.available ? (tool.path || '可用') : '未找到'}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p>等待后端 doctor 接入…</p>
+          )}
         </div>
         <div className="panel-card">
           <h2>迁移边界</h2>
-          <p>保留 Legacy 的窗口布局、密度和下载工作台路径；媒体处理仍由 Python core / CLI / API 适配层负责。</p>
+          <p>保留 Legacy 的窗口布局、密度和下载工作台路径；媒体处理仍由 Python API 适配层负责。</p>
         </div>
       </aside>
     </div>
