@@ -59,6 +59,8 @@ runtime/
 projects/
 vendor/
 .tmp-tests/
+.tmp-verify/
+.tmp-npm-cache/
 logs/
 temp/
 *.log

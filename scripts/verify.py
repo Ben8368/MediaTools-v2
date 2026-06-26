@@ -8,6 +8,7 @@ subjective UX review stays with the user.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -26,11 +27,28 @@ LEGACY_FRONTEND_OVERSIZED = {
 }
 MIN_PYTHON = (3, 11)
 FRONTEND_DIR = ROOT / "frontend"
+VERIFY_TMP_DIR = ROOT / ".tmp-verify"
 
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+
+def _verification_env() -> dict[str, str]:
+    """Keep tool caches and user installs inside the workspace."""
+    VERIFY_TMP_DIR.mkdir(exist_ok=True)
+    temp_dir = VERIFY_TMP_DIR / "temp"
+    temp_dir.mkdir(exist_ok=True)
+    env = os.environ.copy()
+    env.setdefault("PIP_CACHE_DIR", str(VERIFY_TMP_DIR / "pip-cache"))
+    env.setdefault("PYTHONUSERBASE", str(VERIFY_TMP_DIR / "python-userbase"))
+    env.setdefault("PIP_DISABLE_PIP_VERSION_CHECK", "1")
+    env.setdefault("npm_config_cache", str(VERIFY_TMP_DIR / "npm-cache"))
+    env.setdefault("TEMP", str(temp_dir))
+    env.setdefault("TMP", str(temp_dir))
+    env.setdefault("TMPDIR", str(temp_dir))
+    return env
 
 
 def run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
@@ -41,6 +59,7 @@ def run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[
         capture_output=True,
         text=True,
         encoding="utf-8",
+        env=_verification_env(),
         errors="replace",
     )
 
@@ -177,7 +196,17 @@ def main() -> int:
     check_python_version()
     check_source_file_sizes()
     step("Install editable package", [sys.executable, "-m", "pip", "install", "-e", ".[dev]"])
-    step("Run tests", [sys.executable, "-m", "pytest"])
+    step(
+        "Run tests",
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            f"--basetemp={VERIFY_TMP_DIR / 'pytest-temp'}",
+            "-o",
+            f"cache_dir={VERIFY_TMP_DIR / 'pytest-cache'}",
+        ],
+    )
     step("Run ruff", [sys.executable, "-m", "ruff", "check", "."])
     verify_frontend()
     report_environment()
