@@ -1,4 +1,11 @@
-export type DownloadTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused'
+export type DownloadTaskStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'paused'
+  | 'partial'
 
 export type DownloadTask = {
   id: string

@@ -14,8 +14,16 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MAX_PYTHON_FILE_LINES = 500
-LINE_CHECK_DIRS = ("src", "tests", "scripts")
+MAX_SOURCE_FILE_LINES = 500
+PYTHON_LINE_CHECK_DIRS = ("src", "tests", "scripts")
+FRONTEND_SOURCE_SUFFIXES = {".css", ".ts", ".tsx"}
+LEGACY_FRONTEND_OVERSIZED = {
+    Path("frontend/src/apps/MediaToolsApps.test.tsx"),
+    Path("frontend/src/apps/PhotoshopApp.tsx"),
+    Path("frontend/src/styles/mediatools/after-effects.css"),
+    Path("frontend/src/styles/mediatools/photoshop.css"),
+    Path("frontend/src/styles/mediatools/shared-tools.css"),
+}
 MIN_PYTHON = (3, 11)
 FRONTEND_DIR = ROOT / "frontend"
 
@@ -77,23 +85,44 @@ def check_python_version() -> None:
     print(f"Python {detected} OK.")
 
 
-def check_python_file_sizes() -> None:
-    """Fail verification if a Python file exceeds the project hard limit."""
-    print("\n==> Check Python file sizes")
+def check_source_file_sizes() -> None:
+    """Fail verification if a non-quarantined source file exceeds the hard limit."""
+    print("\n==> Check source file sizes")
     oversized: list[tuple[Path, int]] = []
-    for directory in LINE_CHECK_DIRS:
+    quarantined: list[tuple[Path, int]] = []
+    for directory in PYTHON_LINE_CHECK_DIRS:
         for path in sorted((ROOT / directory).rglob("*.py")):
             lines = path.read_text(encoding="utf-8").splitlines()
-            if len(lines) > MAX_PYTHON_FILE_LINES:
+            if len(lines) > MAX_SOURCE_FILE_LINES:
                 oversized.append((path.relative_to(ROOT), len(lines)))
 
+    if FRONTEND_DIR.exists():
+        for path in sorted((FRONTEND_DIR / "src").rglob("*")):
+            if path.suffix not in FRONTEND_SOURCE_SUFFIXES:
+                continue
+            relative = path.relative_to(ROOT)
+            lines = path.read_text(encoding="utf-8").splitlines()
+            if len(lines) <= MAX_SOURCE_FILE_LINES:
+                continue
+            if relative in LEGACY_FRONTEND_OVERSIZED:
+                quarantined.append((relative, len(lines)))
+                continue
+            oversized.append((relative, len(lines)))
+
     if oversized:
-        print(f"Python files must not exceed {MAX_PYTHON_FILE_LINES} lines.", file=sys.stderr)
+        print(
+            f"Source files must not exceed {MAX_SOURCE_FILE_LINES} lines.",
+            file=sys.stderr,
+        )
         for path, line_count in oversized:
             print(f"{path}: {line_count} lines", file=sys.stderr)
         raise SystemExit(1)
 
-    print(f"All Python files are <= {MAX_PYTHON_FILE_LINES} lines.")
+    print(f"All checked source files are <= {MAX_SOURCE_FILE_LINES} lines.")
+    if quarantined:
+        print("Legacy frontend oversized files are quarantined:")
+        for path, line_count in quarantined:
+            print(f"- {path}: {line_count} lines")
 
 
 def report_environment() -> None:
@@ -146,7 +175,7 @@ def verify_frontend() -> None:
 def main() -> int:
     print(f"MediaTools verify | root={ROOT}")
     check_python_version()
-    check_python_file_sizes()
+    check_source_file_sizes()
     step("Install editable package", [sys.executable, "-m", "pip", "install", "-e", ".[dev]"])
     step("Run tests", [sys.executable, "-m", "pytest"])
     step("Run ruff", [sys.executable, "-m", "ruff", "check", "."])

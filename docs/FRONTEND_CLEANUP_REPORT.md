@@ -221,7 +221,7 @@ cd frontend && npm run dev
 4. 确保"字幕"选项为"下载字幕"
 5. 点击"确认添加"
 6. 等待几秒，任务出现在列表中
-7. 观察状态变化：queued → running → completed
+7. 观察状态变化：pending → running → completed
 
 ### 查看输出文件
 

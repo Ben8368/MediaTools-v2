@@ -458,7 +458,29 @@
   - 前端测试覆盖停止、删除、提交任务等下载工作台交互。
   - 标准验证覆盖全量 Python pytest、ruff、前端 Vitest 和 Vite build。
 - **降级/回滚策略：** 如 JSON 文件损坏，TaskStore 会忽略该文件并以空任务列表启动；若后续需要硬取消下载，需在外部进程 runner 层引入可终止进程句柄或进度回调，而不是在 HTTP 层伪造。
-- **状态：** [客观已验证] - Windows 中 `python scripts/verify.py` 通过：Python 187 passed, 6 skipped；ruff 通过；frontend 53 passed, 3 skipped；build 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`。剩余黄灯：npm audit 报 7 个 dev 依赖漏洞；硬取消 yt-dlp subprocess 与 WebSocket/SSE 推送仍待后续设计。
+- **状态：** [客观已验证] - Windows 中 `python scripts/verify.py` 通过：Python 187 passed, 6 skipped；ruff 通过；frontend 53 passed, 3 skipped；build 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`。本轮补充 macOS Python 验证 188 passed, 6 skipped；ruff 通过；统一启动脚本 backend-only smoke 通过；本机完整验证因 PATH 无 `npm` 未复跑 frontend。剩余黄灯：npm audit 报 7 个 dev 依赖漏洞；Legacy 前端隔离大文件需后续拆分；硬取消 yt-dlp subprocess 与 WebSocket/SSE 推送仍待后续设计。
+
+### Feature-022：跨平台统一启动入口 — Phase 3-B DX
+- **提交时间：** 2026-06-25
+- **类型：** 开发体验 / 本地启动 / 跨平台
+- **描述：** 新增 `python scripts/start.py` 作为 Windows / macOS / Linux 共用启动入口，一条命令启动本地 API 与 Vite 轻前端；支持 `--backend-only`、自定义 API/frontend host 与 port、按需自动执行前端依赖安装，并把 API 地址通过 `VITE_MEDIATOOLS_API_TARGET` 注入 Vite proxy。
+- **用户价值：** 用户无需开两个终端、手动记端口或修改 Vite 配置即可快速启动下载工作台验证；后续主观 UI 验收路径更短。
+- **前置依赖检查：**
+  - 技术依赖：只新增 Python 标准库脚本；前端仍依赖本机 Node/npm。
+  - 环境依赖：默认前端启动需要 `npm` 在 PATH；无 npm 时可用 `--backend-only` 仅启动 API。
+  - 安全影响：仅启动本地进程；默认绑定 `127.0.0.1`，显式传 `--api-host` 才对外绑定。
+  - 跨平台兼容性：使用 `sys.executable`、`subprocess.Popen`、`shutil.which` 与 `os.pathsep`，避免 shell 特定语法。
+- **预计影响模块：**
+  - 脚本：`scripts/start.py`。
+  - 后端：`src/mediatools/commands/serve.py`、`src/mediatools/api_server.py`。
+  - 前端：`frontend/vite.config.js`、`frontend/vite.config.ts`。
+  - 文档：`README.md`、`docs/DOWNLOADER_USAGE.md`、`03_Context.md`。
+- **验收思路：**
+  - `python scripts/start.py --help` 可跨平台显示参数。
+  - `python scripts/start.py --backend-only --api-port 0` 可短生命周期 smoke 启动并统一停止。
+  - 标准验证覆盖 Python pytest、ruff 与源码规模门禁；前端 test/build 在具备 npm 的环境或 CI 中复跑。
+- **降级/回滚策略：** 若前端工具链不可用，用户仍可 `python scripts/start.py --backend-only` 或使用原 CLI 功能；手动 `python -m mediatools serve` 入口仍保留。
+- **状态：** [客观已验证] - macOS 本地 `python scripts/start.py --help` 通过；backend-only smoke 通过；相关 Python 测试 44 passed，标准 Python 验证 188 passed, 6 skipped 且 ruff 通过。本机缺少 `npm`，前端 test/build 待 CI 或安装 Node/npm 后复跑。
 
 ## 3. 首批 MVP 优先级矩阵
 

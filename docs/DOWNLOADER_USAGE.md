@@ -2,7 +2,24 @@
 
 ## 🚀 快速开始
 
-### 1. 启动后端 API 服务器
+### 1. 一键启动后端和前端
+
+```bash
+python scripts/start.py
+```
+
+默认会启动：
+
+- API: `http://127.0.0.1:7860`
+- 前端: `http://127.0.0.1:5173`
+
+如需只启动后端：
+
+```bash
+python scripts/start.py --backend-only
+```
+
+### 2. 手动启动后端 API 服务器
 
 ```bash
 # 使用默认端口 7860
@@ -18,7 +35,7 @@ Starting MediaTools API server on http://127.0.0.1:7860
 Press Ctrl+C to stop the server
 ```
 
-### 2. 启动前端开发服务器
+### 3. 手动启动前端开发服务器
 
 打开新的终端窗口：
 
@@ -29,7 +46,7 @@ npm run dev
 
 前端会在 `http://localhost:5173` 启动。
 
-### 3. 访问下载工作台
+### 4. 访问下载工作台
 
 浏览器打开 http://localhost:5173
 
@@ -260,7 +277,7 @@ v2 当前实现的 API 端点：
 ```json
 {
   "task_id": "fetch-1719302400-abc123",
-  "status": "queued",
+  "status": "pending",
   "url_count": 1
 }
 ```

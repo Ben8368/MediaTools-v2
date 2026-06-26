@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-25 21:44:13 +0800
+> **更新时间：** 2026-06-26 08:56:37 +0800
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本、rolling 字幕清理、句子级合并与并发锁硬化已完成；Legacy 前端技术栈考古完成，v2 轻前端下载工作台与本地 API 适配层已接线；本轮已补齐任务记录持久化、时间戳契约、取消/删除/清空/重试基础操作与 Legacy 入口状态标记
-> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；字幕 rolling 重复清理后 Windows 标准验证通过（141 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本轮黄灯优化后 Windows 标准验证通过（160 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；文档勾选同步与 `.omo/` 忽略规则更新后 Windows 标准验证通过（161 passed, 6 skipped；ruff 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；Legacy 风格轻前端壳层接入后 Windows 标准验证通过（Python 161 passed, 6 skipped；ruff 通过；frontend npm ci / 3 tests / build 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；本轮前端/任务黄灯收敛后 Windows 标准验证通过（Python 187 passed, 6 skipped；ruff 通过；frontend 53 passed, 3 skipped；build 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`；npm audit 仍有 7 个 dev 依赖漏洞）
+> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本、rolling 字幕清理、句子级合并与并发锁硬化已完成；Legacy 前端技术栈考古完成，v2 轻前端下载工作台与本地 API 适配层已接线；本轮补齐跨平台统一启动脚本，并收敛任务状态契约、`serve --host`、前端源码规模门禁黄灯项
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；本轮统一启动与黄灯收敛后 macOS Python 验证通过（188 passed, 6 skipped；ruff 通过；`scripts/start.py --backend-only --api-port 0` smoke 通过）；完整 `scripts/verify.py` 在本机停于 frontend 阶段，原因是当前 PATH 无 `npm`，未能本地复跑 Vitest/build；此前 Windows 标准验证已覆盖 frontend 53 passed, 3 skipped 与 build 通过
 
 ## 2. 本轮阻断项
 
@@ -119,12 +119,13 @@
 - [x] Legacy 前端考古与 v2 壳层启动
 - [x] 本地 API 适配层：实现 docs/UI_API_CONTRACT.md 中 4 个端点（doctor、fetch/plan、fetch/tasks 提交与列表），基于 Python stdlib http.server 纯标准库实现，无第三方 Web 框架依赖；18 个 API 服务器测试全部通过；前端 `api.ts` / App.tsx 已接线到真实后端：确认旧版为 Vite + React + TypeScript + Vitest；v2 `frontend/` 初始化下载工作台壳层、API 契约文档与前端测试/构建；`scripts/verify.py` 已纳入 `npm ci`、frontend test/build
 - [x] 轻前端黄灯收敛：任务记录拆到 `api_tasks.py` 并持久化到数据目录 JSON；API 增加取消、删除、清空记录端点；任务列表返回 created/updated/started/completed 时间戳和 params/result；下载工作台停止/删除/重试按钮接真实 API；任务映射改为类型化共享函数；appRegistry 增加 stable/beta/hidden 状态标记。
+- [x] 统一启动入口与 review 黄灯收敛：新增跨平台 `python scripts/start.py`，一条命令启动 API + Vite 前端并支持 `--backend-only`、自定义 host/port、自动前端依赖安装；`serve --host` 已真实传入 API server；新任务状态统一为前端认识的 `pending`；Vite proxy 支持 `VITE_MEDIATOOLS_API_TARGET`；`verify.py` 扩展到前端源码规模检查，并显式隔离 Legacy 迁移大文件。
 
 ## 6. 下一步建议
 
 Phase 3 当前优先级：
 1. **轻前端主观验收**：用户确认视觉密度、排版、停止/删除/重试交互和使用路径是否贴近 Legacy；主观项通过后再标记用户可见功能完成。
-2. **剩余黄灯评估**：npm dev 依赖漏洞需单独评估 Vite/Vitest 大版本升级；真实下载中断仍只是任务层取消，若要杀 yt-dlp 子进程需重构外部进程封装；WebSocket/SSE 推送需等任务进度模型进一步稳定。
+2. **剩余黄灯评估**：npm dev 依赖漏洞需单独评估 Vite/Vitest 大版本升级；Legacy 前端隔离大文件需后续拆分或移出主源码；真实下载中断仍只是任务层取消，若要杀 yt-dlp 子进程需重构外部进程封装；WebSocket/SSE 推送需等任务进度模型进一步稳定。
 3. **后续功能评估**：下载与轻前端稳定后，再评估视频切片、资产扫描 / 搜索 / 统计。
 
 ## 7. 维护边界备忘
@@ -134,5 +135,5 @@ Phase 3 当前优先级：
 - **不提交**：构建产物、node_modules、__pycache__、.env、运行日志、数据库、vendor 残留。
 - **跨平台优先**：所有路径处理使用 `mediatools.core.paths`。
 - **依赖最小化**：慎重引入第三方依赖。
-- **代码规模**：350 行预警，450 行评估拆分，500 行由 `scripts/verify.py` 硬性失败。
+- **代码规模**：350 行预警，450 行评估拆分，500 行由 `scripts/verify.py` 硬性失败；Legacy 前端迁移大文件必须显式隔离并逐步拆除。
 - **未验证不打钩**：客观项须先跑 `python scripts/verify.py`；主观项等待用户反馈；用户可见功能完成需两者都满足。

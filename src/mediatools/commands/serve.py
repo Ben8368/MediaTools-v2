@@ -31,14 +31,13 @@ def run(args: argparse.Namespace) -> int:
     from mediatools.api_server import start_api_server
 
     port = args.port
-    # host is available in args but api_server currently only binds to 127.0.0.1
-    # we keep the arg for future flexibility
+    host = args.host
 
-    print(f"Starting MediaTools API server on http://127.0.0.1:{port}")
+    print(f"Starting MediaTools API server on http://{host}:{port}")
     print("Press Ctrl+C to stop the server")
 
     try:
-        server = start_api_server(port=port)
+        server = start_api_server(host=host, port=port)
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nShutting down server...")

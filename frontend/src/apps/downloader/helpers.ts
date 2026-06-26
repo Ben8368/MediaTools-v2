@@ -8,6 +8,8 @@ export function getCategoryForTask(task: DownloadTask): CategoryKey {
       return 'downloading'
     case 'completed':
       return 'completed'
+    case 'partial':
+      return 'error'
     case 'failed':
       return 'error'
     case 'cancelled':
@@ -25,13 +27,13 @@ export function isTaskCancellable(task: Pick<DownloadTask, 'status'>): boolean {
 export function isTaskRetryable(task: Pick<DownloadTask, 'status' | 'params'>): boolean {
   const urls = task.params?.urls
   return (
-    ['failed', 'cancelled', 'completed'].includes(task.status) &&
+    ['failed', 'cancelled', 'completed', 'partial'].includes(task.status) &&
     (typeof task.params?.url === 'string' || (Array.isArray(urls) && urls.some((value) => typeof value === 'string' && value.trim())))
   )
 }
 
 export function isTaskClearable(task: Pick<DownloadTask, 'status'>): boolean {
-  return ['completed', 'failed', 'cancelled', 'paused'].includes(task.status)
+  return ['completed', 'failed', 'cancelled', 'paused', 'partial'].includes(task.status)
 }
 
 export function computeStats(tasks: DownloadTask[]): TaskStats {

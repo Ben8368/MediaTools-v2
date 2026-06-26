@@ -323,7 +323,7 @@ class APIRequestHandler(BaseHTTPRequestHandler):
                 task_id=task_id,
                 title=title,
                 source_url=first_url if len(options) == 1 else f"{len(options)} URLs",
-                status="queued",
+                status="pending",
                 stage="queued",
                 params={**draft, "urls": [opt.url for opt in options], "url": first_url},
             )
@@ -340,7 +340,7 @@ class APIRequestHandler(BaseHTTPRequestHandler):
 
             _json_response(
                 self,
-                {"task_id": task_id, "status": "queued", "url_count": len(options)},
+                {"task_id": task_id, "status": "pending", "url_count": len(options)},
                 status=201,
             )
         except ValueError as exc:
@@ -389,13 +389,17 @@ class ThreadedAPIServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
 
-def start_api_server(port: int = 7860, storage_path: Path | None = None) -> ThreadedAPIServer:
+def start_api_server(
+    host: str = "127.0.0.1",
+    port: int = 7860,
+    storage_path: Path | None = None,
+) -> ThreadedAPIServer:
     if storage_path is None:
         storage_path = get_data_dir() / "api-tasks.json"
     store = TaskStore(storage_path=storage_path)
-    server = ThreadedAPIServer(("127.0.0.1", port), APIRequestHandler)
+    server = ThreadedAPIServer((host, port), APIRequestHandler)
     server.server_store = store
-    print(f"[api] MediaTools API server listening on http://127.0.0.1:{port}", file=sys.stderr)
+    print(f"[api] MediaTools API server listening on http://{host}:{port}", file=sys.stderr)
     return server
 
 

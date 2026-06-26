@@ -63,7 +63,7 @@ describe('DownloaderApp interactions', () => {
     apiMocks.clearTaskRecords.mockReset()
     apiMocks.deleteTaskRecord.mockReset()
     apiMocks.getWeeklyHistory.mockResolvedValue([])
-    apiMocks.submitFetch.mockResolvedValue({ task_id: 'new-task', status: 'queued' })
+    apiMocks.submitFetch.mockResolvedValue({ task_id: 'new-task', status: 'pending' })
     apiMocks.cancelTask.mockResolvedValue({ ok: true })
     apiMocks.clearTaskRecords.mockResolvedValue({ ok: true, deleted: 1 })
     apiMocks.deleteTaskRecord.mockResolvedValue({ ok: true, deleted: 1 })
@@ -213,7 +213,7 @@ describe('DownloaderApp interactions', () => {
     apiMocks.getActiveTasks.mockResolvedValue([])
     apiMocks.submitFetch.mockResolvedValue({
       task_id: 'task-new',
-      status: 'queued',
+      status: 'pending',
     })
 
     render(<DownloaderApp />)
@@ -239,7 +239,7 @@ describe('DownloaderApp interactions', () => {
     apiMocks.getActiveTasks.mockResolvedValue([])
     apiMocks.submitFetch.mockResolvedValue({
       task_id: 'task-short',
-      status: 'queued',
+      status: 'pending',
     })
 
     render(<DownloaderApp />)
@@ -393,5 +393,3 @@ describe('DownloaderApp interactions', () => {
     expect(screen.getByRole('button', { name: '确认添加' })).toBeInTheDocument()
   })
 })
-
-

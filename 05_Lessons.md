@@ -258,3 +258,15 @@
 - **背景：** Windows 本机的用户级 Python site-packages、pytest temp、npm cache 目录可能出现权限拒绝，导致 `python scripts/verify.py` 在安装或 `npm ci` 阶段失败，而代码测试本身无误。
 - **经验：** 先判断失败是否指向用户目录权限；若是，可临时设置 `PYTHONUSERBASE`、`PYTEST_ADDOPTS=--basetemp ...`、`npm_config_cache` 到仓库忽略的临时目录后复跑标准验证。不要把这类环境问题误判为代码回归。
 - **状态：** 已采纳
+
+### L-042：统一启动脚本要传递端口契约而不是修改配置文件
+- **时间：** 2026-06-25 23:02:04 +08:00
+- **背景：** 轻前端需要同时启动 Python API 与 Vite dev server。若用户改 API 端口，手动修改 `vite.config` 容易造成文档、配置和实际启动状态漂移。
+- **经验：** 跨平台本地启动优先用 Python 脚本编排进程：用 `sys.executable` 启动 API，用 `npm run dev -- --host --port` 启动前端，并通过环境变量（当前 `VITE_MEDIATOOLS_API_TARGET`）把 API 地址传给 Vite proxy。这样 Windows/macOS/Linux 共用一条命令，且端口契约集中在启动入口。
+- **状态：** 已采纳
+
+### L-043：前端规模门禁需要隔离历史大文件
+- **时间：** 2026-06-25 23:02:04 +08:00
+- **背景：** 500 行硬限制最初只检查 Python，Legacy 前端迁入后出现多个超大 TSX/CSS 文件，导致治理规则对前端失效。
+- **经验：** `scripts/verify.py` 应覆盖前端 `src/` 下 TS/TSX/CSS 源码。历史迁移大文件若暂时无法一次性拆分，必须显式列入隔离清单并在验证输出中报告，防止新增文件继续绕过门禁；后续应逐步拆分或移出主源码路径。
+- **状态：** 已采纳

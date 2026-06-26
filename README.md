@@ -83,13 +83,30 @@ MediaTools 支持通过 JSON 配置文件自定义行为。配置文件位置遵
 
 ## 🚀 本地开发
 
+一键启动本地 API 和轻前端：
+
+```bash
+python scripts/start.py
+```
+
+默认打开的服务地址：
+
+- API: `http://127.0.0.1:7860`
+- 前端: `http://127.0.0.1:5173`
+
+只启动后端时可用：
+
+```bash
+python scripts/start.py --backend-only
+```
+
 一键客观验证（AI / CI / 本地共用）：
 
 ```powershell
 python scripts/verify.py
 ```
 
-`verify.py` 会依次执行：Python 文件 500 行硬限制检查 → 安装 Python dev 依赖 → pytest → ruff → frontend `npm ci` / test / build → CLI 版本 → doctor 环境报告（含外部工具与 PATH 信息）。
+`verify.py` 会依次执行：源码文件 500 行硬限制检查（含前端，已隔离的 Legacy 迁移文件会显式报告）→ 安装 Python dev 依赖 → pytest → ruff → frontend `npm ci` / test / build → CLI 版本 → doctor 环境报告（含外部工具与 PATH 信息）。
 
 macOS 推荐先使用 Homebrew 或 pyenv 的 Python 3.11+ 创建虚拟环境，再运行验证；不要使用 Apple Command Line Tools 自带的 Python 3.9，也不要向 Homebrew 的全局 Python 环境直接安装包：
 

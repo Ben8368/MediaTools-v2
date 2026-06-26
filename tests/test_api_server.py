@@ -17,15 +17,16 @@ from mediatools.api_server import Task, TaskStore, _draft_to_fetch_options, star
 class TestTaskStore:
     def test_add_and_get(self) -> None:
         store = TaskStore()
-        task = Task(task_id="t1", title="Test", status="queued")
+        task = Task(task_id="t1", title="Test")
         store.add(task)
         assert store.get("t1") is task
+        assert task.status == "pending"
         assert task.created_at > 0
         assert task.updated_at >= task.created_at
 
     def test_update_fields(self) -> None:
         store = TaskStore()
-        store.add(Task(task_id="t1", status="queued"))
+        store.add(Task(task_id="t1"))
         store.update("t1", status="running", progress=0.5, stage="downloading")
         task = store.get("t1")
         assert task is not None
@@ -74,7 +75,7 @@ class TestTaskStore:
 
     def test_thread_safety(self) -> None:
         store = TaskStore()
-        store.add(Task(task_id="shared", status="queued"))
+        store.add(Task(task_id="shared"))
         errors: list[Exception] = []
 
         def worker() -> None:
@@ -200,7 +201,7 @@ class TestDraftToOptions:
 @pytest.fixture(scope="class")
 def api_server(tmp_path_factory: pytest.TempPathFactory):
     storage_path = tmp_path_factory.mktemp("api-server") / "tasks.json"
-    server = start_api_server(port=0, storage_path=storage_path)
+    server = start_api_server(host="127.0.0.1", port=0, storage_path=storage_path)
     port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -264,6 +265,18 @@ class TestAPIServerIntegration:
         assert resp.status == 201
         data = json.loads(resp.read())
         assert "task_id" in data
+        assert data["status"] == "pending"
+
+    def test_start_api_server_respects_host(self, tmp_path) -> None:
+        server = start_api_server(
+            host="127.0.0.1",
+            port=0,
+            storage_path=tmp_path / "tasks.json",
+        )
+        try:
+            assert server.server_address[0] == "127.0.0.1"
+        finally:
+            server.server_close()
 
     def test_fetch_list_returns_list(self) -> None:
         import urllib.request

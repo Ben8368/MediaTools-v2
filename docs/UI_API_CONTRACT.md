@@ -49,7 +49,7 @@ Submits a validated download task and returns a task record.
 ```json
 {
   "task_id": "fetch-20260625-001",
-  "status": "queued",
+  "status": "pending",
   "url_count": 1
 }
 ```
@@ -83,7 +83,7 @@ Returns active and recent task rows for the workbench list.
 
 ### `POST /api/fetch/tasks/{task_id}/cancel`
 
-Marks a queued or running task as cancelled in the local task registry.
+Marks a pending or running task as cancelled in the local task registry.
 The current subprocess-backed downloader may still finish its underlying `yt-dlp`
 process; a future process-runner change is required for hard cancellation.
 
