@@ -19,7 +19,11 @@ DEFAULT_MAX_CONCURRENT_DOWNLOADS = 8
 def register_parser(subparsers: argparse._SubParsersAction) -> None:
     fetch_parser = subparsers.add_parser("fetch", help="Download video or subtitles with yt-dlp.")
     fetch_parser.add_argument("url", nargs="?", help="http(s) URL to download.")
-    fetch_parser.add_argument("output_dir", help="Directory for downloaded files.")
+    fetch_parser.add_argument(
+        "--output-dir",
+        default="downloads",
+        help="Directory for downloaded files (default: downloads).",
+    )
     fetch_parser.add_argument(
         "--input-file",
         help="UTF-8 text file with one URL per line. Blank lines and # comments are ignored.",
@@ -220,15 +224,24 @@ def _redact_cookies_in_payload(payload: dict[str, object]) -> dict[str, object]:
 
 def _print_fetch_summary(payload: dict[str, object], *, dry_run: bool) -> None:
     action = "Planned" if dry_run else "Fetched"
+    total = payload.get("total", 0)
+    succeeded = payload.get("succeeded", 0)
+    failed = payload.get("failed", 0)
+    planned = payload.get("planned", 0)
     print(
-        f"{action} {payload['total']} item(s): "
-        f"{payload['succeeded']} succeeded, {payload['failed']} failed, "
-        f"{payload['planned']} planned.",
+        f"{action} {total} item(s): "
+        f"{succeeded} succeeded, {failed} failed, "
+        f"{planned} planned.",
     )
-    for item in payload["items"]:
+    items = payload.get("items", [])
+    if not isinstance(items, list):
+        return
+    for item in items:
         if not isinstance(item, dict):
             continue
-        print(f"- {item['status']}: {item['url']}")
+        status = item.get("status", "unknown")
+        url = item.get("url", "")
+        print(f"- {status}: {url}")
         if dry_run:
             command = _redact_cookies_in_command(item.get("command", []))
             if isinstance(command, list):

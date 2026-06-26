@@ -20,6 +20,9 @@ i18n.use(initReactI18next).init({
   },
   lng: 'zh-CN',
   fallbackLng: 'zh-CN',
+  // Safe: all translations are static developer-defined strings rendered via
+  // JSX text nodes (React auto-escapes).  If user-supplied translations are
+  // ever added and rendered with dangerouslySetInnerHTML, set this to true.
   interpolation: { escapeValue: false },
 })
 

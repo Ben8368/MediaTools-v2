@@ -51,6 +51,7 @@ def test_fetch_dry_run_writes_summary(tmp_path, capsys):
         [
             "fetch",
             "https://example.com/video",
+            "--output-dir",
             str(tmp_path / "downloads"),
             "--dry-run",
             "--write-auto-subs",
@@ -81,6 +82,7 @@ def test_fetch_dry_run_accepts_friendly_name_template(tmp_path, capsys):
         [
             "fetch",
             "https://example.com/video",
+            "--output-dir",
             str(tmp_path / "downloads"),
             "--dry-run",
             "--name-template",
@@ -104,6 +106,7 @@ def test_fetch_dry_run_uses_default_friendly_name_template(tmp_path, capsys):
         [
             "fetch",
             "https://example.com/video",
+            "--output-dir",
             str(tmp_path / "downloads"),
             "--dry-run",
         ],
@@ -119,6 +122,7 @@ def test_fetch_dry_run_uses_default_mp4_preset(tmp_path, capsys):
         [
             "fetch",
             "https://example.com/video",
+            "--output-dir",
             str(tmp_path / "downloads"),
             "--dry-run",
         ],
@@ -144,6 +148,7 @@ def test_fetch_uses_default_timeout(tmp_path, monkeypatch, capsys):
         [
             "fetch",
             "https://example.com/video",
+            "--output-dir",
             str(tmp_path / "downloads"),
         ],
     )
@@ -168,6 +173,7 @@ def test_fetch_timeout_zero_means_no_limit(tmp_path, monkeypatch):
         [
             "fetch",
             "https://example.com/video",
+            "--output-dir",
             str(tmp_path / "downloads"),
             "--timeout",
             "0",
@@ -183,6 +189,7 @@ def test_fetch_rejects_non_positive_max_concurrent(tmp_path, capsys):
         [
             "fetch",
             "https://example.com/video",
+            "--output-dir",
             str(tmp_path / "downloads"),
             "--dry-run",
             "--max-concurrent",
@@ -201,6 +208,7 @@ def test_fetch_dry_run_output_template_overrides_friendly_name(tmp_path, capsys)
         [
             "fetch",
             "https://example.com/video",
+            "--output-dir",
             str(tmp_path / "downloads"),
             "--dry-run",
             "--output-template",
@@ -217,7 +225,7 @@ def test_fetch_dry_run_output_template_overrides_friendly_name(tmp_path, capsys)
 
 
 def test_fetch_requires_url_or_input_file(capsys):
-    exit_code = main(["fetch", "downloads", "--dry-run"])
+    exit_code = main(["fetch", "--dry-run"])
 
     assert exit_code == 1
     assert "Provide a fetch URL or --input-file" in capsys.readouterr().err
@@ -243,6 +251,7 @@ def test_fetch_input_file_directory_reports_clean_error(tmp_path, capsys):
     exit_code = main(
         [
             "fetch",
+            "--output-dir",
             str(tmp_path / "downloads"),
             "--input-file",
             str(tmp_path),
@@ -261,6 +270,7 @@ def test_fetch_summary_json_directory_reports_clean_error(tmp_path, capsys):
         [
             "fetch",
             "https://example.com/video",
+            "--output-dir",
             str(tmp_path / "downloads"),
             "--dry-run",
             "--summary-json",
@@ -281,6 +291,7 @@ def test_fetch_dry_run_accepts_input_file(tmp_path, capsys):
     exit_code = main(
         [
             "fetch",
+            "--output-dir",
             str(tmp_path / "downloads"),
             "--input-file",
             str(input_file),

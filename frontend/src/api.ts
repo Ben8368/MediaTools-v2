@@ -57,13 +57,19 @@ async function request<T = any>(path: string, init: RequestInit = {}, retry = tr
   }
 
   const text = await response.text()
-  const data = text ? JSON.parse(text) : null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let data: any = null
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch {
+    data = null
+  }
   if (!response.ok) {
     const method = (init.method || 'GET').toUpperCase()
     const detail = data?.error || data?.detail || response.statusText
     throw new Error(`${detail}（HTTP ${response.status} · ${method} ${path}）`)
   }
-  return data
+  return data as T
 }
 
 function get(path: string, params?: Record<string, unknown>) {

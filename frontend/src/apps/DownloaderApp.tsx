@@ -1,145 +1,52 @@
 // Simplified DownloaderApp for v2 - AI features removed
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { cancelTask, clearTaskRecords, deleteTaskRecord, submitFetch } from '@/api'
+import { submitFetch } from '@/api'
 import { DownloaderAddForm } from '@/apps/downloader/DownloaderAddForm'
 import { DownloaderDetailDrawer } from '@/apps/downloader/DownloaderDetailDrawer'
 import {
-  computeStats,
-  buildRetryPayload,
   createOptimisticTask,
   extractTaskDetailRows,
   extractTaskRequestSnapshot,
-  getCategoryForTask,
-  getPlatformOption,
-  getTaskDisplayTitle,
-  getTaskSearchHaystack,
-  getTaskSourceUrl,
-  getTaskSubtitleFilePath,
-  getTaskVideoFilePath,
-  isTaskCancellable,
-  isTaskClearable,
-  isTaskRetryable,
   mergeTasks,
 } from '@/apps/downloader/helpers'
 import { DownloaderSidebar } from '@/apps/downloader/DownloaderSidebar'
 import { DownloaderStatusBar } from '@/apps/downloader/DownloaderStatusBar'
 import { DownloaderTaskTable } from '@/apps/downloader/DownloaderTaskTable'
 import { DownloaderToolbar } from '@/apps/downloader/DownloaderToolbar'
-import type { CategoryKey, DownloadPlatform, DownloadTask, DownloaderRowMenuAction } from '@/apps/downloader/types'
+import { useDownloaderActions } from '@/apps/downloader/useDownloaderActions'
+import { useDownloaderForm } from '@/apps/downloader/useDownloaderForm'
+import { useDownloaderSelection } from '@/apps/downloader/useDownloaderSelection'
 import { useDownloaderTaskData } from '@/apps/downloader/useDownloaderTaskData'
 
 export function DownloaderApp() {
-  const [selectedCategory, setSelectedCategory] = useState<CategoryKey>('all')
-  const [searchText, setSearchText] = useState('')
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [directoryPickerOpen, setDirectoryPickerOpen] = useState(false)
-  const [taskUrl, setTaskUrl] = useState('')
-  const [taskPlatform, setTaskPlatform] = useState<DownloadPlatform>('auto')
-  const [taskSubtitles, setTaskSubtitles] = useState(true)
-  const [taskOutputDir, setTaskOutputDir] = useState('')
-  const [addingTask, setAddingTask] = useState(false)
-  const [submitError, setSubmitError] = useState('')
-  const [actionError, setActionError] = useState('')
-  const [detailOpen, setDetailOpen] = useState(false)
-
-  const selectionAnchorIdRef = useRef<string | null>(null)
   const { historyTasks, queueTasks, mergedTasks, fetchHistoryTasks, refreshLists, setOptimisticTasks } = useDownloaderTaskData()
 
+  const form = useDownloaderForm()
+  const selection = useDownloaderSelection({ mergedTasks, historyTasks, queueTasks })
+  const actions = useDownloaderActions({
+    selectedTasks: selection.selectedTasks,
+    selectedClearableTasks: selection.selectedClearableTasks,
+    refreshLists,
+    setOptimisticTasks,
+    onOptimisticTaskCreated: (task) => selection.setSelectedTaskId(task.id),
+  })
+
+  // Fetch history when viewing history-related categories
   useEffect(() => {
-    if (['completed', 'paused', 'error'].includes(selectedCategory)) {
+    if (['completed', 'paused', 'error'].includes(selection.selectedCategory)) {
       void fetchHistoryTasks()
     }
-  }, [fetchHistoryTasks, selectedCategory])
+  }, [fetchHistoryTasks, selection.selectedCategory])
 
-  const selectedPlatform = useMemo(() => getPlatformOption(taskPlatform), [taskPlatform])
-
-  useEffect(() => {
-    if (!selectedPlatform.supportsSubtitles && taskSubtitles) {
-      setTaskSubtitles(false)
-    }
-  }, [selectedPlatform.supportsSubtitles, taskSubtitles])
-
-  const sourceTasks = useMemo(() => {
-    if (selectedCategory === 'all') return mergedTasks
-    if (['completed', 'paused', 'error'].includes(selectedCategory)) return historyTasks
-    return queueTasks
-  }, [historyTasks, mergedTasks, queueTasks, selectedCategory])
-
-  const stats = useMemo(() => computeStats(mergedTasks), [mergedTasks])
-
-  const filteredTasks = useMemo(() => {
-    let filtered = sourceTasks
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter((task) => getCategoryForTask(task) === selectedCategory)
-    }
-    if (searchText.trim()) {
-      const keyword = searchText.trim().toLowerCase()
-      filtered = filtered.filter((task) => getTaskSearchHaystack(task).includes(keyword))
-    }
-    return filtered
-  }, [searchText, selectedCategory, sourceTasks])
-
-  useEffect(() => {
-    setSelectedIds((prev) => {
-      if (prev.size === 0) return prev
-      const next = new Set([...prev].filter((id) => filteredTasks.some((t) => t.id === id)))
-      return next.size === prev.size ? prev : next
-    })
-  }, [filteredTasks])
-
-  useEffect(() => {
-    if (filteredTasks.length === 0) {
-      setSelectedTaskId(null)
-      return
-    }
-    if (!selectedTaskId || !filteredTasks.some((task) => task.id === selectedTaskId)) {
-      setSelectedTaskId(filteredTasks[0].id)
-    }
-  }, [filteredTasks, selectedTaskId])
-
-  const selectedTask = useMemo(
-    () => mergedTasks.find((task) => task.id === selectedTaskId) ?? null,
-    [mergedTasks, selectedTaskId],
-  )
-
-  const hasBulkSelection = selectedIds.size > 0
-  const selectedTasks = useMemo(() => {
-    if (hasBulkSelection) {
-      return filteredTasks.filter((task) => selectedIds.has(task.id))
-    }
-    return selectedTask ? [selectedTask] : []
-  }, [filteredTasks, hasBulkSelection, selectedIds, selectedTask])
-
-  const canStopSelected = selectedTasks.length > 0 && selectedTasks.every((task) => isTaskCancellable(task))
-  const canRetrySelected = selectedTasks.length > 0 && selectedTasks.every((task) => isTaskRetryable(task))
-  const selectedClearableTasks = useMemo(() => selectedTasks.filter((task) => isTaskClearable(task)), [selectedTasks])
-  const canClearRecords = selectedClearableTasks.length > 0
-  const clearRecordsTitle = useMemo(() => {
-    if (selectedClearableTasks.length > 0) {
-      const n = selectedClearableTasks.length
-      const m = selectedTasks.length
-      if (m === n) {
-        return n === 1 ? '删除当前所选记录的下载历史' : `删除所选 ${n} 条记录的下载历史`
-      }
-      return `删除其中可清除的 ${n} 条记录（${m - n} 条仍在进行中，将保留）`
-    }
-    if (!filteredTasks.length) return '暂无可显示的下载任务'
-    return '没有可删除的记录：仅已完成、已停止或失败的任务可从列表移除。请先选中任务或使用全选。'
-  }, [filteredTasks.length, selectedClearableTasks, selectedTasks])
-
-  const canSelectAllVisible = filteredTasks.length > 0
-  const allVisibleSelected = filteredTasks.length > 0 && filteredTasks.every((task) => selectedIds.has(task.id))
-
+  // Submit task payloads (shared by single-URL and multi-URL paths)
   const submitTaskPayloads = useCallback(
     async (urls: string[]) => {
       const draft = {
         urls: urls,
-        output_dir: taskOutputDir || 'downloads',
-        write_subs: selectedPlatform.supportsSubtitles && taskSubtitles,
-        write_auto_subs: selectedPlatform.supportsSubtitles && taskSubtitles,
+        output_dir: form.taskOutputDir || 'downloads',
+        write_subs: form.selectedPlatform.supportsSubtitles && form.taskSubtitles,
+        write_auto_subs: form.selectedPlatform.supportsSubtitles && form.taskSubtitles,
         sub_langs: 'original',
         convert_subs: 'srt',
         preset: 'mp4',
@@ -153,248 +60,120 @@ export function DownloaderApp() {
 
       const optimisticTask = createOptimisticTask(urls.join(', '), draft, result)
       setOptimisticTasks((prev) => mergeTasks([optimisticTask], prev))
-      setSelectedTaskId(optimisticTask.id)
-      setSelectedIds(new Set())
-      selectionAnchorIdRef.current = optimisticTask.id
-      setSelectedCategory('all')
+      selection.setSelectedTaskId(optimisticTask.id)
+      selection.clearSelection()
+      selection.setSelectedCategory('all')
       await refreshLists()
     },
-    [taskOutputDir, selectedPlatform.supportsSubtitles, taskSubtitles, refreshLists, setOptimisticTasks],
+    [form.taskOutputDir, form.selectedPlatform.supportsSubtitles, form.taskSubtitles, refreshLists, setOptimisticTasks, selection],
   )
 
   const submitNewTask = useCallback(async () => {
-    if (!taskUrl.trim() || addingTask) return
-    setAddingTask(true)
-    setSubmitError('')
-    setActionError('')
+    if (!form.taskUrl.trim() || form.addingTask) return
+    form.setAddingTask(true)
+    form.setSubmitError('')
+    actions.setActionError('')
     try {
-      const urls = taskUrl
+      const urls = form.taskUrl
         .split('\n')
         .map((url) => url.trim())
         .filter((url) => url.length > 0)
 
       await submitTaskPayloads(urls)
-      setTaskUrl('')
-      setShowAddForm(false)
-    } catch (err: any) {
-      setSubmitError(err?.message || '下载任务提交失败')
+      form.setTaskUrl('')
+      form.setShowAddForm(false)
+    } catch (err: unknown) {
+      form.setSubmitError(err instanceof Error ? err.message : '下载任务提交失败')
     } finally {
-      setAddingTask(false)
+      form.setAddingTask(false)
     }
-  }, [addingTask, submitTaskPayloads, taskUrl])
+  }, [form, submitTaskPayloads, actions])
 
-  const clearRecords = useCallback(async () => {
-    if (!selectedClearableTasks.length) return
-    setActionError('')
-    try {
-      const ids = selectedClearableTasks.map((task) => task.id)
-      if (ids.length === 1) {
-        await deleteTaskRecord(ids[0])
-      } else {
-        await clearTaskRecords(ids)
-      }
-      setSelectedIds(new Set())
-      setSelectedTaskId(null)
-      await refreshLists()
-    } catch (err: any) {
-      setActionError(err?.message || '清除记录失败')
-    }
-  }, [refreshLists, selectedClearableTasks])
-
-  const stopSelected = useCallback(async () => {
-    if (!selectedTasks.length) return
-    setActionError('')
-    try {
-      await Promise.all(selectedTasks.map((task) => cancelTask(task.id)))
-      await refreshLists()
-    } catch (err: any) {
-      setActionError(err?.message || '停止任务失败')
-    }
-  }, [refreshLists, selectedTasks])
-
-  const retrySelected = useCallback(async () => {
-    if (!selectedTasks.length) return
-    setActionError('')
-    try {
-      for (const task of selectedTasks) {
-        const payload = buildRetryPayload(task)
-        if (!payload) throw new Error(`任务 ${task.id} 缺少可重试的 URL`)
-        const urls = Array.isArray(payload.urls) ? payload.urls.filter((url): url is string => typeof url === 'string') : []
-        if (urls.length === 0) throw new Error(`任务 ${task.id} 缺少可重试的 URL`)
-        const result = await submitFetch(payload)
-        const optimisticTask = createOptimisticTask(urls.join(', '), payload, result)
-        setOptimisticTasks((prev) => mergeTasks([optimisticTask], prev))
-        setSelectedTaskId(optimisticTask.id)
-      }
-      setSelectedIds(new Set())
-      setSelectedCategory('all')
-      await refreshLists()
-    } catch (err: any) {
-      setActionError(err?.message || '重试任务失败')
-    }
-  }, [refreshLists, selectedTasks, setOptimisticTasks])
-
-  const handleRowMenuAction = useCallback(
-    async (action: DownloaderRowMenuAction, task: DownloadTask) => {
-      setActionError('')
-      if (action === 'copy_url') {
-        const url = getTaskSourceUrl(task)
-        if (!url) {
-          setActionError('此任务缺少来源链接')
-          return
-        }
-        await navigator.clipboard.writeText(url)
-      }
-      if (action === 'retry') {
-        const payload = buildRetryPayload(task)
-        if (!payload) {
-          setActionError('此任务缺少可重试的 URL')
-          return
-        }
-        try {
-          const result = await submitFetch(payload)
-          const urls = Array.isArray(payload.urls) ? payload.urls.filter((url): url is string => typeof url === 'string') : []
-          const optimisticTask = createOptimisticTask(urls.join(', '), payload, result)
-          setOptimisticTasks((prev) => mergeTasks([optimisticTask], prev))
-          setSelectedTaskId(optimisticTask.id)
-          setSelectedCategory('all')
-          await refreshLists()
-        } catch (err: any) {
-          setActionError(err?.message || '重试任务失败')
-        }
-      }
-      if (action === 'ai_analyze') {
-        setActionError('AI 分析功能暂未实现（v2 后续支持）')
-      }
-    },
-    [refreshLists, setOptimisticTasks],
-  )
-
-  const toggleSelectAllVisible = useCallback(() => {
-    if (allVisibleSelected) {
-      setSelectedIds(new Set())
-      selectionAnchorIdRef.current = null
-    } else {
-      setSelectedIds(new Set(filteredTasks.map((task) => task.id)))
-      selectionAnchorIdRef.current = filteredTasks.length > 0 ? filteredTasks[0].id : null
-    }
-  }, [allVisibleSelected, filteredTasks])
-
-  const handleRowClick = useCallback(
-    (taskId: string, index: number, event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-      const task = filteredTasks.find(t => t.id === taskId)
-      if (!task) return
-
-      const isBulkAction = event.ctrlKey || event.metaKey || event.shiftKey
-      if (!isBulkAction) {
-        setSelectedTaskId(task.id)
-        setSelectedIds(new Set())
-        selectionAnchorIdRef.current = task.id
-        return
-      }
-
-      if (event.shiftKey && selectionAnchorIdRef.current) {
-        const anchorIndex = filteredTasks.findIndex((t) => t.id === selectionAnchorIdRef.current)
-        const clickedIndex = index
-        if (anchorIndex !== -1 && clickedIndex !== -1) {
-          const start = Math.min(anchorIndex, clickedIndex)
-          const end = Math.max(anchorIndex, clickedIndex)
-          const rangeIds = new Set(filteredTasks.slice(start, end + 1).map((t) => t.id))
-          setSelectedIds(rangeIds)
-          return
-        }
-      }
-
-      setSelectedIds((prev) => {
-        const next = new Set(prev)
-        if (next.has(task.id)) {
-          next.delete(task.id)
-          if (next.size === 0) {
-            selectionAnchorIdRef.current = null
-          }
-        } else {
-          next.add(task.id)
-          selectionAnchorIdRef.current = task.id
-        }
-        return next
-      })
-    },
-    [filteredTasks],
-  )
-
-  const detailRows = useMemo(() => (selectedTask ? extractTaskDetailRows(selectedTask) : []), [selectedTask])
+  // Detail drawer derived data
+  const detailRows = useMemo(() => (selection.selectedTask ? extractTaskDetailRows(selection.selectedTask) : []), [selection.selectedTask])
   const detailSnapshot = useMemo(() => {
-    if (!selectedTask) return ''
-    const snapshot = extractTaskRequestSnapshot(selectedTask)
+    if (!selection.selectedTask) return ''
+    const snapshot = extractTaskRequestSnapshot(selection.selectedTask)
     return typeof snapshot === 'string' ? snapshot : JSON.stringify(snapshot, null, 2)
-  }, [selectedTask])
-  const detailState = selectedTask?.state ? JSON.stringify(selectedTask.state, null, 2) : ''
-  const detailResult = selectedTask?.result ? JSON.stringify(selectedTask.result, null, 2) : ''
+  }, [selection.selectedTask])
+  const detailState = useMemo(() => selection.selectedTask?.state ? JSON.stringify(selection.selectedTask.state, null, 2) : '', [selection.selectedTask?.state])
+  const detailResult = useMemo(() => selection.selectedTask?.result ? JSON.stringify(selection.selectedTask.result, null, 2) : '', [selection.selectedTask?.result])
+
+  const [detailOpen, setDetailOpen] = useState(false)
 
   return (
     <div className="dl-app">
       <DownloaderSidebar
-        selectedCategory={selectedCategory}
-        stats={stats}
+        selectedCategory={selection.selectedCategory}
+        stats={selection.stats}
         miniAiOpen={false}
-        onToggleMiniAi={() => {}} // AI feature removed
+        onToggleMiniAi={() => {}}
         onSelectCategory={(category) => {
-          setSelectedCategory(category)
-          setSelectedIds(new Set())
-          selectionAnchorIdRef.current = null
+          selection.setSelectedCategory(category)
+          selection.clearSelection()
         }}
       />
 
-      <main className={`dl-panel ${showAddForm ? 'dl-panel--with-form' : ''}`}>
+      <main className={`dl-panel ${form.showAddForm ? 'dl-panel--with-form' : ''}`}>
         <DownloaderToolbar
-          showAddForm={showAddForm}
-          onToggleAddForm={() => setShowAddForm((prev) => !prev)}
-          canStopSelected={canStopSelected}
-          onStopSelected={stopSelected}
-          canRetrySelected={canRetrySelected}
-          onRetrySelected={retrySelected}
-          canSelectAllVisible={canSelectAllVisible}
-          allVisibleSelected={allVisibleSelected}
-          onToggleSelectAll={toggleSelectAllVisible}
-          canClearRecords={canClearRecords}
-          clearRecordsTitle={clearRecordsTitle}
-          onClearRecords={clearRecords}
-          searchText={searchText}
-          onSearchTextChange={setSearchText}
+          showAddForm={form.showAddForm}
+          onToggleAddForm={() => form.setShowAddForm((prev) => !prev)}
+          canStopSelected={selection.canStopSelected}
+          onStopSelected={actions.stopSelected}
+          canRetrySelected={selection.canRetrySelected}
+          onRetrySelected={() => {
+            actions.retrySelected().then(() => {
+              selection.clearSelection()
+              selection.setSelectedCategory('all')
+            })
+          }}
+          canSelectAllVisible={selection.canSelectAllVisible}
+          allVisibleSelected={selection.allVisibleSelected}
+          onToggleSelectAll={selection.toggleSelectAllVisible}
+          canClearRecords={selection.canClearRecords}
+          clearRecordsTitle={selection.clearRecordsTitle}
+          onClearRecords={() => {
+            actions.clearRecords().then(() => {
+              selection.clearSelection()
+              selection.setSelectedTaskId(null)
+            })
+          }}
+          searchText={selection.searchText}
+          onSearchTextChange={selection.setSearchText}
         />
 
         <div className="dl-stage">
-          {showAddForm && (
+          {form.showAddForm && (
             <DownloaderAddForm
-              taskUrl={taskUrl}
-              taskPlatform={taskPlatform}
-              taskSubtitles={taskSubtitles}
-              taskOutputDir={taskOutputDir}
-              selectedPlatform={selectedPlatform}
-              addingTask={addingTask}
-              submitError={submitError}
-              onTaskUrlChange={setTaskUrl}
-              onTaskPlatformChange={setTaskPlatform}
-              onTaskSubtitlesChange={setTaskSubtitles}
-              onTaskOutputDirChange={setTaskOutputDir}
-              onOpenDirectoryPicker={() => setDirectoryPickerOpen(true)}
+              taskUrl={form.taskUrl}
+              taskPlatform={form.taskPlatform}
+              taskSubtitles={form.taskSubtitles}
+              taskOutputDir={form.taskOutputDir}
+              selectedPlatform={form.selectedPlatform}
+              addingTask={form.addingTask}
+              submitError={form.submitError}
+              onTaskUrlChange={form.setTaskUrl}
+              onTaskPlatformChange={form.setTaskPlatform}
+              onTaskSubtitlesChange={form.setTaskSubtitles}
+              onTaskOutputDirChange={form.setTaskOutputDir}
+              onOpenDirectoryPicker={() => form.setDirectoryPickerOpen(true)}
               onSubmit={submitNewTask}
               onClose={() => {
-                setShowAddForm(false)
-                setSubmitError('')
+                form.setShowAddForm(false)
+                form.clearSubmitError()
               }}
             />
           )}
 
           <DownloaderTaskTable
-            filteredTasks={filteredTasks}
-            selectedTaskId={selectedTaskId}
-            selectedIds={selectedIds}
-            onRowClick={handleRowClick}
-            onRowMenuAction={handleRowMenuAction}
+            filteredTasks={selection.filteredTasks}
+            selectedTaskId={selection.selectedTaskId}
+            selectedIds={selection.selectedIds}
+            onRowClick={selection.handleRowClick}
+            onRowMenuAction={actions.handleRowMenuAction}
           />
 
-          {actionError && <div className="dl-action-error">{actionError}</div>}
+          {actions.actionError && <div className="dl-action-error">{actions.actionError}</div>}
         </div>
 
         <DownloaderStatusBar detailOpen={detailOpen} onToggleDetail={() => setDetailOpen((prev) => !prev)} />
@@ -402,24 +181,24 @@ export function DownloaderApp() {
 
       <DownloaderDetailDrawer
         open={detailOpen}
-        selectedTask={selectedTask}
+        selectedTask={selection.selectedTask}
         detailRows={detailRows}
         detailRequest={detailSnapshot}
         detailState={detailState}
         detailResult={detailResult}
-        actionError={actionError}
+        actionError={actions.actionError}
         onClose={() => setDetailOpen(false)}
       />
 
-      {directoryPickerOpen && (
+      {form.directoryPickerOpen && (
         <div>
-          <button type="button" onClick={() => setDirectoryPickerOpen(false)}>
+          <button type="button" onClick={() => form.setDirectoryPickerOpen(false)}>
             关闭目录选择（v2 文件管理功能暂未实现）
           </button>
           <input
             type="text"
-            value={taskOutputDir}
-            onChange={(e) => setTaskOutputDir(e.target.value)}
+            value={form.taskOutputDir}
+            onChange={(e) => form.setTaskOutputDir(e.target.value)}
             placeholder="输入输出目录路径"
           />
         </div>

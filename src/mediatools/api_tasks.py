@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import threading
 import time
 from collections.abc import Sequence
@@ -200,7 +202,20 @@ class TaskStore:
             return
         ensure_dir(self._storage_path.parent)
         payload = [task.to_dict() for task in self._tasks.values()]
-        self._storage_path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2),
-            encoding="utf-8",
+        content = json.dumps(payload, ensure_ascii=False, indent=2)
+        # Atomic write: write to temp file first, then rename.
+        # os.replace() is atomic on both Windows and POSIX.
+        tmp_fd, tmp_path = tempfile.mkstemp(
+            dir=self._storage_path.parent, suffix=".tmp"
         )
+        try:
+            with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                f.write(content)
+            os.replace(tmp_path, str(self._storage_path))
+        except BaseException:
+            # Clean up temp file on failure
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise

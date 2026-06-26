@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from mediatools.core.subtitle import convert_subtitle_file
 
@@ -27,6 +28,7 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
 
 def run(args: argparse.Namespace) -> int:
     if args.subtitle_command != "convert":
+        print("Error: missing subcommand. Use: mediatools subtitle convert", file=sys.stderr)
         return 2
     output = convert_subtitle_file(
         args.input,
