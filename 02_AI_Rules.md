@@ -130,17 +130,17 @@ python scripts/verify.py
 
 ## 11. 文档同步
 
-变更代码或阶段进度时，同步检查并更新：
+变更代码或阶段进度时，同步检查并更新。入口治理文档保持短小，详细过程和历史背景放入 `docs/archive/`：
 
 | 变更类型 | 需更新的文档 |
 | --- | --- |
-| 阶段/任务进度 | `03_Context.md`、`01_Project_Plan.md` |
-| 功能状态 | `04_Features.md` |
+| 阶段/任务进度 | `03_Context.md`；阶段边界变化时同步 `01_Project_Plan.md` |
+| 功能状态 | `04_Features.md` 索引；长条背景归档 |
 | 重构策略 | `REFACTOR.md` |
-| 避坑经验 | `05_Lessons.md` |
+| 避坑经验 | `05_Lessons.md` 主题规则；完整复盘归档 |
 | 用户可见命令 | `README.md` |
 
-`03_Context.md` 是实时快照，但**不能**作为其他文档滞后的借口；`REFACTOR.md`、`04_Features.md` 须与当前阶段状态一致。
+`03_Context.md` 是实时快照，不记录完整历史流水；`04_Features.md` 是 Feature/ADR 索引，不承载完整实施日志；`05_Lessons.md` 是压缩错题规则，不重复已固化到代码或验证脚本的长背景。需要追溯时读取 `docs/archive/`。
 
 ---
 
