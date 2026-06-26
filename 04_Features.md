@@ -246,7 +246,7 @@
   - 前端首屏能完成 URL 输入、批量导入、字幕选项、输出目录、任务状态和结果查看。
   - 前端构建/测试纳入标准验证或独立前端验证脚本。
 - **降级/回滚策略：** 若前端工程引入风险过大，保留 CLI 下载增强作为主路径；轻前端只作为可选本地入口。
-- **状态：** [客观已验证] - 已建立 `docs/UI_COMPAT.md` 与 `docs/UI_API_CONTRACT.md`；v2 `frontend/` 已初始化 Vite + React + TypeScript 下载工作台壳层，`python scripts/verify.py` 纳入 frontend `npm ci`、test、build 并通过。API 适配层已完成基础端点并在 Feature-021 中补齐任务持久化与记录操作；下一步需进行用户主观 UI 验收。npm audit 当前仍有 dev 依赖漏洞，需单独评估 Vite/Vitest 大版本升级。
+- **状态：** [客观已验证] - 已建立 `docs/UI_COMPAT.md` 与 `docs/UI_API_CONTRACT.md`；v2 `frontend/` 已初始化 Vite + React + TypeScript 下载工作台壳层，`python scripts/verify.py` 纳入 frontend `npm ci`、test、build 并通过。API 适配层已完成基础端点并在 Feature-021 中补齐任务持久化与记录操作；右侧运行状态面板、日志窗口与通知未读数已改用 v2 端点聚合或安静空态，不再暴露旧版占位错误；下一步需进行用户主观 UI 验收。npm audit 当前仍有 dev 依赖漏洞，需单独评估 Vite/Vitest 大版本升级。
 
 ### Feature-012：下载格式控制与原语言探测 — Phase 3-A+
 - **提交时间：** 2026-06-24
@@ -458,7 +458,7 @@
   - 前端测试覆盖停止、删除、提交任务等下载工作台交互。
   - 标准验证覆盖全量 Python pytest、ruff、前端 Vitest 和 Vite build。
 - **降级/回滚策略：** 如 JSON 文件损坏，TaskStore 会忽略该文件并以空任务列表启动；若后续需要硬取消下载，需在外部进程 runner 层引入可终止进程句柄或进度回调，而不是在 HTTP 层伪造。
-- **状态：** [客观已验证] - Windows 中 `python scripts/verify.py` 通过：Python 187 passed, 6 skipped；ruff 通过；frontend 53 passed, 3 skipped；build 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`。本轮补充 macOS Python 验证 188 passed, 6 skipped；ruff 通过；统一启动脚本 backend-only smoke 通过；本机完整验证因 PATH 无 `npm` 未复跑 frontend。剩余黄灯：npm audit 报 7 个 dev 依赖漏洞；Legacy 前端隔离大文件需后续拆分；硬取消 yt-dlp subprocess 与 WebSocket/SSE 推送仍待后续设计。
+- **状态：** [客观已验证] - Windows 中 `python scripts/verify.py` 通过：Python 188 passed, 6 skipped；ruff 通过；frontend 57 passed, 3 skipped；build 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`。右侧运行状态面板、日志窗口与通知链路已接 v2 聚合/空态数据并新增前端回归测试。本轮补充 macOS Python 验证 188 passed, 6 skipped；ruff 通过；统一启动脚本 backend-only smoke 通过。剩余黄灯：npm audit 报 7 个 dev 依赖漏洞；Legacy 前端隔离大文件需后续拆分；硬取消 yt-dlp subprocess 与 WebSocket/SSE 推送仍待后续设计。
 
 ### Feature-022：跨平台统一启动入口 — Phase 3-B DX
 - **提交时间：** 2026-06-25

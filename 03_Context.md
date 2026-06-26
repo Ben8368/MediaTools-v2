@@ -2,10 +2,10 @@
 
 ## 1. 项目状态快照
 
-> **更新时间：** 2026-06-26 08:56:37 +0800
+> **更新时间：** 2026-06-26 10:33:55 +0800
 > **当前分支：** refactor-v2
-> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本、rolling 字幕清理、句子级合并与并发锁硬化已完成；Legacy 前端技术栈考古完成，v2 轻前端下载工作台与本地 API 适配层已接线；本轮补齐跨平台统一启动脚本，并收敛任务状态契约、`serve --host`、前端源码规模门禁黄灯项
-> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；本轮统一启动与黄灯收敛后 macOS Python 验证通过（188 passed, 6 skipped；ruff 通过；`scripts/start.py --backend-only --api-port 0` smoke 通过）；完整 `scripts/verify.py` 在本机停于 frontend 阶段，原因是当前 PATH 无 `npm`，未能本地复跑 Vitest/build；此前 Windows 标准验证已覆盖 frontend 53 passed, 3 skipped 与 build 通过
+> **当前阶段：** Phase 3 - 下载工作流已验收，字幕-only 生产样本、rolling 字幕清理、句子级合并与并发锁硬化已完成；Legacy 前端技术栈考古完成，v2 轻前端下载工作台与本地 API 适配层已接线；本轮补齐跨平台统一启动脚本、收敛任务状态契约与前端源码规模门禁，并修复右侧运行状态、日志窗口、通知未读数误暴露 Legacy 占位错误
+> **验证状态：** 真实 7 URL 批量下载验收通过（H264+AAC+MP4 + SRT 原语言字幕）；真实 51 URL 字幕-only 批量样本验收通过（51 succeeded, 0 failed；仅输出 51 个 SRT，无视频文件）；macOS Chrome 登录态 playlist 校验前三条下载通过（H264+AAC+MP4，1080p）；本轮日志兼容层修复后 Windows 标准验证通过（Python 188 passed, 6 skipped；ruff 通过；frontend 57 passed, 3 skipped；build 通过；doctor 发现 `ffmpeg`、`ffprobe`、`yt-dlp`）；npm audit 仍报告 7 个 dev 依赖漏洞，待单独评估
 
 ## 2. 本轮阻断项
 
@@ -120,6 +120,8 @@
 - [x] 本地 API 适配层：实现 docs/UI_API_CONTRACT.md 中 4 个端点（doctor、fetch/plan、fetch/tasks 提交与列表），基于 Python stdlib http.server 纯标准库实现，无第三方 Web 框架依赖；18 个 API 服务器测试全部通过；前端 `api.ts` / App.tsx 已接线到真实后端：确认旧版为 Vite + React + TypeScript + Vitest；v2 `frontend/` 初始化下载工作台壳层、API 契约文档与前端测试/构建；`scripts/verify.py` 已纳入 `npm ci`、frontend test/build
 - [x] 轻前端黄灯收敛：任务记录拆到 `api_tasks.py` 并持久化到数据目录 JSON；API 增加取消、删除、清空记录端点；任务列表返回 created/updated/started/completed 时间戳和 params/result；下载工作台停止/删除/重试按钮接真实 API；任务映射改为类型化共享函数；appRegistry 增加 stable/beta/hidden 状态标记。
 - [x] 统一启动入口与 review 黄灯收敛：新增跨平台 `python scripts/start.py`，一条命令启动 API + Vite 前端并支持 `--backend-only`、自定义 host/port、自动前端依赖安装；`serve --host` 已真实传入 API server；新任务状态统一为前端认识的 `pending`；Vite proxy 支持 `VITE_MEDIATOOLS_API_TARGET`；`verify.py` 扩展到前端源码规模检查，并显式隔离 Legacy 迁移大文件。
+- [x] 修复右侧运行状态面板：`getSystemMetrics` 不再调用旧版后端占位函数，改为聚合 v2 `/api/doctor` 与 `/api/fetch/tasks`，输出运行时长、服务可用性、当前下载任务摘要；后端短暂不可用时返回安静空态，避免在常驻面板暴露内部占位错误。
+- [x] 修复日志窗口与通知链路：`fetchLogs` / `fetchLogMetadata` / `clearLogs` / 通知未读数不再调用旧版后端占位函数，改为基于 v2 任务记录生成轻量日志或返回安静空态，避免默认日志窗口继续显示 Legacy 未实现错误。
 
 ## 6. 下一步建议
 

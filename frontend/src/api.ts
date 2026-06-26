@@ -1,4 +1,36 @@
 const API_KEY_STORAGE_KEY = 'mediatools.apiKey'
+const FRONTEND_STARTED_AT = Date.now()
+
+type DoctorTool = {
+  name: string
+  available: boolean
+  path?: string | null
+}
+
+type ApiTask = {
+  id?: string
+  task_id?: string
+  title?: string
+  source_url?: string
+  status?: string
+  progress?: number
+  stage?: string
+  created_at?: number
+  updated_at?: number | null
+  started_at?: number | null
+  completed_at?: number | null
+  error?: string | null
+}
+
+type LogQuery = {
+  level?: string
+  module?: string
+  page?: number
+  page_size?: number
+}
+
+const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled', 'partial'])
+const ACTIVE_TASK_STATUSES = new Set(['pending', 'running', 'paused'])
 
 function getApiKey() {
   return localStorage.getItem(API_KEY_STORAGE_KEY) || sessionStorage.getItem(API_KEY_STORAGE_KEY) || import.meta.env.VITE_MEDIATOOLS_API_KEY || import.meta.env.VITE_API_KEY || ''
@@ -82,6 +114,189 @@ export const cancelTask = (taskId: string) => post(`/api/fetch/tasks/${encodeURI
 export const deleteTaskRecord = (taskId: string) => del(`/api/fetch/tasks/${encodeURIComponent(taskId)}`)
 export const clearTaskRecords = (taskIds?: string[]) => del('/api/fetch/tasks', { task_ids: taskIds || [] })
 
+function normalizeTaskList(response: unknown): ApiTask[] {
+  if (Array.isArray(response)) return response as ApiTask[]
+  if (response && typeof response === 'object' && Array.isArray((response as { tasks?: unknown }).tasks)) {
+    return (response as { tasks: ApiTask[] }).tasks
+  }
+  return []
+}
+
+function normalizeProgress(value: unknown) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
+  return value <= 1 ? value * 100 : value
+}
+
+function taskStatusLabel(status: string) {
+  if (status === 'pending') return '等待中'
+  if (status === 'running') return '进行中'
+  if (status === 'paused') return '已暂停'
+  if (status === 'cancelled') return '已取消'
+  if (status === 'completed') return '已完成'
+  if (status === 'failed') return '失败'
+  if (status === 'partial') return '部分完成'
+  return status
+}
+
+function serviceFromTool(id: string, name: string, tool?: DoctorTool) {
+  const online = Boolean(tool?.available)
+  return {
+    id,
+    name,
+    online,
+    status: online ? 'ready' : 'missing',
+    runtime_status: online ? 'online' : 'offline',
+    availability_status: online ? 'ready' : 'missing',
+    detail: online ? (tool?.path || 'available') : `${tool?.name || name} not found on PATH`,
+    dep: tool?.name || null,
+  }
+}
+
+function servicesFromDoctor(tools: DoctorTool[]) {
+  const byName = new Map(tools.map((tool) => [tool.name, tool]))
+  return [
+    serviceFromTool('fetcher', '下载服务', byName.get('yt-dlp')),
+    serviceFromTool('encoder', '编码转码', byName.get('ffmpeg')),
+  ]
+}
+
+function systemTasksFromApi(tasks: ApiTask[]) {
+  return tasks
+    .filter((task) => ACTIVE_TASK_STATUSES.has(String(task.status || 'pending')))
+    .map((task) => {
+      const status = String(task.status || 'pending')
+      return {
+        id: task.id || task.task_id || '',
+        name: task.title || 'Media download',
+        source: task.source_url || task.title || '',
+        type: 'download',
+        status,
+        status_label: taskStatusLabel(status),
+        stage: task.stage || 'queued',
+        progress: normalizeProgress(task.progress),
+        can_pause: false,
+        can_resume: false,
+        can_cancel: status === 'pending' || status === 'running',
+      }
+    })
+}
+
+function timestampToLogTime(timestamp?: number | null) {
+  if (!timestamp) return new Date().toISOString().replace('T', ' ').slice(0, 19)
+  return new Date(timestamp * 1000).toISOString().replace('T', ' ').slice(0, 19)
+}
+
+function taskLogLevel(status: string) {
+  if (status === 'failed' || status === 'partial') return 'ERROR'
+  if (status === 'cancelled') return 'WARNING'
+  return 'NOTICE'
+}
+
+function taskLogEvent(task: ApiTask) {
+  const status = String(task.status || 'pending')
+  const title = task.title || task.source_url || task.id || task.task_id || '下载任务'
+  if (task.error) return `${title}: ${task.error}`
+  return `${title}: ${taskStatusLabel(status)}${task.stage ? ` · ${task.stage}` : ''}`
+}
+
+function taskLogsFromApi(tasks: ApiTask[]) {
+  return tasks
+    .map((task) => {
+      const status = String(task.status || 'pending')
+      return {
+        level: taskLogLevel(status),
+        module: 'tasks',
+        time: timestampToLogTime(task.updated_at || task.created_at),
+        user: 'system',
+        event: taskLogEvent(task),
+        message: taskLogEvent(task),
+      }
+    })
+    .sort((a, b) => b.time.localeCompare(a.time))
+}
+
+function emptyLogResponse(query: LogQuery = {}) {
+  const page = Number(query.page || 1)
+  const pageSize = Number(query.page_size || 50)
+  return { ok: true, total: 0, items: [], page, page_size: pageSize, levels: ['NOTICE', 'WARNING', 'ERROR', 'CRITICAL'] }
+}
+
+export async function getSystemMetrics() {
+  const [doctorResult, tasksResult] = await Promise.allSettled([
+    fetchDoctorStatus(),
+    getActiveTasks(),
+  ])
+  const tools = doctorResult.status === 'fulfilled' && Array.isArray(doctorResult.value) ? doctorResult.value as DoctorTool[] : []
+  const allTasks = tasksResult.status === 'fulfilled' ? normalizeTaskList(tasksResult.value) : []
+  const activeTasks = systemTasksFromApi(allTasks)
+
+  return {
+    runtime: { uptime_seconds: Math.max(0, Math.floor((Date.now() - FRONTEND_STARTED_AT) / 1000)) },
+    system: { cpu_percent: 0, memory_percent: 0, gpu_percent: 0, gpu_available: false, gpu_detail: 'v2 轻前端暂未采集 GPU 指标' },
+    network: { upload: { text: '0 B/s' }, download: { text: '0 B/s' }, upload_bytes_per_sec: 0, download_bytes_per_sec: 0 },
+    services: servicesFromDoctor(tools),
+    tasks: activeTasks,
+    task_summary: {
+      active_downloads: activeTasks.length,
+      total_download_records: allTasks.length,
+      terminal_download_records: allTasks.filter((task) => TERMINAL_TASK_STATUSES.has(String(task.status || ''))).length,
+    },
+    log_mode: import.meta.env.DEV ? 'development' : 'production',
+  }
+}
+
+export async function fetchLogs(query: LogQuery = {}) {
+  try {
+    const tasks = normalizeTaskList(await getActiveTasks())
+    const level = String(query.level || '')
+    const moduleName = String(query.module || '')
+    const page = Math.max(1, Number(query.page || 1))
+    const pageSize = Math.max(1, Number(query.page_size || 50))
+    const filtered = taskLogsFromApi(tasks)
+      .filter((item) => !level || item.level === level)
+      .filter((item) => !moduleName || item.module === moduleName)
+    const start = (page - 1) * pageSize
+    return {
+      ok: true,
+      total: filtered.length,
+      items: filtered.slice(start, start + pageSize),
+      page,
+      page_size: pageSize,
+      levels: ['DEBUG', 'INFO', 'NOTICE', 'WARNING', 'ERROR', 'CRITICAL'],
+    }
+  } catch {
+    return emptyLogResponse(query)
+  }
+}
+
+export async function fetchLogMetadata() {
+  return { ok: true, modules: ['tasks'] }
+}
+
+export async function clearLogs() {
+  return { ok: true, cleared: 0 }
+}
+
+export async function fetchNotifications() {
+  return { ok: true, total: 0, items: [] }
+}
+
+export async function getUnreadNotificationCount() {
+  return { ok: true, unread_count: 0 }
+}
+
+export async function markNotificationAsRead(_notificationId?: string) {
+  return { ok: true, unread_count: 0 }
+}
+
+export async function markAllNotificationsAsRead() {
+  return { ok: true, unread_count: 0 }
+}
+
+export async function clearNotifications() {
+  return { ok: true, unread_count: 0, cleared: 0 }
+}
+
 // ----- Stub functions (v2 not implemented yet) -----
 // These functions are from Legacy MediaTools and not yet implemented in v2
 
@@ -92,20 +307,11 @@ const v2NotReady = (name: string) => async (..._args: any[]): Promise<any> => {
 export function shutdownSystem() { return Promise.resolve({ success: true }) }
 export const restartSystem = v2NotReady('restartSystem')
 export const getSystemStatus = v2NotReady('getSystemStatus')
-export const getSystemMetrics = v2NotReady('getSystemMetrics')
 export const getModules = v2NotReady('getModules')
 export const getWorkspace = v2NotReady('getWorkspace')
 export const setWorkspace = v2NotReady('setWorkspace')
 export const getTask = v2NotReady('getTask')
 export const getTaskList = v2NotReady('getTaskList')
-export const fetchLogs = v2NotReady('fetchLogs')
-export const fetchLogMetadata = v2NotReady('fetchLogMetadata')
-export const clearLogs = v2NotReady('clearLogs')
-export const fetchNotifications = v2NotReady('fetchNotifications')
-export const getUnreadNotificationCount = v2NotReady('getUnreadNotificationCount')
-export const markNotificationAsRead = v2NotReady('markNotificationAsRead')
-export const markAllNotificationsAsRead = v2NotReady('markAllNotificationsAsRead')
-export const clearNotifications = v2NotReady('clearNotifications')
 
 // Legacy MediaTools features not planned for v2
 export const runAgent = v2NotReady('runAgent')
