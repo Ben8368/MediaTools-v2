@@ -1,14 +1,15 @@
 ﻿# Current Context
 
-> **更新时间：** 2026-06-26 12:15:00 +0800  
+> **更新时间：** 2026-06-26 17:58:50 +0800
 > **当前分支：** `refactor-v2`  
-> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、统一启动脚本和前端规模门禁已接入；本轮治理文档上下文瘦身已完成并通过标准验证。  
+> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、统一启动脚本、前端规模门禁和 fetch CLI 兼容收口已接入并通过标准验证。
 > **完整历史：** `docs/archive/03_Context_2026-06-26_full.md`
 
 ## 1. 当前状态
 
 - 首批 MVP 已完成并通过真实样本验收：`probe`、`encode`、`subtitle`、`screenshot`、`fetch`。
 - 下载工作流已完成批量 URL、dry-run、summary、原语言字幕、字幕-only、rolling 清理、句子级合并和并发锁硬化。
+- `fetch` 推荐使用 `--output-dir` 指定下载目录；历史写法 `fetch <URL> <DIR>` 与 `fetch <DIR> --input-file ...` 已保留兼容并补充回归测试。
 - 真实样本结果：
   - 7 URL 批量下载通过：H264+AAC+MP4 + SRT 原语言字幕。
   - 51 URL 字幕-only 通过：51 succeeded, 0 failed，仅输出 51 个 SRT。
@@ -20,7 +21,7 @@
   - 任务取消、删除、清空记录
 - 统一启动入口已具备：`python scripts/start.py`，支持 API + Vite 前端、`--backend-only`、自定义 host/port。
 - 本轮治理目标已完成：把每轮必读文档从“全文流水账”改为“短入口 + 按需归档”。
-- 标准验证已通过：Python 188 passed, 6 skipped；ruff 通过；frontend 57 passed, 3 skipped；build 通过；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
+- 标准验证已通过：Python 192 passed, 6 skipped；ruff 通过；frontend 57 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
 
 ## 2. 当前阻断项
 

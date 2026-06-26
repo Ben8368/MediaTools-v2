@@ -76,6 +76,87 @@ def test_fetch_dry_run_writes_summary(tmp_path, capsys):
     assert "--windows-filenames" in summary["items"][0]["command"]
 
 
+def test_fetch_dry_run_accepts_legacy_output_dir_positional(tmp_path, capsys):
+    summary_path = tmp_path / "summary.json"
+    output_dir = tmp_path / "downloads"
+    exit_code = main(
+        [
+            "fetch",
+            "https://example.com/video",
+            str(output_dir),
+            "--dry-run",
+            "--summary-json",
+            str(summary_path),
+        ],
+    )
+
+    assert exit_code == 0
+    assert "Planned 1 item" in capsys.readouterr().out
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["items"][0]["output_dir"] == str(output_dir)
+
+
+def test_fetch_dry_run_accepts_legacy_input_file_output_dir(tmp_path, capsys):
+    input_file = tmp_path / "urls.txt"
+    input_file.write_text("https://example.com/one\nhttps://example.com/two\n", encoding="utf-8")
+    summary_path = tmp_path / "summary.json"
+    output_dir = tmp_path / "downloads"
+
+    exit_code = main(
+        [
+            "fetch",
+            str(output_dir),
+            "--input-file",
+            str(input_file),
+            "--dry-run",
+            "--summary-json",
+            str(summary_path),
+        ],
+    )
+
+    assert exit_code == 0
+    assert "Planned 2 item" in capsys.readouterr().out
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["items"][0]["output_dir"] == str(output_dir)
+    assert summary["items"][1]["output_dir"] == str(output_dir)
+
+
+def test_fetch_rejects_mixed_output_dir_styles(tmp_path, capsys):
+    exit_code = main(
+        [
+            "fetch",
+            "https://example.com/video",
+            str(tmp_path / "legacy-downloads"),
+            "--output-dir",
+            str(tmp_path / "downloads"),
+            "--dry-run",
+        ],
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "Use either positional output directory or --output-dir" in captured.err
+
+
+def test_fetch_input_file_keeps_invalid_url_as_url(tmp_path, capsys):
+    input_file = tmp_path / "urls.txt"
+    input_file.write_text("https://example.com/one\n", encoding="utf-8")
+
+    exit_code = main(
+        [
+            "fetch",
+            "ftp://example.com/video",
+            "--input-file",
+            str(input_file),
+            "--dry-run",
+        ],
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "Fetch URL must be an absolute http or https URL" in captured.err
+
+
 def test_fetch_dry_run_accepts_friendly_name_template(tmp_path, capsys):
     summary_path = tmp_path / "summary.json"
     exit_code = main(

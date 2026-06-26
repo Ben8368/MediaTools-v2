@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 from mediatools.core.config import get_max_concurrent_downloads
 from mediatools.core.errors import MediaToolsError
@@ -20,8 +21,13 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
     fetch_parser = subparsers.add_parser("fetch", help="Download video or subtitles with yt-dlp.")
     fetch_parser.add_argument("url", nargs="?", help="http(s) URL to download.")
     fetch_parser.add_argument(
+        "legacy_output_dir",
+        nargs="?",
+        help=argparse.SUPPRESS,
+    )
+    fetch_parser.add_argument(
         "--output-dir",
-        default="downloads",
+        default=None,
         help="Directory for downloaded files (default: downloads).",
     )
     fetch_parser.add_argument(
@@ -131,12 +137,12 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
-    urls = _fetch_urls_from_args(args)
+    urls, output_dir = _resolve_fetch_inputs(args)
     if args.max_workers < 1:
         raise MediaToolsError("--max-concurrent must be at least 1.")
     template = FetchOptions(
         url="",  # placeholder — replaced per-URL by make_fetch_options
-        output_dir=Path(args.output_dir),
+        output_dir=output_dir,
         output_template=args.output_template,
         write_subtitles=args.write_subs,
         write_auto_subtitles=args.write_auto_subs,
@@ -176,15 +182,43 @@ def run(args: argparse.Namespace) -> int:
     return 1 if result.failed else 0
 
 
-def _fetch_urls_from_args(args: argparse.Namespace) -> list[str]:
+def _resolve_fetch_inputs(args: argparse.Namespace) -> tuple[list[str], Path]:
+    output_dir = args.output_dir
+    positional_url = args.url
+
+    if args.legacy_output_dir:
+        if output_dir is not None:
+            raise MediaToolsError(
+                "Use either positional output directory or --output-dir, not both."
+            )
+        output_dir = args.legacy_output_dir
+    elif (
+        args.input_file
+        and positional_url
+        and output_dir is None
+        and _is_legacy_output_dir_candidate(positional_url)
+    ):
+        output_dir = positional_url
+        positional_url = None
+
+    return _fetch_urls_from_args(positional_url, args.input_file), Path(output_dir or "downloads")
+
+
+def _fetch_urls_from_args(url: str | None, input_file: str | None) -> list[str]:
     urls: list[str] = []
-    if args.url:
-        urls.append(args.url)
-    if args.input_file:
-        urls.extend(load_fetch_urls(args.input_file))
+    if url:
+        urls.append(url)
+    if input_file:
+        urls.extend(load_fetch_urls(input_file))
     if not urls:
         raise MediaToolsError("Provide a fetch URL or --input-file.")
     return urls
+
+
+def _is_legacy_output_dir_candidate(value: str) -> bool:
+    parsed = urlparse(value)
+    scheme = parsed.scheme.lower()
+    return not scheme or (len(scheme) == 1 and value[1:2] == ":")
 
 
 def _write_json_file(path: Path, payload: dict[str, object]) -> None:

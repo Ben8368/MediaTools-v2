@@ -69,6 +69,7 @@ npm run dev
 - 任务进度显示
 - 按状态分类（全部/下载中/已完成/失败）
 - 搜索功能
+- 任务持久化、取消、删除、清空记录
 
 ✅ **下载配置**
 - 默认 H264+AAC+MP4 格式
@@ -79,11 +80,9 @@ npm run dev
 ### 暂未实现的功能
 
 ⏳ **计划中**（v2 后续版本）
-- 停止/取消任务
 - 重试失败任务
-- 清除历史记录
 - 批量操作
-- 任务持久化（当前重启丢失）
+- WebSocket/SSE 实时推送
 
 ❌ **已移除**（Legacy 功能）
 - AI 字幕分析
@@ -148,7 +147,7 @@ npm run dev
 
 ```bash
 python -m mediatools fetch "https://www.youtube.com/watch?v=dQw4w9WgXcQ" \
-  downloads --subtitles-only --sub-langs original --convert-subs srt
+  --output-dir downloads --subtitles-only --sub-langs original --convert-subs srt
 ```
 
 ---
@@ -241,7 +240,7 @@ python -m mediatools serve --port 8000
 python -m mediatools doctor
 
 # 使用浏览器 cookies
-python -m mediatools fetch "URL" downloads --cookies-from-browser chrome
+python -m mediatools fetch "URL" --output-dir downloads --cookies-from-browser chrome
 ```
 
 ---
