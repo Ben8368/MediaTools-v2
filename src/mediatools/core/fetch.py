@@ -13,7 +13,9 @@ from mediatools.core.fetch_naming import (
     strip_subtitle_language_suffix,
 )
 from mediatools.core.fetch_postprocess import (
+    changed_media_files,
     changed_subtitles,
+    media_snapshot,
     output_dir_lock,
     subtitle_snapshot,
 )
@@ -26,6 +28,7 @@ from mediatools.core.fetch_resolution import (
 from mediatools.core.fetch_resolution import (
     resolve_sub_langs as _resolve_sub_langs,
 )
+from mediatools.core.fetch_transcode import needs_transcode, transcode_if_needed
 from mediatools.core.fetch_types import (
     FetchBatchResult,
     FetchItemResult,
@@ -33,35 +36,9 @@ from mediatools.core.fetch_types import (
     copy_options,
     validate_url,
 )
-from mediatools.core.fetch_transcode import needs_transcode, transcode_if_needed
 from mediatools.core.ffmpeg import ProcessRunner, ToolResult, run_ytdlp
 from mediatools.core.paths import normalize
 from mediatools.core.subtitle import clean_subtitle_file
-
-_MEDIA_EXTENSIONS: frozenset[str] = frozenset({
-    ".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".m4a",
-    ".mp3", ".opus", ".ogg", ".wav", ".aac", ".flac",
-})
-
-
-def _newest_media_file(output_dir: Path) -> Path | None:
-    """Return the most recently modified media file in *output_dir*.
-
-    Scans for common media extensions and returns the newest by mtime.
-    Returns ``None`` when no media files are found.
-    """
-    newest: Path | None = None
-    newest_mtime = -1.0
-    for child in output_dir.iterdir():
-        if child.is_file() and child.suffix.lower() in _MEDIA_EXTENSIONS:
-            try:
-                mtime = child.stat().st_mtime
-            except OSError:
-                continue
-            if mtime > newest_mtime:
-                newest_mtime = mtime
-                newest = child
-    return newest
 
 
 def build_fetch_args(options: FetchOptions) -> list[str]:
@@ -186,16 +163,20 @@ def fetch_media(
     output_dir = normalize(options.output_dir)
     with output_dir_lock(output_dir):
         output_dir.mkdir(parents=True, exist_ok=True)
-        before = subtitle_snapshot(output_dir)
+        before_subtitles = subtitle_snapshot(output_dir)
+        before_media = media_snapshot(output_dir)
         normalized_options = copy_options(options, output_dir=output_dir)
         kwargs = {"runner": runner} if runner is not None else {}
         result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
-        changed = changed_subtitles(output_dir, before)
+        changed = changed_subtitles(output_dir, before_subtitles)
         for subtitle in changed:
             clean_subtitle_file(subtitle)
         if prefer_original_subtitles:
             changed = prune_original_subtitle_fallbacks(output_dir, candidates=changed)
         strip_subtitle_language_suffix(output_dir, candidates=changed)
+        if needs_transcode(normalized_options):
+            for media_file in changed_media_files(output_dir, before_media):
+                transcode_if_needed(media_file, normalized_options, runner=runner)
         return result
 
 
@@ -230,10 +211,6 @@ def _fetch_one(
             timeout=timeout,
             prefer_original_subtitles=options.subtitle_languages == "original",
         )
-        if needs_transcode(resolved):
-            media_file = _newest_media_file(normalize(resolved.output_dir))
-            if media_file:
-                transcode_if_needed(media_file, resolved, runner=runner)
         return FetchItemResult(
             url=resolved.url,
             status="succeeded",

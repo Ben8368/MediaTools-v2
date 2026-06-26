@@ -1,8 +1,4 @@
-"""Post-download transcoding for fetch operations.
-
-When the downloaded media codec does not match the user's target codec,
-this module transcodes the file using ffmpeg and replaces the original.
-"""
+"""Post-download transcoding for fetch operations."""
 
 from __future__ import annotations
 
@@ -10,8 +6,8 @@ import logging
 from pathlib import Path
 
 from mediatools.core.errors import MediaToolsError
-from mediatools.core.ffmpeg import ProcessRunner, run_ffmpeg
 from mediatools.core.fetch_types import FetchOptions
+from mediatools.core.ffmpeg import ProcessRunner, run_ffmpeg
 from mediatools.core.paths import normalize
 from mediatools.core.probe import probe_media
 
@@ -151,37 +147,68 @@ def _build_transcode_args(
     """
     args = ["-y" if overwrite else "-n", "-i", str(normalize(input_path))]
 
-    # Video codec selection.
-    if video_codec:
-        normalized = normalize_codec(video_codec)
-        if _codecs_match(video_codec, probed_video_codec) and not video_bitrate:
-            args.extend(["-c:v", "copy"])
-        else:
-            args.extend(["-c:v", normalized or video_codec])
-            if not video_bitrate:
-                args.extend(_default_crf_args(normalized or video_codec))
+    if probed_video_codec:
+        video_encoder = _select_video_encoder(
+            video_codec=video_codec,
+            video_bitrate=video_bitrate,
+            probed_video_codec=probed_video_codec,
+        )
+        args.extend(["-c:v", video_encoder])
+        if video_encoder != "copy" and not video_bitrate:
+            args.extend(_default_crf_args(video_encoder))
     if video_bitrate:
         args.extend(["-b:v", video_bitrate])
 
-    # Audio codec selection.
-    if audio_codec:
-        normalized_a = normalize_codec(audio_codec)
-        if _codecs_match(audio_codec, probed_audio_codec) and not audio_bitrate:
-            args.extend(["-c:a", "copy"])
-        else:
-            args.extend(["-c:a", normalized_a or audio_codec])
-            if not audio_bitrate:
-                args.extend(["-b:a", _default_audio_bitrate(normalized_a or audio_codec)])
+    if probed_audio_codec:
+        audio_encoder = _select_audio_encoder(
+            audio_codec=audio_codec,
+            audio_bitrate=audio_bitrate,
+            probed_audio_codec=probed_audio_codec,
+        )
+        args.extend(["-c:a", audio_encoder])
+        if audio_encoder != "copy" and not audio_bitrate:
+            args.extend(["-b:a", _default_audio_bitrate(audio_encoder)])
     if audio_bitrate:
         args.extend(["-b:a", audio_bitrate])
 
-    # Container optimizations.
     suffix = output_path.suffix.lower()
     if suffix == ".mp4":
         args.extend(["-movflags", "+faststart"])
 
     args.append(str(normalize(output_path)))
     return args
+
+
+def _select_video_encoder(
+    *,
+    video_codec: str | None,
+    video_bitrate: str | None,
+    probed_video_codec: str,
+) -> str:
+    if video_codec:
+        normalized = normalize_codec(video_codec) or video_codec
+        if _codecs_match(video_codec, probed_video_codec) and not video_bitrate:
+            return "copy"
+        return normalized
+    if video_bitrate:
+        return normalize_codec(probed_video_codec) or probed_video_codec
+    return "copy"
+
+
+def _select_audio_encoder(
+    *,
+    audio_codec: str | None,
+    audio_bitrate: str | None,
+    probed_audio_codec: str,
+) -> str:
+    if audio_codec:
+        normalized = normalize_codec(audio_codec) or audio_codec
+        if _codecs_match(audio_codec, probed_audio_codec) and not audio_bitrate:
+            return "copy"
+        return normalized
+    if audio_bitrate:
+        return normalize_codec(probed_audio_codec) or probed_audio_codec
+    return "copy"
 
 
 def _default_crf_args(encoder: str) -> list[str]:
@@ -261,10 +288,16 @@ def transcode_if_needed(
 
     probed_v, probed_a = _probe_stream_codecs(path, runner=runner)
 
-    video_match = _codecs_match(options.video_codec, probed_v)
-    audio_match = _codecs_match(options.audio_codec, probed_a)
+    video_targeted = bool(options.video_codec or options.video_bitrate)
+    audio_targeted = bool(options.audio_codec or options.audio_bitrate)
+    video_needs_transcode = video_targeted and (
+        bool(options.video_bitrate) or not _codecs_match(options.video_codec, probed_v)
+    )
+    audio_needs_transcode = audio_targeted and (
+        bool(options.audio_bitrate) or not _codecs_match(options.audio_codec, probed_a)
+    )
 
-    if video_match and audio_match:
+    if not video_needs_transcode and not audio_needs_transcode:
         logger.info("Codecs already match target — skipping transcode.")
         return None
 
@@ -294,8 +327,7 @@ def transcode_if_needed(
         run_ffmpeg(args, timeout=None, **kwargs)
 
         # Replace original with transcoded file.
-        path.unlink()
-        tmp_path.rename(path)
+        tmp_path.replace(path)
 
         result_info: dict[str, object] = {
             "transcoded": True,

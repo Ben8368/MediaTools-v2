@@ -214,6 +214,33 @@ def test_fetch_dry_run_uses_default_mp4_preset(tmp_path, capsys):
     assert " -t mp4 " in output
 
 
+def test_fetch_audio_codec_disables_default_mp4_preset(tmp_path, monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_fetch_many(options, *, dry_run, max_workers, timeout):
+        from mediatools.core.fetch_types import FetchBatchResult
+
+        captured["preset"] = options[0].preset
+        captured["audio_codec"] = options[0].audio_codec
+        return FetchBatchResult(items=())
+
+    monkeypatch.setattr("mediatools.commands.fetch.fetch_many", fake_fetch_many)
+
+    exit_code = main(
+        [
+            "fetch",
+            "https://example.com/video",
+            "--output-dir",
+            str(tmp_path / "downloads"),
+            "--audio-codec",
+            "aac",
+        ],
+    )
+
+    assert exit_code == 0
+    assert captured == {"preset": None, "audio_codec": "aac"}
+
+
 def test_fetch_uses_default_timeout(tmp_path, monkeypatch, capsys):
     captured: dict[str, object] = {}
 

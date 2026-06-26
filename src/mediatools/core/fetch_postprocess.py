@@ -11,6 +11,11 @@ from pathlib import Path
 
 from mediatools.core.fetch_naming import SUBTITLE_EXTS, SUBTITLE_LANG_RE
 
+MEDIA_EXTENSIONS: frozenset[str] = frozenset({
+    ".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".m4a",
+    ".mp3", ".opus", ".ogg", ".wav", ".aac", ".flac",
+})
+
 
 @contextlib.contextmanager
 def output_dir_lock(output_dir: Path) -> Iterator[None]:
@@ -91,8 +96,47 @@ def changed_subtitles(output_dir: Path, before: dict[str, tuple[int, int]]) -> t
     return tuple(changed)
 
 
+def media_snapshot(output_dir: Path) -> dict[str, tuple[int, int]]:
+    """Record media file state before yt-dlp runs."""
+    snapshot: dict[str, tuple[int, int]] = {}
+    if not output_dir.is_dir():
+        return snapshot
+    for child in output_dir.iterdir():
+        if not is_media_file(child):
+            continue
+        try:
+            stat = child.stat()
+        except OSError:
+            continue
+        snapshot[child.name] = (stat.st_size, stat.st_mtime_ns)
+    return snapshot
+
+
+def changed_media_files(output_dir: Path, before: dict[str, tuple[int, int]]) -> tuple[Path, ...]:
+    """Return media files created or changed by the just-finished download."""
+    changed: list[Path] = []
+    if not output_dir.is_dir():
+        return ()
+    for child in output_dir.iterdir():
+        if not is_media_file(child):
+            continue
+        try:
+            stat = child.stat()
+        except OSError:
+            continue
+        state = (stat.st_size, stat.st_mtime_ns)
+        if before.get(child.name) != state:
+            changed.append(child)
+    return tuple(changed)
+
+
 def is_language_subtitle(path: Path) -> bool:
     """Return True for subtitle files with a language middle segment."""
     return path.is_file() and path.suffix.lower() in SUBTITLE_EXTS and bool(
         SUBTITLE_LANG_RE.match(path.name),
     )
+
+
+def is_media_file(path: Path) -> bool:
+    """Return True for ordinary media outputs that may need transcoding."""
+    return path.is_file() and path.suffix.lower() in MEDIA_EXTENSIONS

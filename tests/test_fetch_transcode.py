@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
+from mediatools.core.errors import MediaToolsError
 from mediatools.core.fetch_transcode import (
     _build_transcode_args,
     _codecs_match,
@@ -15,6 +17,10 @@ from mediatools.core.fetch_transcode import (
     transcode_if_needed,
 )
 from mediatools.core.fetch_types import FetchOptions
+
+
+def _arg_value(args: list[str], flag: str) -> str:
+    return args[args.index(flag) + 1]
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +120,11 @@ class TestNeedsTranscode:
         assert needs_transcode(opts) is False
 
     def test_video_codec_set(self):
-        opts = FetchOptions(url="https://example.com/v", output_dir=Path("/tmp"), video_codec="h264")
+        opts = FetchOptions(
+            url="https://example.com/v",
+            output_dir=Path("/tmp"),
+            video_codec="h264",
+        )
         assert needs_transcode(opts) is True
 
     def test_audio_codec_set(self):
@@ -122,11 +132,19 @@ class TestNeedsTranscode:
         assert needs_transcode(opts) is True
 
     def test_video_bitrate_set(self):
-        opts = FetchOptions(url="https://example.com/v", output_dir=Path("/tmp"), video_bitrate="5M")
+        opts = FetchOptions(
+            url="https://example.com/v",
+            output_dir=Path("/tmp"),
+            video_bitrate="5M",
+        )
         assert needs_transcode(opts) is True
 
     def test_audio_bitrate_set(self):
-        opts = FetchOptions(url="https://example.com/v", output_dir=Path("/tmp"), audio_bitrate="128k")
+        opts = FetchOptions(
+            url="https://example.com/v",
+            output_dir=Path("/tmp"),
+            audio_bitrate="128k",
+        )
         assert needs_transcode(opts) is True
 
 
@@ -150,7 +168,8 @@ class TestBuildTranscodeArgs:
         )
         assert "-y" in args
         assert "-c:v" in args
-        assert "libx264" in args
+        assert _arg_value(args, "-c:v") == "libx264"
+        assert _arg_value(args, "-c:a") == "copy"
         assert "-crf" in args
         assert "18" in args
         assert "-movflags" in args
@@ -185,7 +204,8 @@ class TestBuildTranscodeArgs:
             overwrite=True,
         )
         assert "-c:a" in args
-        assert "aac" in args
+        assert _arg_value(args, "-c:v") == "copy"
+        assert _arg_value(args, "-c:a") == "aac"
         assert "-b:a" in args
         assert "128k" in args
 
@@ -220,6 +240,38 @@ class TestBuildTranscodeArgs:
         assert "5M" in args
         # When bitrate is set, no CRF even if codec mismatches.
         assert "-crf" not in args
+
+    def test_video_bitrate_only_reencodes_existing_video_and_copies_audio(self):
+        args = _build_transcode_args(
+            Path("/input.mp4"),
+            Path("/output.mp4"),
+            video_codec=None,
+            audio_codec=None,
+            video_bitrate="5M",
+            audio_bitrate=None,
+            probed_video_codec="h264",
+            probed_audio_codec="aac",
+            overwrite=True,
+        )
+        assert _arg_value(args, "-c:v") == "libx264"
+        assert _arg_value(args, "-c:a") == "copy"
+        assert _arg_value(args, "-b:v") == "5M"
+
+    def test_audio_bitrate_only_reencodes_existing_audio_and_copies_video(self):
+        args = _build_transcode_args(
+            Path("/input.mp4"),
+            Path("/output.mp4"),
+            video_codec=None,
+            audio_codec=None,
+            video_bitrate=None,
+            audio_bitrate="160k",
+            probed_video_codec="h264",
+            probed_audio_codec="aac",
+            overwrite=True,
+        )
+        assert _arg_value(args, "-c:v") == "copy"
+        assert _arg_value(args, "-c:a") == "aac"
+        assert _arg_value(args, "-b:a") == "160k"
 
     def test_no_overwrite_flag(self):
         args = _build_transcode_args(
@@ -263,8 +315,9 @@ class TestTranscodeIfNeeded:
         opts = FetchOptions(url="https://example.com/v", output_dir=tmp_path)
         assert transcode_if_needed(media, opts) is None
 
-    def test_returns_none_when_codecs_already_match(self, tmp_path):
+    def test_returns_none_when_codecs_already_match(self, tmp_path, monkeypatch):
         """When probing returns matching codecs, no transcode should happen."""
+        monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
         media = tmp_path / "video.mp4"
         media.write_bytes(b"fake")
 
@@ -278,13 +331,53 @@ class TestTranscodeIfNeeded:
         # Mock probe to return matching codecs.
         mock_runner = MagicMock()
         mock_result = MagicMock()
-        mock_result.stdout = '{"streams": [{"codec_type": "video", "codec_name": "h264"}, {"codec_type": "audio", "codec_name": "aac"}], "format": {}}'
+        mock_result.stdout = (
+            '{"streams": ['
+            '{"codec_type": "video", "codec_name": "h264"}, '
+            '{"codec_type": "audio", "codec_name": "aac"}'
+            '], "format": {}}'
+        )
         mock_result.stderr = ""
         mock_result.returncode = 0
         mock_runner.return_value = mock_result
 
         result = transcode_if_needed(media, opts, runner=mock_runner)
         assert result is None
+
+    def test_bitrate_only_transcodes_even_when_codecs_match(self, tmp_path, monkeypatch):
+        monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+        media = tmp_path / "video.mp4"
+        media.write_bytes(b"original")
+        commands: list[list[str]] = []
+
+        opts = FetchOptions(
+            url="https://example.com/v",
+            output_dir=tmp_path,
+            video_bitrate="5M",
+        )
+
+        def runner(command, **kwargs):
+            commands.append(list(command))
+            if command[0].endswith("ffprobe"):
+                stdout = (
+                    '{"streams": ['
+                    '{"codec_type": "video", "codec_name": "h264"}, '
+                    '{"codec_type": "audio", "codec_name": "aac"}'
+                    '], "format": {}}'
+                )
+                return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+            if command[0].endswith("ffmpeg"):
+                Path(command[-1]).write_bytes(b"transcoded")
+                return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+            raise AssertionError(f"unexpected command: {command}")
+
+        result = transcode_if_needed(media, opts, runner=runner)
+
+        assert result is not None
+        assert media.read_bytes() == b"transcoded"
+        ffmpeg_command = next(command for command in commands if command[0].endswith("ffmpeg"))
+        assert _arg_value(ffmpeg_command, "-b:v") == "5M"
+        assert _arg_value(ffmpeg_command, "-c:a") == "copy"
 
     def test_raises_when_file_not_found(self, tmp_path):
         missing = tmp_path / "missing.mp4"
@@ -293,5 +386,5 @@ class TestTranscodeIfNeeded:
             output_dir=tmp_path,
             video_codec="h264",
         )
-        with pytest.raises(Exception):
+        with pytest.raises(MediaToolsError):
             transcode_if_needed(missing, opts)

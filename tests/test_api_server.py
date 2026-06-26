@@ -141,6 +141,32 @@ class TestDraftToOptions:
         assert options[0].subtitles_only is True
         assert options[0].preset is None
 
+    def test_codec_target_clears_default_mp4_preset(self) -> None:
+        draft = {
+            "urls": "https://example.com/video",
+            "output_dir": "out",
+            "preset": "mp4",
+            "audio_codec": "aac",
+        }
+        options = _draft_to_fetch_options(draft)
+        assert options[0].audio_codec == "aac"
+        assert options[0].preset is None
+
+    def test_null_codec_fields_stay_none(self) -> None:
+        draft = {
+            "urls": "https://example.com/video",
+            "output_dir": "out",
+            "video_codec": None,
+            "audio_codec": None,
+            "video_bitrate": None,
+            "audio_bitrate": None,
+        }
+        options = _draft_to_fetch_options(draft)
+        assert options[0].video_codec is None
+        assert options[0].audio_codec is None
+        assert options[0].video_bitrate is None
+        assert options[0].audio_bitrate is None
+
     def test_subtitle_mode_manual(self) -> None:
         draft = {"urls": "https://example.com/video", "output_dir": "out", "subtitle_mode": "manual"}  # noqa: E501
         options = _draft_to_fetch_options(draft)

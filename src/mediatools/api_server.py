@@ -84,6 +84,14 @@ def _resolve_subtitle_flags(draft: dict[str, object]) -> tuple[bool, bool]:
     return write_subs, write_auto_subs
 
 
+def _optional_string(value: object) -> str | None:
+    """Return a stripped string while preserving JSON null / missing values."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 def _draft_to_fetch_options(draft: dict[str, object]) -> list[FetchOptions]:
     urls = _normalize_urls(draft.get("urls", ""))
     if not urls:
@@ -92,16 +100,18 @@ def _draft_to_fetch_options(draft: dict[str, object]) -> list[FetchOptions]:
     output_dir = Path(str(draft.get("output_dir", "downloads")))
     subtitles_only = bool(draft.get("subtitles_only"))
     sub_langs = str(draft.get("sub_langs", "original"))
-    convert_subs = str(draft.get("convert_subs", "srt"))
-    preset = str(draft.get("preset", "mp4"))
-    name_template = str(draft.get("name_template", ""))
+    convert_subs = _optional_string(draft.get("convert_subs", "srt"))
+    name_template = _optional_string(draft.get("name_template"))
 
     write_subs, write_auto_subs = _resolve_subtitle_flags(draft)
 
-    video_codec = str(draft.get("video_codec", "")).strip() or None
-    audio_codec = str(draft.get("audio_codec", "")).strip() or None
-    video_bitrate = str(draft.get("video_bitrate", "")).strip() or None
-    audio_bitrate = str(draft.get("audio_bitrate", "")).strip() or None
+    video_codec = _optional_string(draft.get("video_codec"))
+    audio_codec = _optional_string(draft.get("audio_codec"))
+    video_bitrate = _optional_string(draft.get("video_bitrate"))
+    audio_bitrate = _optional_string(draft.get("audio_bitrate"))
+    preset = _optional_string(draft.get("preset")) or "mp4"
+    if (video_codec or audio_codec) and preset == "mp4":
+        preset = None
 
     template = FetchOptions(
         url="",
@@ -110,9 +120,9 @@ def _draft_to_fetch_options(draft: dict[str, object]) -> list[FetchOptions]:
         write_auto_subtitles=write_auto_subs,
         subtitles_only=subtitles_only,
         subtitle_languages=sub_langs,
-        convert_subs=convert_subs if convert_subs else None,
+        convert_subs=convert_subs,
         preset=preset if not subtitles_only else None,
-        filename_template=name_template if name_template else None,
+        filename_template=name_template,
         video_codec=video_codec,
         audio_codec=audio_codec,
         video_bitrate=video_bitrate,

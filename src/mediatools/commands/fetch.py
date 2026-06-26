@@ -91,7 +91,10 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
     fetch_parser.add_argument(
         "--preset",
         default=None,
-        help="yt-dlp format preset (e.g. mp4, mkv, aac). Default: mp4 (disabled when --video-codec is set).",
+        help=(
+            "yt-dlp format preset (e.g. mp4, mkv, aac). Default: mp4 "
+            "(disabled when a codec target is set)."
+        ),
     )
     fetch_parser.add_argument(
         "--merge-format",
@@ -163,11 +166,11 @@ def run(args: argparse.Namespace) -> int:
     urls, output_dir = _resolve_fetch_inputs(args)
     if args.max_workers < 1:
         raise MediaToolsError("--max-concurrent must be at least 1.")
-    # Default to "mp4" preset unless --video-codec is set (then pick highest
+    # Default to "mp4" preset unless a codec target is set (then pick highest
     # quality regardless of codec so we can transcode afterward).
     effective_preset = args.preset
     if effective_preset is None:
-        effective_preset = None if args.video_codec else "mp4"
+        effective_preset = None if args.video_codec or args.audio_codec else "mp4"
     template = FetchOptions(
         url="",  # placeholder — replaced per-URL by make_fetch_options
         output_dir=output_dir,

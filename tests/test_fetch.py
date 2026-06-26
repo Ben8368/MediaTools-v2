@@ -163,6 +163,38 @@ def test_fetch_media_only_postprocesses_changed_subtitles(tmp_path, monkeypatch)
     assert (tmp_path / "new.srt").read_text(encoding="utf-8") == "NEW"
 
 
+def test_fetch_media_transcodes_only_changed_media(tmp_path, monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+    old_media = tmp_path / "old.mp4"
+    old_media.write_bytes(b"old")
+    transcode_paths: list[str] = []
+
+    def runner(command, **kwargs):
+        (tmp_path / "new.mp4").write_bytes(b"new")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    def fake_transcode_if_needed(path, options, *, runner=None):
+        transcode_paths.append(path.name)
+        return None
+
+    monkeypatch.setattr(
+        "mediatools.core.fetch.transcode_if_needed",
+        fake_transcode_if_needed,
+    )
+
+    fetch_media(
+        FetchOptions(
+            url="https://example.com/video",
+            output_dir=tmp_path,
+            video_codec="h264",
+        ),
+        runner=runner,
+    )
+
+    assert old_media.exists()
+    assert transcode_paths == ["new.mp4"]
+
+
 def test_fetch_media_cleans_rolling_subtitle_text(tmp_path, monkeypatch):
     monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
     rolling_srt = """1
