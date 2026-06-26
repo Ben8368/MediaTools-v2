@@ -42,6 +42,10 @@ class FetchOptions:
     filename_template: str | None = DEFAULT_FILENAME_TEMPLATE
     filename_language: str | None = AUTO_FILENAME_LANGUAGE
     windows_filenames: bool = True
+    video_codec: str | None = None
+    audio_codec: str | None = None
+    video_bitrate: str | None = None
+    audio_bitrate: str | None = None
 
 
 FetchStatus = Literal["planned", "succeeded", "failed"]

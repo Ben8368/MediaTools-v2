@@ -90,8 +90,8 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
     fetch_parser.add_argument("--summary-json", help="Write a JSON summary to this path.")
     fetch_parser.add_argument(
         "--preset",
-        default="mp4",
-        help="yt-dlp format preset (e.g. mp4, mkv, aac).",
+        default=None,
+        help="yt-dlp format preset (e.g. mp4, mkv, aac). Default: mp4 (disabled when --video-codec is set).",
     )
     fetch_parser.add_argument(
         "--merge-format",
@@ -134,12 +134,40 @@ def register_parser(subparsers: argparse._SubParsersAction) -> None:
         metavar="SECONDS",
         help="Per-download timeout in seconds (default: 3600; use 0 for no limit).",
     )
+    fetch_parser.add_argument(
+        "--video-codec",
+        help=(
+            "Target video codec for post-download transcode "
+            "(e.g. h264, h265, av1, libx264). Downloads highest quality first, "
+            "then transcodes if the codec doesn't match."
+        ),
+    )
+    fetch_parser.add_argument(
+        "--audio-codec",
+        help=(
+            "Target audio codec for post-download transcode "
+            "(e.g. aac, opus, mp3)."
+        ),
+    )
+    fetch_parser.add_argument(
+        "--video-bitrate",
+        help="Target video bitrate for transcode (e.g. 5M, 2000k).",
+    )
+    fetch_parser.add_argument(
+        "--audio-bitrate",
+        help="Target audio bitrate for transcode (e.g. 128k, 192k).",
+    )
 
 
 def run(args: argparse.Namespace) -> int:
     urls, output_dir = _resolve_fetch_inputs(args)
     if args.max_workers < 1:
         raise MediaToolsError("--max-concurrent must be at least 1.")
+    # Default to "mp4" preset unless --video-codec is set (then pick highest
+    # quality regardless of codec so we can transcode afterward).
+    effective_preset = args.preset
+    if effective_preset is None:
+        effective_preset = None if args.video_codec else "mp4"
     template = FetchOptions(
         url="",  # placeholder — replaced per-URL by make_fetch_options
         output_dir=output_dir,
@@ -151,7 +179,7 @@ def run(args: argparse.Namespace) -> int:
         overwrite=args.overwrite,
         write_info_json=args.write_info_json,
         download_archive=Path(args.download_archive) if args.download_archive else None,
-        preset=args.preset,
+        preset=effective_preset,
         merge_format=args.merge_format,
         remux_video=args.remux_video,
         convert_subs=args.convert_subs,
@@ -161,6 +189,10 @@ def run(args: argparse.Namespace) -> int:
         filename_template=None if args.output_template else args.filename_template,
         filename_language=args.filename_language,
         windows_filenames=args.windows_filenames,
+        video_codec=args.video_codec,
+        audio_codec=args.audio_codec,
+        video_bitrate=args.video_bitrate,
+        audio_bitrate=args.audio_bitrate,
     )
     options = make_fetch_options(urls, template)
     timeout = None if args.timeout <= 0 else args.timeout

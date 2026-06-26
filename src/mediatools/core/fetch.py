@@ -33,9 +33,35 @@ from mediatools.core.fetch_types import (
     copy_options,
     validate_url,
 )
+from mediatools.core.fetch_transcode import needs_transcode, transcode_if_needed
 from mediatools.core.ffmpeg import ProcessRunner, ToolResult, run_ytdlp
 from mediatools.core.paths import normalize
 from mediatools.core.subtitle import clean_subtitle_file
+
+_MEDIA_EXTENSIONS: frozenset[str] = frozenset({
+    ".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".m4a",
+    ".mp3", ".opus", ".ogg", ".wav", ".aac", ".flac",
+})
+
+
+def _newest_media_file(output_dir: Path) -> Path | None:
+    """Return the most recently modified media file in *output_dir*.
+
+    Scans for common media extensions and returns the newest by mtime.
+    Returns ``None`` when no media files are found.
+    """
+    newest: Path | None = None
+    newest_mtime = -1.0
+    for child in output_dir.iterdir():
+        if child.is_file() and child.suffix.lower() in _MEDIA_EXTENSIONS:
+            try:
+                mtime = child.stat().st_mtime
+            except OSError:
+                continue
+            if mtime > newest_mtime:
+                newest_mtime = mtime
+                newest = child
+    return newest
 
 
 def build_fetch_args(options: FetchOptions) -> list[str]:
@@ -204,6 +230,10 @@ def _fetch_one(
             timeout=timeout,
             prefer_original_subtitles=options.subtitle_languages == "original",
         )
+        if needs_transcode(resolved):
+            media_file = _newest_media_file(normalize(resolved.output_dir))
+            if media_file:
+                transcode_if_needed(media_file, resolved, runner=runner)
         return FetchItemResult(
             url=resolved.url,
             status="succeeded",

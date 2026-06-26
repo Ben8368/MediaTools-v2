@@ -98,6 +98,11 @@ def _draft_to_fetch_options(draft: dict[str, object]) -> list[FetchOptions]:
 
     write_subs, write_auto_subs = _resolve_subtitle_flags(draft)
 
+    video_codec = str(draft.get("video_codec", "")).strip() or None
+    audio_codec = str(draft.get("audio_codec", "")).strip() or None
+    video_bitrate = str(draft.get("video_bitrate", "")).strip() or None
+    audio_bitrate = str(draft.get("audio_bitrate", "")).strip() or None
+
     template = FetchOptions(
         url="",
         output_dir=output_dir,
@@ -108,6 +113,10 @@ def _draft_to_fetch_options(draft: dict[str, object]) -> list[FetchOptions]:
         convert_subs=convert_subs if convert_subs else None,
         preset=preset if not subtitles_only else None,
         filename_template=name_template if name_template else None,
+        video_codec=video_codec,
+        audio_codec=audio_codec,
+        video_bitrate=video_bitrate,
+        audio_bitrate=audio_bitrate,
     )
     return make_fetch_options(urls, template)
 

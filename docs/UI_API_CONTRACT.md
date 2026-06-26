@@ -38,13 +38,22 @@ Returns the validated CLI-equivalent plan without network access.
   "preset": "mp4",
   "name_template": "{lang}-{author}-{title}-{platform}.{ext}",
   "max_concurrent": 1,
-  "dry_run": true
+  "dry_run": true,
+  "video_codec": "h264",
+  "audio_codec": "aac",
+  "video_bitrate": null,
+  "audio_bitrate": null
 }
 ```
 
 ### `POST /api/fetch/tasks`
 
 Submits a validated download task and returns a task record.
+
+When `video_codec` or `audio_codec` is provided, the downloader fetches the
+highest quality format first, then auto-transcodes with ffmpeg if the codec
+doesn't match. Accepted codec names: `h264`, `h265`/`hevc`, `av1`, `aac`,
+`opus`, `mp3`, or any ffmpeg encoder name (e.g. `libx264`).
 
 ```json
 {
