@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from mediatools.core.errors import ExternalToolError
@@ -54,9 +55,12 @@ def resolve_sub_langs(options: FetchOptions, *, probed_lang: str | None) -> Fetc
         resolved = "all"
     elif "-" in lang:
         base = lang.split("-")[0]
-        resolved = f"{lang}-orig,{lang},{base}-orig,{base}"
+        resolved = ",".join(
+            _exact_sub_lang(item)
+            for item in (f"{lang}-orig", lang, f"{base}-orig", base)
+        )
     else:
-        resolved = f"{lang}-orig,{lang}"
+        resolved = ",".join(_exact_sub_lang(item) for item in (f"{lang}-orig", lang))
     return copy_options(options, subtitle_languages=resolved)
 
 
@@ -70,3 +74,8 @@ def resolve_filename_language(options: FetchOptions, *, probed_lang: str | None)
         options,
         filename_language=to_filename_language_code(probed_lang) or "UN",
     )
+
+
+def _exact_sub_lang(language: str) -> str:
+    """Return a yt-dlp subtitle-language regex that matches exactly one tag."""
+    return f"^{re.escape(language)}$"

@@ -27,7 +27,19 @@ def test_resolve_sub_langs_uses_probed_language(tmp_path):
         subtitle_languages="original",
     )
     resolved = _resolve_sub_langs(opts, probed_lang="en-US")
-    assert resolved.subtitle_languages == "en-US-orig,en-US,en-orig,en"
+    assert resolved.subtitle_languages == "^en\\-US\\-orig$,^en\\-US$,^en\\-orig$,^en$"
+
+
+def test_resolve_sub_langs_anchors_locale_to_avoid_translated_subtitles(tmp_path):
+    opts = FetchOptions(
+        url="https://example.com/video",
+        output_dir=tmp_path,
+        subtitle_languages="original",
+    )
+    resolved = _resolve_sub_langs(opts, probed_lang="zh-CN")
+
+    assert resolved.subtitle_languages == "^zh\\-CN\\-orig$,^zh\\-CN$,^zh\\-orig$,^zh$"
+    assert "zh-CN" not in resolved.subtitle_languages.split(",")
 
 
 def test_resolve_sub_langs_base_only_language(tmp_path):
@@ -37,7 +49,7 @@ def test_resolve_sub_langs_base_only_language(tmp_path):
         subtitle_languages="original",
     )
     resolved = _resolve_sub_langs(opts, probed_lang="ar")
-    assert resolved.subtitle_languages == "ar-orig,ar"
+    assert resolved.subtitle_languages == "^ar\\-orig$,^ar$"
 
 
 def test_resolve_sub_langs_falls_back_to_all_on_probe_failure(tmp_path):

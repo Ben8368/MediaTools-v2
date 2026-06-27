@@ -205,6 +205,7 @@ def _fetch_one(
     Language probing runs once and feeds both subtitle resolution and
     filename-language resolution.
     """
+    resolved = options
     try:
         validate_url(options.url)
         probed_lang = probe_language(
@@ -241,7 +242,7 @@ def _fetch_one(
             url=options.url,
             status="failed",
             output_dir=normalize(options.output_dir),
-            command=_safe_fetch_command(options),
+            command=_safe_fetch_command(resolved),
             error=exc.message,
         )
 
