@@ -22,6 +22,22 @@ type ApiTask = {
   error?: string | null
 }
 
+type SystemMetricsPayload = {
+  system?: {
+    cpu_percent?: number
+    memory_percent?: number
+    gpu_percent?: number
+    gpu_available?: boolean
+    gpu_detail?: string
+  }
+  network?: {
+    upload?: { text?: string }
+    download?: { text?: string }
+    upload_bytes_per_sec?: number
+    download_bytes_per_sec?: number
+  }
+}
+
 type LogQuery = {
   level?: string
   module?: string
@@ -104,6 +120,10 @@ export function wsUrl(path: string) {
 
 export async function fetchDoctorStatus() {
   return request('/api/doctor') as Promise<{ name: string; available: boolean; path?: string }[]>
+}
+
+export async function fetchSystemRuntimeMetrics() {
+  return request('/api/system/metrics') as Promise<SystemMetricsPayload>
 }
 
 export async function fetchPlan(draft: Record<string, unknown>) {
@@ -228,18 +248,20 @@ function emptyLogResponse(query: LogQuery = {}) {
 }
 
 export async function getSystemMetrics() {
-  const [doctorResult, tasksResult] = await Promise.allSettled([
+  const [doctorResult, tasksResult, systemResult] = await Promise.allSettled([
     fetchDoctorStatus(),
     getActiveTasks(),
+    fetchSystemRuntimeMetrics(),
   ])
   const tools = doctorResult.status === 'fulfilled' && Array.isArray(doctorResult.value) ? doctorResult.value as DoctorTool[] : []
   const allTasks = tasksResult.status === 'fulfilled' ? normalizeTaskList(tasksResult.value) : []
+  const runtimeMetrics = systemResult.status === 'fulfilled' ? systemResult.value : {}
   const activeTasks = systemTasksFromApi(allTasks)
 
   return {
     runtime: { uptime_seconds: Math.max(0, Math.floor((Date.now() - FRONTEND_STARTED_AT) / 1000)) },
-    system: { cpu_percent: 0, memory_percent: 0, gpu_percent: 0, gpu_available: false, gpu_detail: 'v2 轻前端暂未采集 GPU 指标' },
-    network: { upload: { text: '0 B/s' }, download: { text: '0 B/s' }, upload_bytes_per_sec: 0, download_bytes_per_sec: 0 },
+    system: runtimeMetrics.system || { cpu_percent: 0, memory_percent: 0, gpu_percent: 0, gpu_available: false, gpu_detail: 'v2 轻前端暂未采集 GPU 指标' },
+    network: runtimeMetrics.network || { upload: { text: '0 B/s' }, download: { text: '0 B/s' }, upload_bytes_per_sec: 0, download_bytes_per_sec: 0 },
     services: servicesFromDoctor(tools),
     tasks: activeTasks,
     task_summary: {

@@ -22,6 +22,7 @@ from mediatools.commands.doctor import build_doctor_report
 from mediatools.core.config import get_data_dir, get_max_concurrent_downloads
 from mediatools.core.fetch import FetchOptions, fetch_many, make_fetch_options
 from mediatools.core.fetch_types import validate_url
+from mediatools.system_metrics import build_system_metrics_snapshot
 
 DEFAULT_MAX_CONCURRENT = 8
 
@@ -216,6 +217,8 @@ class APIRequestHandler(BaseHTTPRequestHandler):
 
         if path == "/api/doctor" and self.command == "GET":
             self._handle_doctor()
+        elif path == "/api/system/metrics" and self.command == "GET":
+            self._handle_system_metrics()
         elif path == "/api/fetch/plan" and self.command == "POST":
             self._handle_fetch_plan()
         elif path == "/api/fetch/tasks" and self.command == "POST":
@@ -270,6 +273,11 @@ class APIRequestHandler(BaseHTTPRequestHandler):
                     "path": info["path"],
                 })
         _json_response(self, tools_data)
+
+    # ---- System metrics ----
+
+    def _handle_system_metrics(self) -> None:
+        _json_response(self, build_system_metrics_snapshot())
 
     # ---- Fetch plan ----
 

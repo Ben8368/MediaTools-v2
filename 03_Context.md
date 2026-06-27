@@ -1,6 +1,6 @@
 ﻿# Current Context
 
-> **更新时间：** 2026-06-26 17:58:50 +0800
+> **更新时间：** 2026-06-27 12:47:37 +0800
 > **当前分支：** `refactor-v2`  
 > **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、统一启动脚本、前端规模门禁和 fetch CLI 兼容收口已接入并通过标准验证。
 > **完整历史：** `docs/archive/03_Context_2026-06-26_full.md`
@@ -19,9 +19,11 @@
   - `fetch/plan`
   - `fetch/tasks` 提交与列表
   - 任务取消、删除、清空记录
+  - `system/metrics` CPU、内存与网络速率运行快照
 - 统一启动入口已具备：`python scripts/start.py`，支持 API + Vite 前端、`--backend-only`、自定义 host/port。
 - 本轮治理目标已完成：把每轮必读文档从“全文流水账”改为“短入口 + 按需归档”。
-- 标准验证已通过：Python 192 passed, 6 skipped；ruff 通过；frontend 57 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
+- 标准验证已通过：Python 227 passed, 6 skipped；ruff 通过；frontend 57 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
+- 右侧运行状态面板已从 v2 `/api/system/metrics` 读取 CPU、内存与网络速率；浏览器 smoke 显示 CPU 10%、内存 67%、网络 ↑ 13.8 KB/s / ↓ 2.7 KB/s。
 
 ## 2. 当前阻断项
 

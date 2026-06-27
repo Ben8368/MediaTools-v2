@@ -253,6 +253,17 @@ class TestAPIServerIntegration:
         names = [t["name"] for t in data]
         assert "ffmpeg" in names
 
+    def test_system_metrics_returns_runtime_snapshot(self) -> None:
+        import urllib.request
+        resp = urllib.request.urlopen(self._url("/api/system/metrics"))
+        data = json.loads(resp.read())
+        assert "system" in data
+        assert "network" in data
+        assert isinstance(data["system"]["cpu_percent"], (int, float))
+        assert isinstance(data["system"]["memory_percent"], (int, float))
+        assert isinstance(data["network"]["upload_bytes_per_sec"], int)
+        assert isinstance(data["network"]["download_bytes_per_sec"], int)
+
     def test_fetch_plan_returns_command(self) -> None:
         import urllib.request
         draft = {"urls": "https://example.com/video", "output_dir": "out"}

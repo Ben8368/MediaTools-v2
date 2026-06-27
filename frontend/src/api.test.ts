@@ -29,6 +29,17 @@ describe('v2 API compatibility facade', () => {
           { id: 'done-1', title: 'Old video', source_url: 'https://example.com/c', status: 'completed', progress: 1, stage: 'completed' },
         ]))
       }
+      if (path === '/api/system/metrics') {
+        return Promise.resolve(jsonResponse({
+          system: { cpu_percent: 12.5, memory_percent: 63.2, gpu_percent: 0, gpu_available: false },
+          network: {
+            upload: { text: '4.0 KB/s' },
+            download: { text: '1.5 MB/s' },
+            upload_bytes_per_sec: 4096,
+            download_bytes_per_sec: 1572864,
+          },
+        }))
+      }
       return Promise.resolve(jsonResponse({ error: 'Not found' }, 404))
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -50,6 +61,8 @@ describe('v2 API compatibility facade', () => {
       total_download_records: 3,
       terminal_download_records: 1,
     }))
+    expect(metrics.system).toEqual(expect.objectContaining({ cpu_percent: 12.5, memory_percent: 63.2 }))
+    expect(metrics.network).toEqual(expect.objectContaining({ upload_bytes_per_sec: 4096, download_bytes_per_sec: 1572864 }))
   })
 
   it('returns quiet empty metrics when v2 endpoints are temporarily unavailable', async () => {

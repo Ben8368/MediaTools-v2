@@ -117,10 +117,23 @@ function appTypeForTaskGroup(type: string, label: string) {
   return ''
 }
 
-function GaugeSvg({ value, color, label, title }: { value: number; color: string; label: string; title?: string }) {
+function GaugeSvg({
+  value,
+  color,
+  label,
+  title,
+  available = true,
+}: {
+  value: number
+  color: string
+  label: string
+  title?: string
+  available?: boolean
+}) {
   const r = 24, cx = 28, cy = 28
   const circ = 2 * Math.PI * r
   const offset = circ - (clampPercent(value) / 100) * circ
+  const displayValue = available ? `${Math.round(clampPercent(value))}%` : '--'
   return (
     <div className="rp-gauge" title={title}>
       <svg viewBox="0 0 56 56" style={{ shapeRendering: 'geometricPrecision' }}>
@@ -129,7 +142,7 @@ function GaugeSvg({ value, color, label, title }: { value: number; color: string
           strokeDasharray={circ} strokeDashoffset={offset} transform={`rotate(-90 ${cx} ${cy})`}
           style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(0.4,0,0.2,1)', paintOrder: 'stroke' }} />
         <text x={cx} y={cy - 4} textAnchor="middle" fill="rgba(255,255,255,.55)" fontSize="8.5" fontWeight="500">{label}</text>
-        <text x={cx} y={cy + 7} textAnchor="middle" fill="rgba(255,255,255,.92)" fontSize="9" fontWeight="600">{Math.round(clampPercent(value))}%</text>
+        <text x={cx} y={cy + 7} textAnchor="middle" fill="rgba(255,255,255,.92)" fontSize="9" fontWeight="600">{displayValue}</text>
       </svg>
     </div>
   )
@@ -234,6 +247,7 @@ export function RightPanel() {
             color={system.gpu_available ? '#7CB3FF' : '#64748b'}
             label="GPU"
             title={system.gpu_detail}
+            available={system.gpu_available !== false}
           />
         </div>
         <div className="rp-uptime">
