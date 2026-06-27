@@ -75,6 +75,7 @@ VITE_MEDIATOOLS_API_TARGET=http://localhost:8000 npm run dev
 - 自动检测视频平台
 - 可选下载字幕（人工 + 自动字幕）
 - 通过目录选择器自定义保存目录，可浏览本机目录并新建文件夹
+- 可显式选择 Chrome / Safari / Firefox 登录态，用于 YouTube 登录或反机器人校验
 - 支持格式预设、自定义文件命名、并发数
 
 ✅ **任务列表**
@@ -146,8 +147,9 @@ VITE_MEDIATOOLS_API_TARGET=http://localhost:8000 npm run dev
    ```
 3. 平台选择"自动检测"
 4. 字幕选择"下载字幕"
-5. 可点击"选择目录"指定保存路径；留空则使用默认 `downloads`
-6. 点击"确认添加"
+5. 若 YouTube 要求登录或机器人验证，在"登录态"选择已登录的浏览器
+6. 可点击"选择目录"指定保存路径；留空则使用默认 `downloads`
+7. 点击"确认添加"
 
 结果：
 - 视频：`downloads/EN-RickAstley-NeverGonnaGiveYouUp-youtube.mp4`
@@ -249,7 +251,7 @@ python scripts/start.py --api-port 8000 --frontend-port 5174
 **常见原因**：
 - yt-dlp 未安装或不在 PATH
 - 网络问题
-- 需要登录的视频（需要 cookies）
+- YouTube 要求登录或机器人验证（需要显式使用浏览器登录态）
 
 **解决**：
 ```bash
@@ -259,6 +261,8 @@ python -m mediatools doctor
 # 使用浏览器 cookies
 python -m mediatools fetch "URL" --output-dir downloads --cookies-from-browser chrome
 ```
+
+前端下载工作台中，可在添加任务表单的"登录态"下拉框选择 `Chrome`、`Safari` 或 `Firefox`。该选项不会默认读取浏览器登录态，只有显式选择后才会传给 `yt-dlp`。
 
 ---
 

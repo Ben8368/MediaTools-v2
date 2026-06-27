@@ -37,6 +37,7 @@ export interface TaskStats {
 }
 
 export type DownloadPlatform = 'auto' | 'youtube' | 'bilibili' | 'short_video'
+export type CookieBrowser = 'none' | 'chrome' | 'safari' | 'firefox'
 
 export type PlatformOption = {
   value: DownloadPlatform

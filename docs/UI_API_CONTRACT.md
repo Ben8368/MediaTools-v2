@@ -115,6 +115,7 @@ Returns the validated CLI-equivalent plan without network access.
   "sub_langs": "original",
   "convert_subs": "srt",
   "preset": "mp4",
+  "cookies_from_browser": "chrome",
   "name_template": "{lang}-{author}-{title}-{platform}.{ext}",
   "max_concurrent": 1,
   "dry_run": true,

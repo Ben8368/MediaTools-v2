@@ -52,6 +52,7 @@ export function DownloaderApp() {
         convert_subs: 'srt',
         preset: 'mp4',
         max_concurrent: 1,
+        ...(form.taskCookieBrowser !== 'none' ? { cookies_from_browser: form.taskCookieBrowser } : {}),
       }
 
       const result = await submitFetch(draft)
@@ -66,7 +67,15 @@ export function DownloaderApp() {
       selection.setSelectedCategory('all')
       await refreshLists()
     },
-    [form.taskOutputDir, form.selectedPlatform.supportsSubtitles, form.taskSubtitles, refreshLists, setOptimisticTasks, selection],
+    [
+      form.taskCookieBrowser,
+      form.taskOutputDir,
+      form.selectedPlatform.supportsSubtitles,
+      form.taskSubtitles,
+      refreshLists,
+      setOptimisticTasks,
+      selection,
+    ],
   )
 
   const submitNewTask = useCallback(async () => {
@@ -150,6 +159,7 @@ export function DownloaderApp() {
               taskPlatform={form.taskPlatform}
               taskSubtitles={form.taskSubtitles}
               taskOutputDir={form.taskOutputDir}
+              taskCookieBrowser={form.taskCookieBrowser}
               selectedPlatform={form.selectedPlatform}
               addingTask={form.addingTask}
               submitError={form.submitError}
@@ -157,6 +167,7 @@ export function DownloaderApp() {
               onTaskPlatformChange={form.setTaskPlatform}
               onTaskSubtitlesChange={form.setTaskSubtitles}
               onTaskOutputDirChange={form.setTaskOutputDir}
+              onTaskCookieBrowserChange={form.setTaskCookieBrowser}
               onOpenDirectoryPicker={() => form.setDirectoryPickerOpen(true)}
               onSubmit={submitNewTask}
               onClose={() => {

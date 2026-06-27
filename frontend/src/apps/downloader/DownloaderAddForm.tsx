@@ -1,11 +1,12 @@
 import { PLATFORM_OPTIONS } from '@/apps/downloader/constants'
-import type { DownloadPlatform, PlatformOption } from '@/apps/downloader/types'
+import type { CookieBrowser, DownloadPlatform, PlatformOption } from '@/apps/downloader/types'
 
 type DownloaderAddFormProps = {
   taskUrl: string
   taskPlatform: DownloadPlatform
   taskSubtitles: boolean
   taskOutputDir: string
+  taskCookieBrowser: CookieBrowser
   selectedPlatform: PlatformOption
   addingTask: boolean
   submitError: string
@@ -13,6 +14,7 @@ type DownloaderAddFormProps = {
   onTaskPlatformChange: (value: DownloadPlatform) => void
   onTaskSubtitlesChange: (value: boolean) => void
   onTaskOutputDirChange: (value: string) => void
+  onTaskCookieBrowserChange: (value: CookieBrowser) => void
   onOpenDirectoryPicker: () => void
   onSubmit: () => void
   onClose: () => void
@@ -23,6 +25,7 @@ export function DownloaderAddForm({
   taskPlatform,
   taskSubtitles,
   taskOutputDir,
+  taskCookieBrowser,
   selectedPlatform,
   addingTask,
   submitError,
@@ -30,6 +33,7 @@ export function DownloaderAddForm({
   onTaskPlatformChange,
   onTaskSubtitlesChange,
   onTaskOutputDirChange,
+  onTaskCookieBrowserChange,
   onOpenDirectoryPicker,
   onSubmit,
   onClose,
@@ -99,6 +103,19 @@ export function DownloaderAddForm({
               </button>
             )}
           </div>
+        </div>
+        <div className="dl-field">
+          <label>登录态</label>
+          <select
+            value={taskCookieBrowser}
+            onChange={(event) => onTaskCookieBrowserChange(event.target.value as CookieBrowser)}
+          >
+            <option value="none">不使用浏览器登录态</option>
+            <option value="chrome">Chrome</option>
+            <option value="safari">Safari</option>
+            <option value="firefox">Firefox</option>
+          </select>
+          <small className="dl-field-hint">遇到 YouTube 登录或机器人验证时，选择已登录的浏览器。</small>
         </div>
       </div>
 

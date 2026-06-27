@@ -105,6 +105,10 @@ def _draft_to_fetch_options(draft: dict[str, object]) -> list[FetchOptions]:
     sub_langs = str(draft.get("sub_langs", "original"))
     convert_subs = _optional_string(draft.get("convert_subs", "srt"))
     name_template = _optional_string(draft.get("name_template"))
+    cookies = _optional_string(draft.get("cookies"))
+    cookies_from_browser = _optional_string(draft.get("cookies_from_browser"))
+    if cookies and cookies_from_browser:
+        raise ValueError("cookies 与 cookies_from_browser 只能二选一")
 
     write_subs, write_auto_subs = _resolve_subtitle_flags(draft)
 
@@ -130,6 +134,8 @@ def _draft_to_fetch_options(draft: dict[str, object]) -> list[FetchOptions]:
         audio_codec=audio_codec,
         video_bitrate=video_bitrate,
         audio_bitrate=audio_bitrate,
+        cookies=Path(cookies) if cookies else None,
+        cookies_from_browser=cookies_from_browser,
     )
     return make_fetch_options(urls, template)
 

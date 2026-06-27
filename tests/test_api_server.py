@@ -219,6 +219,25 @@ class TestDraftToOptions:
         assert options[0].write_subtitles is False
         assert options[0].write_auto_subtitles is True
 
+    def test_cookies_from_browser(self) -> None:
+        draft = {
+            "urls": "https://example.com/video",
+            "output_dir": "out",
+            "cookies_from_browser": "chrome",
+        }
+        options = _draft_to_fetch_options(draft)
+        assert options[0].cookies_from_browser == "chrome"
+
+    def test_rejects_multiple_cookie_sources(self, tmp_path) -> None:
+        draft = {
+            "urls": "https://example.com/video",
+            "output_dir": "out",
+            "cookies": str(tmp_path / "cookies.txt"),
+            "cookies_from_browser": "chrome",
+        }
+        with pytest.raises(ValueError, match="二选一"):
+            _draft_to_fetch_options(draft)
+
 
 # ---------------------------------------------------------------------------
 # HTTP endpoint integration tests

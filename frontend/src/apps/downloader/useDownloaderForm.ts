@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import type { DownloadPlatform } from '@/apps/downloader/types'
+import type { CookieBrowser, DownloadPlatform } from '@/apps/downloader/types'
 import { getPlatformOption } from '@/apps/downloader/helpers'
 
 export function useDownloaderForm() {
@@ -8,6 +8,7 @@ export function useDownloaderForm() {
   const [taskPlatform, setTaskPlatform] = useState<DownloadPlatform>('auto')
   const [taskSubtitles, setTaskSubtitles] = useState(true)
   const [taskOutputDir, setTaskOutputDir] = useState('')
+  const [taskCookieBrowser, setTaskCookieBrowser] = useState<CookieBrowser>('none')
   const [addingTask, setAddingTask] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
@@ -32,6 +33,8 @@ export function useDownloaderForm() {
     setTaskSubtitles,
     taskOutputDir,
     setTaskOutputDir,
+    taskCookieBrowser,
+    setTaskCookieBrowser,
     addingTask,
     setAddingTask,
     submitError,

@@ -199,8 +199,10 @@ describe('DownloaderApp interactions', () => {
     expect(screen.getByText('平台')).toBeInTheDocument()
     expect(screen.getByText('字幕')).toBeInTheDocument()
     expect(screen.getByText('目标目录')).toBeInTheDocument()
+    expect(screen.getByText('登录态')).toBeInTheDocument()
     expect(screen.getByText('智能识别')).toBeInTheDocument()
     expect(screen.getByText('留空则使用默认下载目录')).toBeInTheDocument()
+    expect(screen.getByText('不使用浏览器登录态')).toBeInTheDocument()
   })
 
   it('keeps short-video dropdown labels readable and disables subtitles', async () => {
@@ -265,6 +267,33 @@ describe('DownloaderApp interactions', () => {
       expect(apiMocks.submitFetch).toHaveBeenCalledWith(
         expect.objectContaining({
           output_dir: '/tmp/Media Downloads',
+        }),
+      )
+    })
+  })
+
+  it('passes selected browser cookies for authenticated downloads', async () => {
+    apiMocks.getActiveTasks.mockResolvedValue([])
+    apiMocks.submitFetch.mockResolvedValue({
+      task_id: 'task-cookie',
+      status: 'pending',
+    })
+
+    render(<DownloaderApp />)
+
+    fireEvent.click(await screen.findByRole('button', { name: '添加任务' }))
+    fireEvent.change(screen.getAllByRole('combobox')[2], {
+      target: { value: 'chrome' },
+    })
+    fireEvent.change(document.querySelector('.dl-add-form textarea') as HTMLTextAreaElement, {
+      target: { value: 'https://youtu.be/-28MFc9TMw0?si=n22fyl0em7b0uGbi' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '确认添加' }))
+
+    await waitFor(() => {
+      expect(apiMocks.submitFetch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cookies_from_browser: 'chrome',
         }),
       )
     })
