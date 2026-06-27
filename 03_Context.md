@@ -1,8 +1,8 @@
 ﻿# Current Context
 
-> **更新时间：** 2026-06-27 13:07:09 +0800
+> **更新时间：** 2026-06-27 13:23:08 +0800
 > **当前分支：** `refactor-v2`  
-> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、运行状态面板、统一启动脚本、前端规模门禁和 fetch CLI 兼容收口已接入并通过标准验证。
+> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、运行状态面板、统一启动脚本、前端规模门禁、fetch CLI 兼容和前端配置维护风险收口已接入并通过标准验证。
 > **完整历史：** `docs/archive/03_Context_2026-06-26_full.md`
 
 ## 1. 当前状态
@@ -21,6 +21,7 @@
   - 任务取消、删除、清空记录
   - `system/metrics` CPU、内存、GPU、网络速率与后端累计运行时长快照
 - 统一启动入口已具备：`python scripts/start.py`，支持 API + Vite 前端、`--backend-only`、自定义 host/port。
+- 前端维护风险已收口：Vite 配置统一保留 `frontend/vite.config.ts`，并合并原 JS 配置中的 HMR 设置；未引用的 `frontend/public/static/app/index.js` 构建产物残留已移除。
 - 本轮治理目标已完成：把每轮必读文档从“全文流水账”改为“短入口 + 按需归档”。
 - 标准验证已通过：Python 230 passed, 6 skipped；ruff 通过；frontend 57 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
 - 右侧运行状态面板已从 v2 `/api/system/metrics` 读取 CPU、内存、GPU、网络速率与后端累计运行时间；浏览器 smoke 显示 GPU 45%-51%，刷新前 0天0时1分29秒、刷新后 0天0时1分31秒，未再归零。
