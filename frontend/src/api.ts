@@ -1,4 +1,5 @@
 const API_KEY_STORAGE_KEY = 'mediatools.apiKey'
+const API_REQUEST_TIMEOUT_MS = 15000
 
 type DoctorTool = {
   name: string
@@ -65,7 +66,27 @@ async function request<T = any>(path: string, init: RequestInit = {}, retry = tr
   const apiKey = getApiKey()
   if (apiKey) headers.set('X-API-Key', apiKey)
 
-  const response = await fetch(path, { ...init, headers })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS)
+  const abortFromCaller = () => controller.abort()
+  if (init.signal) {
+    if (init.signal.aborted) controller.abort()
+    else init.signal.addEventListener('abort', abortFromCaller, { once: true })
+  }
+
+  let response: Response
+  try {
+    response = await fetch(path, { ...init, headers, signal: controller.signal })
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`后端服务无响应，请确认 MediaTools 仍在运行（${path}）`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+    init.signal?.removeEventListener('abort', abortFromCaller)
+  }
+
   if (response.status === 401 && retry) {
     const nextKey = window.prompt('Please enter the MediaTools API key')
     if (nextKey) {

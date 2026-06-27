@@ -65,7 +65,7 @@ export function DownloaderApp() {
       selection.setSelectedTaskId(optimisticTask.id)
       selection.clearSelection()
       selection.setSelectedCategory('all')
-      await refreshLists()
+      void refreshLists()
     },
     [
       form.taskCookieBrowser,

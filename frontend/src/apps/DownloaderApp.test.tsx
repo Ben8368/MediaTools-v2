@@ -224,11 +224,12 @@ describe('DownloaderApp interactions', () => {
   })
 
   it('shows a newly submitted task immediately in the queue', async () => {
-    apiMocks.getActiveTasks.mockResolvedValue([])
-    apiMocks.submitFetch.mockResolvedValue({
-      task_id: 'task-new',
-      status: 'pending',
+    let activeTaskCalls = 0
+    apiMocks.getActiveTasks.mockImplementation(() => {
+      activeTaskCalls += 1
+      return activeTaskCalls === 1 ? Promise.resolve([]) : new Promise(() => {})
     })
+    apiMocks.submitFetch.mockResolvedValue({ task_id: 'task-new', status: 'pending' })
 
     render(<DownloaderApp />)
 
@@ -247,6 +248,8 @@ describe('DownloaderApp interactions', () => {
         }),
       )
     })
+    expect(screen.queryByRole('button', { name: '确认添加' })).not.toBeInTheDocument()
+    expect(await screen.findByText('https://example.com/video')).toBeInTheDocument()
   })
 
   it('uses the selected directory when submitting a new task', async () => {
