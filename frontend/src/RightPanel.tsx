@@ -133,7 +133,7 @@ function GaugeSvg({
   const r = 24, cx = 28, cy = 28
   const circ = 2 * Math.PI * r
   const offset = circ - (clampPercent(value) / 100) * circ
-  const displayValue = available ? `${Math.round(clampPercent(value))}%` : '--'
+  const displayValue = available ? `${Math.round(clampPercent(value))}%` : '未支持'
   return (
     <div className="rp-gauge" title={title}>
       <svg viewBox="0 0 56 56" style={{ shapeRendering: 'geometricPrecision' }}>

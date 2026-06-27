@@ -1,5 +1,4 @@
 const API_KEY_STORAGE_KEY = 'mediatools.apiKey'
-const FRONTEND_STARTED_AT = Date.now()
 
 type DoctorTool = {
   name: string
@@ -23,6 +22,9 @@ type ApiTask = {
 }
 
 type SystemMetricsPayload = {
+  runtime?: {
+    uptime_seconds?: number
+  }
   system?: {
     cpu_percent?: number
     memory_percent?: number
@@ -259,7 +261,7 @@ export async function getSystemMetrics() {
   const activeTasks = systemTasksFromApi(allTasks)
 
   return {
-    runtime: { uptime_seconds: Math.max(0, Math.floor((Date.now() - FRONTEND_STARTED_AT) / 1000)) },
+    runtime: runtimeMetrics.runtime || { uptime_seconds: 0 },
     system: runtimeMetrics.system || { cpu_percent: 0, memory_percent: 0, gpu_percent: 0, gpu_available: false, gpu_detail: 'v2 轻前端暂未采集 GPU 指标' },
     network: runtimeMetrics.network || { upload: { text: '0 B/s' }, download: { text: '0 B/s' }, upload_bytes_per_sec: 0, download_bytes_per_sec: 0 },
     services: servicesFromDoctor(tools),

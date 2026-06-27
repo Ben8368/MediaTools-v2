@@ -257,10 +257,14 @@ class TestAPIServerIntegration:
         import urllib.request
         resp = urllib.request.urlopen(self._url("/api/system/metrics"))
         data = json.loads(resp.read())
+        assert "runtime" in data
         assert "system" in data
         assert "network" in data
+        assert isinstance(data["runtime"]["uptime_seconds"], int)
         assert isinstance(data["system"]["cpu_percent"], (int, float))
         assert isinstance(data["system"]["memory_percent"], (int, float))
+        assert isinstance(data["system"]["gpu_percent"], (int, float))
+        assert isinstance(data["system"]["gpu_available"], bool)
         assert isinstance(data["network"]["upload_bytes_per_sec"], int)
         assert isinstance(data["network"]["download_bytes_per_sec"], int)
 

@@ -31,6 +31,7 @@ describe('v2 API compatibility facade', () => {
       }
       if (path === '/api/system/metrics') {
         return Promise.resolve(jsonResponse({
+          runtime: { uptime_seconds: 3661 },
           system: { cpu_percent: 12.5, memory_percent: 63.2, gpu_percent: 0, gpu_available: false },
           network: {
             upload: { text: '4.0 KB/s' },
@@ -62,6 +63,7 @@ describe('v2 API compatibility facade', () => {
       terminal_download_records: 1,
     }))
     expect(metrics.system).toEqual(expect.objectContaining({ cpu_percent: 12.5, memory_percent: 63.2 }))
+    expect(metrics.runtime).toEqual(expect.objectContaining({ uptime_seconds: 3661 }))
     expect(metrics.network).toEqual(expect.objectContaining({ upload_bytes_per_sec: 4096, download_bytes_per_sec: 1572864 }))
   })
 

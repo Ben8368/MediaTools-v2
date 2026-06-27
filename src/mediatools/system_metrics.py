@@ -13,6 +13,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from mediatools.system_gpu import read_gpu_metrics
+
 
 @dataclass(frozen=True)
 class _CpuCounters:
@@ -43,8 +45,9 @@ def _run_tool(command: list[str]) -> str:
             text=True,
             encoding="utf-8",
             errors="replace",
+            timeout=2.0,
         )
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         return ""
     if result.returncode != 0:
         return ""
@@ -282,6 +285,7 @@ class SystemMetricsSampler:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
+        self._started_at = time.monotonic()
         self._last_cpu = _read_linux_cpu_counters() or _read_windows_cpu_counters()
         self._last_network = _read_network_counters()
         self._last_network_time = time.monotonic()
@@ -317,14 +321,16 @@ class SystemMetricsSampler:
 
             upload_rate_int = int(round(upload_rate))
             download_rate_int = int(round(download_rate))
+            gpu_metrics = read_gpu_metrics()
             return {
                 "sampled_at": sampled_at,
+                "runtime": {"uptime_seconds": int(max(0.0, now - self._started_at))},
                 "system": {
                     "cpu_percent": _clamp_percent(cpu_percent),
                     "memory_percent": _clamp_percent(_read_memory_percent()),
-                    "gpu_percent": 0,
-                    "gpu_available": False,
-                    "gpu_detail": "GPU metrics are not available without a platform backend.",
+                    "gpu_percent": _clamp_percent(gpu_metrics.percent),
+                    "gpu_available": gpu_metrics.available,
+                    "gpu_detail": gpu_metrics.detail,
                 },
                 "network": {
                     "upload": {"text": _format_rate(upload_rate_int)},
