@@ -194,7 +194,7 @@ def test_fetch_many_downloads_video_before_best_effort_subtitles(tmp_path, monke
     assert result.items[0].output_files == (tmp_path / "video.mp4",)
 
 
-def test_fetch_many_original_subtitles_probe_failure_downloads_video_only(tmp_path, monkeypatch):
+def test_fetch_many_original_probe_failure_falls_back_to_orig_track(tmp_path, monkeypatch):
     monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
     commands: list[list[str]] = []
 
@@ -219,18 +219,23 @@ def test_fetch_many_original_subtitles_probe_failure_downloads_video_only(tmp_pa
     )
 
     download_commands = [command for command in commands if "--print" not in command]
-    assert len(download_commands) == 1
+    # Media downloads first (no subtitle flags), then a best-effort subtitle pass.
+    assert len(download_commands) == 2
     assert "--write-subs" not in download_commands[0]
-    assert "--write-auto-subs" not in download_commands[0]
+    subtitle_command = download_commands[1]
+    assert "--sub-langs" in subtitle_command
+    assert "^.*-orig$" in subtitle_command
     assert result.succeeded == 1
     assert result.items[0].output_files == (tmp_path / "video.mp4",)
 
 
-def test_fetch_many_subtitles_only_original_probe_failure_fails_cleanly(tmp_path, monkeypatch):
+def test_fetch_many_subtitles_only_original_probe_failure_uses_orig_track(tmp_path, monkeypatch):
     monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+    commands: list[list[str]] = []
 
     def runner(command, **kwargs):
-        return subprocess.CompletedProcess(command, 1, stdout="", stderr="language unavailable")
+        commands.append(list(command))
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
     result = fetch_many(
         [
@@ -244,8 +249,11 @@ def test_fetch_many_subtitles_only_original_probe_failure_fails_cleanly(tmp_path
         runner=runner,
     )
 
-    assert result.failed == 1
-    assert "refusing to download all subtitles" in str(result.items[0].error)
+    download_commands = [command for command in commands if "--print" not in command]
+    assert len(download_commands) == 1
+    assert "--skip-download" in download_commands[0]
+    assert "^.*-orig$" in download_commands[0]
+    assert result.succeeded == 1
 
 
 def test_fetch_many_records_keyboard_interrupt(tmp_path, monkeypatch):

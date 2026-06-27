@@ -46,17 +46,22 @@ def probe_language(
     return None
 
 
+#: yt-dlp sub-langs regex that matches only the original auto-caption track.
+#: YouTube tags the source-language auto-caption with an ``-orig`` suffix
+#: (e.g. ``en-orig``, ``zh-CN-orig``) regardless of whether ``--print language``
+#: succeeds, and translated captions never carry it.  Used as the fallback when
+#: language probing returns nothing so "original subtitles" still resolves to a
+#: single, correct track instead of being dropped.
+ORIGINAL_AUTOCAPTION_FALLBACK = "^.*-orig$"
+
+
 def resolve_sub_langs(options: FetchOptions, *, probed_lang: str | None) -> FetchOptions:
     """Replace the 'original' magic keyword with a detected language code."""
     if options.subtitle_languages != "original":
         return options
     lang = probed_lang
     if not lang:
-        return copy_options(
-            options,
-            write_subtitles=False,
-            write_auto_subtitles=False,
-        )
+        return copy_options(options, subtitle_languages=ORIGINAL_AUTOCAPTION_FALLBACK)
     elif "-" in lang:
         base = lang.split("-")[0]
         resolved = ",".join(
