@@ -15,7 +15,7 @@ git commit -m "test: verify co-author hook"
 git log -1 --pretty=format:'%B'
 ```
 
-Hook 会自动检测当前使用的 AI 工具并添加对应的 co-author。
+Hook 会根据环境变量或 `git config mediatools.ai-tool` 手动覆盖值检测当前 AI 工具，并添加对应的 co-author。
 
 ### 方法 2：使用 Commit Template（手动提示）
 
@@ -26,7 +26,7 @@ Hook 会自动检测当前使用的 AI 工具并添加对应的 co-author。
 ```bash
 git commit -m "feat: add new feature
 
-Co-Authored-By: Codex <codex@openai.com>"
+Co-Authored-By: codex <codex@openai.com>"
 ```
 
 或修改最近的提交：
@@ -40,13 +40,11 @@ git commit --amend
 
 | 工具 | Co-Author 标记 | 检测方式 |
 |------|---------------|---------|
-| **Claude Code** | `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` | 环境变量 `CLAUDE_CODE_SESSION` 或进程名 |
-| **Claude Sonnet** | `Co-Authored-By: Claude Sonnet 4.6 (1M context) <noreply@anthropic.com>` | 手动指定 |
-| **Claude Haiku** | `Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>` | 手动指定 |
-| **Cursor** | `Co-authored-by: Cursor <cursoragent@cursor.com>` | 环境变量 `CURSOR_SESSION_ID` 或进程名 |
-| **GitHub Copilot/Codex** | `Co-Authored-By: Codex <codex@openai.com>` | VS Code + Copilot 进程检测 |
-| **OpenCode** | `Co-Authored-By: OpenCode <opencode@byted.org>` | 环境变量 `OPENCODE_SESSION` |
-| **WorkBuddy** | `Co-Authored-By: WorkBuddy <workbuddy@example.com>` | 环境变量 `WORKBUDDY_SESSION` |
+| **Claude Code** | `Co-Authored-By: claude <claude@noreply.anthropic.com>` | 环境变量 `CLAUDE_CODE_SESSION` 等 |
+| **Cursor** | `Co-authored-by: cursoragent <cursoragent@cursor.com>` | 环境变量 `CURSOR_AGENT` 等 |
+| **Codex** | `Co-Authored-By: codex <codex@openai.com>` | Codex 环境变量或手动指定 |
+| **OpenCode** | `Co-Authored-By: opencode <opencode@noreply.local>` | 环境变量 `OPENCODE_SESSION` |
+| **OpenClaw** | `Co-Authored-By: openclaw <openclaw@noreply.local>` | 手动指定 |
 
 ## 各工具详细配置
 
@@ -70,11 +68,11 @@ git commit --amend
 
 使用方法：
 1. 安装本项目的 Git hook（见上方"快速开始"）
-2. Hook 会检测 VS Code + Copilot 进程并自动添加
+2. Hook 会检测 Codex 相关环境变量，或按 `git config mediatools.ai-tool codex` 手动覆盖
 
 或手动添加：
 ```bash
-git commit -m "feat: your message" -m "" -m "Co-Authored-By: Codex <codex@openai.com>"
+git commit -m "feat: your message" -m "" -m "Co-Authored-By: codex <codex@openai.com>"
 ```
 
 ### OpenCode（字节内部）
@@ -84,24 +82,22 @@ git commit -m "feat: your message" -m "" -m "Co-Authored-By: Codex <codex@openai
 ```bash
 # 在你的 shell 配置中添加
 export OPENCODE_SESSION=1
-export OPENCODE_COAUTHOR="OpenCode <opencode@byted.org>"
+export OPENCODE_COAUTHOR="Co-Authored-By: opencode <opencode@noreply.local>"
 ```
 
-### WorkBuddy
+### OpenClaw
 
-⚠️ **需要环境变量**
+⚠️ **需要手动指定或扩展 hook 检测**
 
-```bash
-export WORKBUDDY_SESSION=1
-```
+当前标准标记是 `Co-Authored-By: openclaw <openclaw@noreply.local>`。
 
 ## Hook 工作原理
 
 Hook 位于 `.git/hooks/prepare-commit-msg`，在你执行 `git commit` 时自动运行。
 
 检测逻辑：
-1. 检查环境变量（`CLAUDE_CODE_SESSION`, `CURSOR_SESSION_ID` 等）
-2. 检查当前运行的进程（`claude-code`, `Cursor`, `Code` 等）
+1. 检查环境变量（`CLAUDE_CODE_SESSION`, `CODEX_THREAD_ID`, `CURSOR_AGENT` 等）
+2. 读取 `git config mediatools.ai-tool <claude|codex|cursor|opencode>` 手动覆盖值
 3. 如果检测到 AI 工具，自动在 commit message 末尾追加对应的 co-author
 
 跳过条件：

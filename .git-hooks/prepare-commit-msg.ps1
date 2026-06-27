@@ -15,9 +15,9 @@ param(
 )
 
 # --- Canonical co-author identities (GitHub-username convention) -----------
-$CLAUDE_COAUTHOR   = "Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+$CLAUDE_COAUTHOR   = "Co-Authored-By: claude <claude@noreply.anthropic.com>"
 $CODEX_COAUTHOR    = "Co-Authored-By: codex <codex@openai.com>"
-$CURSOR_COAUTHOR   = "Co-Authored-By: Cursor <cursoragent@cursor.com>"
+$CURSOR_COAUTHOR   = "Co-authored-by: cursoragent <cursoragent@cursor.com>"
 $OPENCODE_COAUTHOR = "Co-Authored-By: opencode <opencode@noreply.local>"
 
 # Skip if the message already carries a Co-Authored-By trailer.

@@ -1,5 +1,7 @@
 # MediaTools v2 - 前后端接通完成报告
 
+> **归档说明：** 这是 2026-06-25 的阶段报告，保留用于追溯当时的前后端接通过程。当前状态请以 `03_Context.md`、`04_Features.md` 和 `docs/DOWNLOADER_USAGE.md` 为准。
+
 ## ✅ 已完成的工作
 
 ### 1. 清理前端应用（30分钟）
@@ -239,7 +241,7 @@ downloads/EN-RickAstley-NeverGonnaGiveYouUp-youtube.srt
 - `src/mediatools/commands/serve.py` - API 服务器命令
 - `docs/DOWNLOADER_USAGE.md` - 用户使用指南
 - `OPTIMIZATION_PLAN.md` - 优化路线图
-- `docs/FRONTEND_CLEANUP_REPORT.md` (本文件)
+- `docs/archive/2026-06-25_frontend_cleanup_report.md` (本文件，已归档)
 
 ### 修改文件
 - `src/mediatools/cli.py` - 注册 serve 命令

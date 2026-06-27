@@ -6,7 +6,7 @@ This document defines the first v2 frontend boundary for the Legacy-style downlo
 
 - The frontend owns forms, task display, status rendering, and result navigation.
 - Python owns media operations, URL validation, filesystem safety, subprocess execution, and summary generation.
-- The first frontend version may preview CLI-equivalent plans before a local API adapter exists.
+- The local API adapter is now the frontend boundary: preview plans are dry-run style contract checks, while submitted tasks are persisted in the local task registry.
 
 ## Endpoints
 
@@ -20,6 +20,31 @@ Returns tool availability for the right status panel.
   { "name": "ffprobe", "available": true, "path": "C:/ffmpeg/bin/ffprobe.exe" },
   { "name": "yt-dlp", "available": true, "path": "C:/Windows/System32/yt-dlp.exe" }
 ]
+```
+
+### `GET /api/system/metrics`
+
+Returns a best-effort runtime snapshot for the right status panel. CPU, memory,
+network speed, uptime, and platform-specific GPU data should degrade quietly when
+the current host cannot provide a metric.
+
+```json
+{
+  "runtime": { "uptime_seconds": 91 },
+  "system": {
+    "cpu_percent": 12.5,
+    "memory_percent": 68.1,
+    "gpu_percent": 45.0,
+    "gpu_available": true,
+    "gpu_detail": "macOS IOAccelerator"
+  },
+  "network": {
+    "upload": { "text": "12 KB/s" },
+    "download": { "text": "1.2 MB/s" },
+    "upload_bytes_per_sec": 12288,
+    "download_bytes_per_sec": 1258291
+  }
+}
 ```
 
 ### `POST /api/fetch/plan`

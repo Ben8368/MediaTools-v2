@@ -151,6 +151,7 @@ mediatools doctor --json
 
 ### 重构计划
 - [`REFACTOR.md`](REFACTOR.md) - 重构策略与迁移计划
+- [`docs/DOWNLOADER_USAGE.md`](docs/DOWNLOADER_USAGE.md) - 下载工作台使用指南
 - [`docs/UI_COMPAT.md`](docs/UI_COMPAT.md) - Legacy UI 兼容基线
 - [`docs/UI_API_CONTRACT.md`](docs/UI_API_CONTRACT.md) - 轻前端与本地 API 适配层契约
 

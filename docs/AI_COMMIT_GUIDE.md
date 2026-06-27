@@ -14,17 +14,15 @@ Co-Authored-By: <AI Tool Name> <email>
 
 ## AI 工具 Co-Author 列表
 
-当前支持的 AI 开发工具及其标准 co-author 标记：
+当前标准以根目录 `AGENTS.md` 为准：
 
 | 工具 | Co-Authored-By 标记 |
 |------|---------------------|
-| Claude Code / Claude Opus | `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` |
-| Claude Sonnet | `Co-Authored-By: Claude Sonnet 4.6 (1M context) <noreply@anthropic.com>` |
-| Claude Haiku | `Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>` |
-| Cursor | `Co-authored-by: Cursor <cursoragent@cursor.com>` |
-| Codex | `Co-Authored-By: Codex <codex@openai.com>` |
-| OpenCode | `Co-Authored-By: OpenCode <opencode@byted.org>` |
-| WorkBuddy | `Co-Authored-By: WorkBuddy <workbuddy@example.com>` |
+| Claude Code | `Co-Authored-By: claude <claude@noreply.anthropic.com>` |
+| Cursor | `Co-authored-by: cursoragent <cursoragent@cursor.com>` |
+| Codex | `Co-Authored-By: codex <codex@openai.com>` |
+| OpenCode | `Co-Authored-By: opencode <opencode@noreply.local>` |
+| OpenClaw | `Co-Authored-By: openclaw <openclaw@noreply.local>` |
 
 ## 自动化配置
 
@@ -49,7 +47,7 @@ chmod +x .git/hooks/prepare-commit-msg
 ```bash
 git commit -m "feat: add new feature
 
-Co-Authored-By: Codex <codex@openai.com>"
+Co-Authored-By: codex <codex@openai.com>"
 ```
 
 或使用 `git commit --amend` 修改最近的提交。
@@ -62,7 +60,7 @@ Claude Code 自动添加 co-author，无需额外配置。
 
 ### Cursor
 
-Cursor 会自动添加 `Co-authored-by: Cursor <cursoragent@cursor.com>`。
+Cursor 会自动添加或应手动补齐 `Co-authored-by: cursoragent <cursoragent@cursor.com>`。
 
 如果未自动添加，在 Cursor 设置中启用：
 - Settings → Features → Git → "Add Cursor as co-author"
@@ -73,14 +71,14 @@ Cursor 会自动添加 `Co-authored-by: Cursor <cursoragent@cursor.com>`。
 
 ### OpenCode
 
-字节内部工具，需要配置环境变量：
+OpenCode 需要配置环境变量或手动补齐标准 trailer：
 ```bash
-export OPENCODE_COAUTHOR="OpenCode <opencode@byted.org>"
+export OPENCODE_COAUTHOR="Co-Authored-By: opencode <opencode@noreply.local>"
 ```
 
-### WorkBuddy
+### OpenClaw
 
-参考各工具文档配置 co-author 自动添加。
+若自动化未覆盖，手动补齐 `Co-Authored-By: openclaw <openclaw@noreply.local>`。
 
 ## 验证
 
