@@ -1,8 +1,8 @@
 ﻿# Current Context
 
-> **更新时间：** 2026-06-27 20:15:31 +0800
+> **更新时间：** 2026-06-27 23:28:35 +0800
 > **当前分支：** `refactor-v2`  
-> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、下载保存目录选择器、任务产物前端下载、运行状态面板、前端优雅关闭入口、统一启动脚本、前端规模门禁、fetch CLI 兼容、前端配置维护风险收口和 YouTube 原语言字幕匹配收窄已接入并通过标准验证。
+> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、下载保存目录选择器、任务产物前端下载、运行状态面板、前端优雅关闭入口、统一启动脚本、前端规模门禁、fetch CLI 兼容、前端配置维护风险收口和 YouTube 原语言字幕/视频优先下载硬化已接入并通过标准验证。
 > **完整历史：** `docs/archive/03_Context_2026-06-26_full.md`
 
 ## 1. 当前状态
@@ -33,7 +33,8 @@
 - 左侧“退出 > 关闭”已从本地假成功改为调用 `/api/system/shutdown`；API 返回后异步停止自身，`python scripts/start.py` 会检测 API 子进程退出并收尾 Vite 前端。
 - 下载表单提交成功后会立即插入乐观任务并收起表单，后台刷新列表；API 请求 15 秒无响应时会显示“后端服务无响应”，避免“确认添加”看起来没反应。
 - `--sub-langs original` 已修复 YouTube `zh-CN` 等 locale 语言被 yt-dlp 当作宽松正则、误下载大量 `*-zh-CN` 翻译字幕并触发 429 的问题；原语言展开现在使用锚定正则，只匹配精确字幕标签。
-- 标准验证已通过：Python 245 passed, 6 skipped；ruff 通过；frontend 61 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
+- 原语言探测失败不再降级为 `all`；普通“视频 + 字幕”任务先下载视频，再 best-effort 下载字幕，避免字幕 429 或字幕探测失败导致视频文件缺失。
+- 标准验证已通过：Python 248 passed, 6 skipped；ruff 通过；frontend 61 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
 
 ## 2. 当前阻断项
 
@@ -42,6 +43,7 @@
 - [x] 下载保存目录选择器接入 v2 文件浏览端点，并通过 `python scripts/verify.py` 标准验证。
 - [x] 本轮修复后运行 `python scripts/verify.py` 标准验证。
 - [x] 修复 YouTube 原语言字幕 locale 匹配过宽导致大量翻译字幕和 429 失败。
+- [x] 修复原语言探测失败降级全字幕、字幕失败阻塞视频下载的问题。
 
 ## 3. 剩余黄灯
 

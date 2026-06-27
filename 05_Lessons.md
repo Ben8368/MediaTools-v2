@@ -41,6 +41,7 @@
 - L-028：友好命名模板用白名单字段编译到 yt-dlp 原生模板；dry-run 用占位符，不能触网。
 - L-029/L-030：URL scheme 与 output-template 必须早于任何外部探测校验；拒绝非 http(s)、绝对路径、Windows drive path 和 `..`。
 - 本轮新增：`yt-dlp --sub-langs` 参数是正则匹配，不是语言码等值匹配；`original` 探测到 `zh-CN`、`en-US` 等 locale 时必须展开为锚定正则，否则会误命中 `*-zh-CN` 这类翻译字幕并触发大量请求/429。
+- 本轮新增：`original` 探测失败绝不能降级为 `all`；普通视频任务要先下载视频、再 best-effort 下载字幕，字幕失败不得导致视频产物缺失。
 
 ## 5. 字幕后处理
 

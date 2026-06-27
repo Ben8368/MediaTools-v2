@@ -52,14 +52,18 @@ def test_resolve_sub_langs_base_only_language(tmp_path):
     assert resolved.subtitle_languages == "^ar\\-orig$,^ar$"
 
 
-def test_resolve_sub_langs_falls_back_to_all_on_probe_failure(tmp_path):
+def test_resolve_sub_langs_disables_subtitles_on_probe_failure(tmp_path):
     opts = FetchOptions(
         url="https://example.com/video",
         output_dir=tmp_path,
+        write_subtitles=True,
+        write_auto_subtitles=True,
         subtitle_languages="original",
     )
     resolved = _resolve_sub_langs(opts, probed_lang=None)
-    assert resolved.subtitle_languages == "all"
+    assert resolved.subtitle_languages == "original"
+    assert resolved.write_subtitles is False
+    assert resolved.write_auto_subtitles is False
 
 
 def test_resolve_filename_language_uses_probed_language(tmp_path):

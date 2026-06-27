@@ -170,7 +170,11 @@ def fetch_media(
         before_media = media_snapshot(output_dir)
         normalized_options = copy_options(options, output_dir=output_dir)
         kwargs = {"runner": runner} if runner is not None else {}
-        result = run_ytdlp(build_fetch_args(normalized_options), timeout=timeout, **kwargs)
+        result = _run_fetch_media_first(
+            normalized_options,
+            timeout=timeout,
+            runner_kwargs=kwargs,
+        )
         changed = changed_subtitles(output_dir, before_subtitles)
         for subtitle in changed:
             clean_subtitle_file(subtitle)
@@ -188,6 +192,54 @@ def fetch_media(
             returncode=result.returncode,
             output_files=tuple(str(path) for path in output_files),
         )
+
+
+def _run_fetch_media_first(
+    options: FetchOptions,
+    *,
+    timeout: float | None,
+    runner_kwargs: dict[str, ProcessRunner],
+) -> ToolResult:
+    """Download media before optional subtitles so subtitle failures do not block video."""
+    if options.subtitles_only or not _requests_subtitles(options):
+        return run_ytdlp(build_fetch_args(options), timeout=timeout, **runner_kwargs)
+
+    media_options = copy_options(
+        options,
+        write_subtitles=False,
+        write_auto_subtitles=False,
+        convert_subs=None,
+    )
+    result = run_ytdlp(build_fetch_args(media_options), timeout=timeout, **runner_kwargs)
+
+    subtitle_options = copy_options(options, subtitles_only=True, preset=None)
+    try:
+        subtitle_result = run_ytdlp(
+            build_fetch_args(subtitle_options),
+            timeout=timeout,
+            **runner_kwargs,
+        )
+    except MediaToolsError as exc:
+        warning = f"Subtitle download failed after video download: {exc.message}"
+        stderr = "\n".join(part for part in (result.stderr, warning) if part)
+        return type(result)(
+            command=result.command,
+            stdout=result.stdout,
+            stderr=stderr,
+            returncode=result.returncode,
+        )
+
+    return type(result)(
+        command=result.command,
+        stdout="\n".join(part for part in (result.stdout, subtitle_result.stdout) if part),
+        stderr="\n".join(part for part in (result.stderr, subtitle_result.stderr) if part),
+        returncode=result.returncode,
+    )
+
+
+def _requests_subtitles(options: FetchOptions) -> bool:
+    write_subtitles, write_auto_subtitles = _effective_subtitle_flags(options)
+    return write_subtitles or write_auto_subtitles
 
 
 def _fetch_one(
@@ -214,6 +266,11 @@ def _fetch_one(
             cookies_from_browser=options.cookies_from_browser,
             runner=runner,
         )
+        if options.subtitle_languages == "original" and not probed_lang and options.subtitles_only:
+            raise MediaToolsError(
+                "Could not detect the original subtitle language; "
+                "refusing to download all subtitles."
+            )
         resolved = _resolve_sub_langs(options, probed_lang=probed_lang)
         resolved = _resolve_filename_language(resolved, probed_lang=probed_lang)
         result = fetch_media(

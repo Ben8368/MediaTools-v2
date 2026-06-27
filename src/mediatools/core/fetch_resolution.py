@@ -52,7 +52,11 @@ def resolve_sub_langs(options: FetchOptions, *, probed_lang: str | None) -> Fetc
         return options
     lang = probed_lang
     if not lang:
-        resolved = "all"
+        return copy_options(
+            options,
+            write_subtitles=False,
+            write_auto_subtitles=False,
+        )
     elif "-" in lang:
         base = lang.split("-")[0]
         resolved = ",".join(

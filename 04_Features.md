@@ -28,7 +28,8 @@
 | 009 | 视频/字幕下载 `fetch` | `[已完成]` | 首批 MVP-E，真实 YouTube 样本已验收；`--output-dir` 新写法与历史位置目录写法均已验证 |
 | 010 | 下载工作流增强 | `[已完成]` | 批量、dry-run、summary、登录态、失败清单与 CLI 文档同步已接入 |
 | 011 | Legacy 风格轻前端/下载工作台 | `[客观已验证]` | API 与前端壳层已接线；下载保存目录选择器、登录态选择和任务产物前端下载已接入，待用户主观验收 |
-| 012 | 下载格式控制与原语言探测 | `[已完成]` | `--preset`、`--convert-subs`、`--sub-langs original` 已验证；locale 原语言字幕使用锚定正则避免误匹配 YouTube 翻译字幕 |
+| 012 | 下载格式控制与原语言探测 | `[已完成]` | `--preset`、`--convert-subs`、`--sub-langs original` 已验证；locale 原语言字幕使用锚定正则，探测失败不再降级 `all` |
+| 023 | 下载视频优先与字幕 best-effort | `[客观已验证]` | 普通视频任务先下载视频，再下载字幕；字幕 429/探测失败不再阻塞视频产物 |
 | 013 | macOS 兼容性补强 | `[已完成]` | venv 提示、`~/Library` 默认目录、dry-run 非联网已验证 |
 | 014 | 下载文件名友好模板 | `[已完成]` | `{lang}-{author}-{title}-{platform}.{ext}` 等已验证 |
 | 015 | 下载安全边界与批量硬化 | `[已完成]` | URL、output-template、重复 URL、多语言字幕边界已修复 |
@@ -68,4 +69,4 @@
 - `05_Lessons.md` 从逐条错题日志压缩为主题规则索引。
 - 原始长文档已复制到 `docs/archive/`，保留可追溯性。
 - 旧前后端接通阶段报告已归档到 `docs/archive/2026-06-25_frontend_cleanup_report.md`，当前状态以入口文档和使用指南为准。
-- YouTube 原语言字幕 locale 匹配过宽修复已归档到 `docs/archive/2026-06-27_sub_lang_regex_report.md`。
+- YouTube 原语言字幕 locale 匹配、探测失败降级和视频优先下载修复已归档到 `docs/archive/2026-06-27_sub_lang_regex_report.md`。

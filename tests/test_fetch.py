@@ -154,6 +154,100 @@ def test_fetch_many_records_changed_output_files(tmp_path, monkeypatch):
     ]
 
 
+def test_fetch_many_downloads_video_before_best_effort_subtitles(tmp_path, monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+    commands: list[list[str]] = []
+
+    def runner(command, **kwargs):
+        commands.append(list(command))
+        if "--print" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="zh-CN\n", stderr="")
+        if "--skip-download" in command:
+            return subprocess.CompletedProcess(
+                command,
+                1,
+                stdout="",
+                stderr="HTTP Error 429: Too Many Requests",
+            )
+        (tmp_path / "video.mp4").write_bytes(b"media")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    result = fetch_many(
+        [
+            FetchOptions(
+                url="https://example.com/video",
+                output_dir=tmp_path,
+                write_subtitles=True,
+                write_auto_subtitles=True,
+                subtitle_languages="original",
+            ),
+        ],
+        runner=runner,
+    )
+
+    download_commands = [command for command in commands if "--print" not in command]
+    assert "--skip-download" not in download_commands[0]
+    assert "--write-subs" not in download_commands[0]
+    assert "--skip-download" in download_commands[1]
+    assert result.succeeded == 1
+    assert result.failed == 0
+    assert result.items[0].output_files == (tmp_path / "video.mp4",)
+
+
+def test_fetch_many_original_subtitles_probe_failure_downloads_video_only(tmp_path, monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+    commands: list[list[str]] = []
+
+    def runner(command, **kwargs):
+        commands.append(list(command))
+        if "--print" in command:
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="language unavailable")
+        (tmp_path / "video.mp4").write_bytes(b"media")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    result = fetch_many(
+        [
+            FetchOptions(
+                url="https://example.com/video",
+                output_dir=tmp_path,
+                write_subtitles=True,
+                write_auto_subtitles=True,
+                subtitle_languages="original",
+            ),
+        ],
+        runner=runner,
+    )
+
+    download_commands = [command for command in commands if "--print" not in command]
+    assert len(download_commands) == 1
+    assert "--write-subs" not in download_commands[0]
+    assert "--write-auto-subs" not in download_commands[0]
+    assert result.succeeded == 1
+    assert result.items[0].output_files == (tmp_path / "video.mp4",)
+
+
+def test_fetch_many_subtitles_only_original_probe_failure_fails_cleanly(tmp_path, monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+
+    def runner(command, **kwargs):
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr="language unavailable")
+
+    result = fetch_many(
+        [
+            FetchOptions(
+                url="https://example.com/video",
+                output_dir=tmp_path,
+                subtitles_only=True,
+                subtitle_languages="original",
+            ),
+        ],
+        runner=runner,
+    )
+
+    assert result.failed == 1
+    assert "refusing to download all subtitles" in str(result.items[0].error)
+
+
 def test_fetch_many_records_keyboard_interrupt(tmp_path, monkeypatch):
     monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
 
