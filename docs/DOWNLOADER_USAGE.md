@@ -74,7 +74,7 @@ VITE_MEDIATOOLS_API_TARGET=http://localhost:8000 npm run dev
 - 支持单个或多个 URL（每行一个）
 - 自动检测视频平台
 - 可选下载字幕（人工 + 自动字幕）
-- 自定义输出目录
+- 通过目录选择器自定义保存目录，可浏览本机目录并新建文件夹
 - 支持格式预设、自定义文件命名、并发数
 
 ✅ **任务列表**
@@ -109,7 +109,7 @@ VITE_MEDIATOOLS_API_TARGET=http://localhost:8000 npm run dev
 - AI 字幕分析
 - Photoshop 自动化
 - After Effects 集成
-- 文件管理器
+- 完整文件管理器
 
 ---
 
@@ -146,7 +146,8 @@ VITE_MEDIATOOLS_API_TARGET=http://localhost:8000 npm run dev
    ```
 3. 平台选择"自动检测"
 4. 字幕选择"下载字幕"
-5. 点击"确认添加"
+5. 可点击"选择目录"指定保存路径；留空则使用默认 `downloads`
+6. 点击"确认添加"
 
 结果：
 - 视频：`downloads/EN-RickAstley-NeverGonnaGiveYouUp-youtube.mp4`

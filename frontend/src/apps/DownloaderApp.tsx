@@ -18,6 +18,7 @@ import { useDownloaderActions } from '@/apps/downloader/useDownloaderActions'
 import { useDownloaderForm } from '@/apps/downloader/useDownloaderForm'
 import { useDownloaderSelection } from '@/apps/downloader/useDownloaderSelection'
 import { useDownloaderTaskData } from '@/apps/downloader/useDownloaderTaskData'
+import { DirectoryPickerDialog } from '@/apps/FileManagerApp'
 
 export function DownloaderApp() {
   const { historyTasks, queueTasks, mergedTasks, fetchHistoryTasks, refreshLists, setOptimisticTasks } = useDownloaderTaskData()
@@ -190,19 +191,15 @@ export function DownloaderApp() {
         onClose={() => setDetailOpen(false)}
       />
 
-      {form.directoryPickerOpen && (
-        <div>
-          <button type="button" onClick={() => form.setDirectoryPickerOpen(false)}>
-            关闭目录选择（v2 文件管理功能暂未实现）
-          </button>
-          <input
-            type="text"
-            value={form.taskOutputDir}
-            onChange={(e) => form.setTaskOutputDir(e.target.value)}
-            placeholder="输入输出目录路径"
-          />
-        </div>
-      )}
+      <DirectoryPickerDialog
+        open={form.directoryPickerOpen}
+        value={form.taskOutputDir}
+        mode="directory"
+        title="选择下载保存目录"
+        confirmLabel="使用此目录"
+        onClose={() => form.setDirectoryPickerOpen(false)}
+        onPick={form.setTaskOutputDir}
+      />
     </div>
   )
 }

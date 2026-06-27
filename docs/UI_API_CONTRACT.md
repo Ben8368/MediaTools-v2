@@ -47,6 +47,60 @@ the current host cannot provide a metric.
 }
 ```
 
+### `GET /api/workspace`
+
+Returns the current project workspace used as the default starting point for
+path pickers.
+
+```json
+{
+  "workspace": { "project_root": "/Users/ben/Project/Code/MediaTools-v2" },
+  "project_root": "/Users/ben/Project/Code/MediaTools-v2"
+}
+```
+
+### `GET /api/filebrowser/disks`
+
+Returns local filesystem roots for the directory picker.
+
+```json
+{
+  "ok": true,
+  "disks": [
+    { "name": "根目录 /", "path": "/", "total": 994662584320, "used": 120000000000, "free": 874662584320 }
+  ]
+}
+```
+
+### `POST /api/filebrowser/list`
+
+Lists folders and files under a directory for the path picker.
+
+```json
+{ "directory": "/Users/ben/Downloads" }
+```
+
+```json
+{
+  "ok": true,
+  "path": "/Users/ben/Downloads",
+  "directories": [],
+  "files": []
+}
+```
+
+### `POST /api/filebrowser/directories`
+
+Creates a directory selected from the path picker.
+
+```json
+{ "path": "/Users/ben/Downloads/MediaTools" }
+```
+
+```json
+{ "ok": true, "path": "/Users/ben/Downloads/MediaTools" }
+```
+
 ### `POST /api/fetch/plan`
 
 Returns the validated CLI-equivalent plan without network access.

@@ -17,6 +17,12 @@ from socketserver import ThreadingMixIn
 from typing import Any
 from urllib.parse import urlparse
 
+from mediatools.api_filebrowser import (
+    handle_create_directory_request,
+    handle_list_directory_request,
+    list_disks,
+    workspace_payload,
+)
 from mediatools.api_tasks import Task, TaskStore
 from mediatools.commands.doctor import build_doctor_report
 from mediatools.core.config import get_data_dir, get_max_concurrent_downloads
@@ -26,10 +32,6 @@ from mediatools.system_metrics import build_system_metrics_snapshot
 
 DEFAULT_MAX_CONCURRENT = 8
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _json_response(handler: BaseHTTPRequestHandler, data: object, status: int = 200) -> None:
     body = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
@@ -199,10 +201,6 @@ def _run_download_task(
         )
 
 
-# ---------------------------------------------------------------------------
-# Request handler
-# ---------------------------------------------------------------------------
-
 class APIRequestHandler(BaseHTTPRequestHandler):
 
     server_store: TaskStore
@@ -219,6 +217,14 @@ class APIRequestHandler(BaseHTTPRequestHandler):
             self._handle_doctor()
         elif path == "/api/system/metrics" and self.command == "GET":
             self._handle_system_metrics()
+        elif path == "/api/workspace" and self.command == "GET":
+            _json_response(self, workspace_payload())
+        elif path == "/api/filebrowser/disks" and self.command == "GET":
+            _json_response(self, list_disks())
+        elif path == "/api/filebrowser/list" and self.command == "POST":
+            handle_list_directory_request(self, _read_json_body, _json_response)
+        elif path == "/api/filebrowser/directories" and self.command == "POST":
+            handle_create_directory_request(self, _read_json_body, _json_response)
         elif path == "/api/fetch/plan" and self.command == "POST":
             self._handle_fetch_plan()
         elif path == "/api/fetch/tasks" and self.command == "POST":
@@ -406,10 +412,6 @@ class APIRequestHandler(BaseHTTPRequestHandler):
         deleted = self.server.server_store.clear_finished(task_ids)
         _json_response(self, {"ok": True, "deleted": deleted})
 
-
-# ---------------------------------------------------------------------------
-# Server runner
-# ---------------------------------------------------------------------------
 
 class ThreadedAPIServer(ThreadingMixIn, HTTPServer):
     allow_reuse_address = True

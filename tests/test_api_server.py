@@ -268,6 +268,55 @@ class TestAPIServerIntegration:
         assert isinstance(data["network"]["upload_bytes_per_sec"], int)
         assert isinstance(data["network"]["download_bytes_per_sec"], int)
 
+    def test_workspace_returns_project_root(self) -> None:
+        import urllib.request
+        resp = urllib.request.urlopen(self._url("/api/workspace"))
+        data = json.loads(resp.read())
+        assert data["workspace"]["project_root"]
+        assert data["project_root"] == data["workspace"]["project_root"]
+
+    def test_filebrowser_disks_returns_roots(self) -> None:
+        import urllib.request
+        resp = urllib.request.urlopen(self._url("/api/filebrowser/disks"))
+        data = json.loads(resp.read())
+        assert data["ok"] is True
+        assert data["disks"]
+        assert {"name", "path", "total", "used", "free"} <= set(data["disks"][0])
+
+    def test_filebrowser_lists_directory(self, tmp_path) -> None:
+        import urllib.request
+        (tmp_path / "folder").mkdir()
+        (tmp_path / "clip.mp4").write_text("video", encoding="utf-8")
+        draft = {"directory": str(tmp_path)}
+        req = urllib.request.Request(
+            self._url("/api/filebrowser/list"),
+            data=json.dumps(draft).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        resp = urllib.request.urlopen(req)
+        data = json.loads(resp.read())
+        assert data["ok"] is True
+        assert data["path"] == str(tmp_path.resolve())
+        assert data["directories"][0]["name"] == "folder"
+        assert data["files"][0]["name"] == "clip.mp4"
+
+    def test_filebrowser_creates_directory(self, tmp_path) -> None:
+        import urllib.request
+        target = tmp_path / "downloads"
+        draft = {"path": str(target)}
+        req = urllib.request.Request(
+            self._url("/api/filebrowser/directories"),
+            data=json.dumps(draft).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        resp = urllib.request.urlopen(req)
+        data = json.loads(resp.read())
+        assert resp.status == 201
+        assert data["ok"] is True
+        assert target.is_dir()
+
     def test_fetch_plan_returns_command(self) -> None:
         import urllib.request
         draft = {"urls": "https://example.com/video", "output_dir": "out"}

@@ -1,8 +1,8 @@
 ﻿# Current Context
 
-> **更新时间：** 2026-06-27 19:01:20 +0800
+> **更新时间：** 2026-06-27 19:15:46 +0800
 > **当前分支：** `refactor-v2`  
-> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、运行状态面板、统一启动脚本、前端规模门禁、fetch CLI 兼容和前端配置维护风险收口已接入并通过标准验证；专题文档状态收口已提交并推送，待环境允许时复跑标准验证。
+> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、下载保存目录选择器、运行状态面板、统一启动脚本、前端规模门禁、fetch CLI 兼容和前端配置维护风险收口已接入并通过标准验证。
 > **完整历史：** `docs/archive/03_Context_2026-06-26_full.md`
 
 ## 1. 当前状态
@@ -19,19 +19,21 @@
   - `fetch/plan`
   - `fetch/tasks` 提交与列表
   - 任务取消、删除、清空记录
+  - `workspace` 与最小 `filebrowser` 端点，用于下载表单选择/新建保存目录
   - `system/metrics` CPU、内存、GPU、网络速率与后端累计运行时长快照
 - 统一启动入口已具备：`python scripts/start.py`，支持 API + Vite 前端、`--backend-only`、自定义 host/port。
 - 前端维护风险已收口：Vite 配置统一保留 `frontend/vite.config.ts`，并合并原 JS 配置中的 HMR 设置；未引用的 `frontend/public/static/app/index.js` 构建产物残留已移除。
 - 专题文档状态已收口：`01_Project_Plan.md`、`REFACTOR.md`、`docs/DOWNLOADER_USAGE.md`、`docs/UI_API_CONTRACT.md`、AI co-author 文档与当前实现/规范对齐；旧前后端接通报告已归档到 `docs/archive/2026-06-25_frontend_cleanup_report.md`。
 - 本轮治理目标已完成：把每轮必读文档从“全文流水账”改为“短入口 + 按需归档”。
-- 标准验证已通过：Python 230 passed, 6 skipped；ruff 通过；frontend 57 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
+- 下载表单的目标目录已从临时输入框改为真实目录选择器；支持浏览本机磁盘/目录、粘贴路径、新建文件夹，并把所选路径作为 `output_dir` 提交给下载任务。
+- 标准验证已通过：Python 238 passed, 6 skipped；ruff 通过；frontend 58 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
 - 右侧运行状态面板已从 v2 `/api/system/metrics` 读取 CPU、内存、GPU、网络速率与后端累计运行时间；浏览器 smoke 显示 GPU 45%-51%，刷新前 0天0时1分29秒、刷新后 0天0时1分31秒，未再归零。
 
 ## 2. 当前阻断项
 
 - [x] 治理文档瘦身后运行 `python scripts/verify.py`。
 - [x] 验证通过后同步 `04_Features.md` 与 `05_Lessons.md` 当前状态。
-- [ ] 专题文档收口待复跑标准验证：当前平台网络权限用量限制拦截 `python scripts/verify.py` 的 pip 构建依赖安装；无网络子集已跑，ruff、frontend test/build、hook smoke 通过，pytest 因沙箱禁止本地端口绑定导致 10 个 API server 集成测试报环境错误。
+- [x] 下载保存目录选择器接入 v2 文件浏览端点，并通过 `python scripts/verify.py` 标准验证。
 
 ## 3. 剩余黄灯
 

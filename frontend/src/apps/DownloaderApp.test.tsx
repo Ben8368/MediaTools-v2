@@ -23,7 +23,16 @@ vi.mock('@/windowStore', () => ({
 }))
 
 vi.mock('@/apps/FileManagerApp', () => ({
-  DirectoryPickerDialog: () => null,
+  DirectoryPickerDialog: ({ open, onClose, onPick }: {
+    open: boolean
+    onClose: () => void
+    onPick: (path: string) => void
+  }) => open ? (
+    <div role="dialog" aria-label="选择下载保存目录">
+      <button type="button" onClick={() => onPick('/tmp/Media Downloads')}>选择测试目录</button>
+      <button type="button" onClick={onClose}>关闭</button>
+    </div>
+  ) : null,
 }))
 
 describe('DownloaderApp helpers', () => {
@@ -230,6 +239,32 @@ describe('DownloaderApp interactions', () => {
         expect.objectContaining({
           urls: ['https://example.com/video'],
           preset: 'mp4',
+        }),
+      )
+    })
+  })
+
+  it('uses the selected directory when submitting a new task', async () => {
+    apiMocks.getActiveTasks.mockResolvedValue([])
+    apiMocks.submitFetch.mockResolvedValue({
+      task_id: 'task-dir',
+      status: 'pending',
+    })
+
+    render(<DownloaderApp />)
+
+    fireEvent.click(await screen.findByRole('button', { name: '添加任务' }))
+    fireEvent.click(screen.getByText('选择目录'))
+    fireEvent.click(screen.getByRole('button', { name: '选择测试目录' }))
+    fireEvent.change(document.querySelector('.dl-add-form textarea') as HTMLTextAreaElement, {
+      target: { value: 'https://example.com/video' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '确认添加' }))
+
+    await waitFor(() => {
+      expect(apiMocks.submitFetch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          output_dir: '/tmp/Media Downloads',
         }),
       )
     })
