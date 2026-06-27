@@ -2,7 +2,14 @@ import { type MouseEvent, useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { StatusIcon } from '@/apps/downloader/icons'
-import { formatRelativeTime, getTaskDisplayTitle, getTaskSourceUrl, canWorkbenchAiAnalyze, isTaskRetryable } from '@/apps/downloader/helpers'
+import {
+  canWorkbenchAiAnalyze,
+  formatRelativeTime,
+  getTaskDisplayTitle,
+  getTaskDownloadFilePath,
+  getTaskSourceUrl,
+  isTaskRetryable,
+} from '@/apps/downloader/helpers'
 import type { DownloadTask, DownloaderRowMenuAction } from '@/apps/downloader/types'
 
 const MENU_W = 180
@@ -99,6 +106,16 @@ export function DownloaderTaskTable({
               onClick={() => runAction('copy_url', menu.task)}
             >
               复制链接
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="dl-row-menu-item"
+              disabled={!getTaskDownloadFilePath(menu.task)}
+              title={getTaskDownloadFilePath(menu.task) ? '通过前端下载任务产物' : '任务尚未记录可下载文件'}
+              onClick={() => runAction('download_file', menu.task)}
+            >
+              下载文件
             </button>
             <button
               type="button"

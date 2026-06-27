@@ -24,6 +24,7 @@ class ToolResult:
     stdout: str
     stderr: str
     returncode: int
+    output_files: tuple[str, ...] = ()
 
 
 class ProcessRunner(Protocol):

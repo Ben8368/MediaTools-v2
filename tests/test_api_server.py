@@ -409,6 +409,40 @@ class TestAPIServerIntegration:
         data = json.loads(cancel_resp.read())
         assert data["task"]["status"] == "cancelled"
 
+    def test_fetch_file_endpoint_downloads_recorded_output(self, tmp_path) -> None:
+        import urllib.request
+        output = tmp_path / "clip.mp4"
+        output.write_bytes(b"media")
+        self.server.server_store.add(
+            Task(task_id="download-me", status="completed", output_files=[str(output)]),
+        )
+
+        resp = urllib.request.urlopen(
+            self._url(f"/api/fetch/tasks/download-me/files?path={output}"),
+        )
+
+        assert resp.status == 200
+        assert resp.headers["Content-Disposition"].startswith("attachment;")
+        assert resp.read() == b"media"
+
+    def test_fetch_file_endpoint_rejects_unrecorded_path(self, tmp_path) -> None:
+        import urllib.error
+        import urllib.request
+        output = tmp_path / "clip.mp4"
+        other = tmp_path / "other.mp4"
+        output.write_bytes(b"media")
+        other.write_bytes(b"other")
+        self.server.server_store.add(
+            Task(task_id="locked-file", status="completed", output_files=[str(output)]),
+        )
+
+        with pytest.raises(urllib.error.HTTPError) as exc:
+            urllib.request.urlopen(
+                self._url(f"/api/fetch/tasks/locked-file/files?path={other}"),
+            )
+
+        assert exc.value.code == 403
+
     def test_fetch_clear_endpoint_removes_finished_tasks(self) -> None:
         import urllib.request
         self.server.server_store.add(Task(task_id="clear-me", status="completed"))
@@ -430,3 +464,30 @@ class TestAPIServerIntegration:
         with pytest.raises(urllib.error.HTTPError) as exc:
             urllib.request.urlopen(self._url("/api/nope"))
         assert exc.value.code == 404
+
+
+def test_system_shutdown_endpoint_stops_api_server(tmp_path) -> None:
+    import urllib.request
+    server = start_api_server(
+        host="127.0.0.1",
+        port=0,
+        storage_path=tmp_path / "tasks.json",
+    )
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/system/shutdown",
+            data=json.dumps({}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        resp = urllib.request.urlopen(req)
+        data = json.loads(resp.read())
+
+        assert data["ok"] is True
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+    finally:
+        server.server_close()

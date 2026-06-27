@@ -14,9 +14,11 @@ from mediatools.core.fetch_naming import (
 )
 from mediatools.core.fetch_postprocess import (
     changed_media_files,
+    changed_output_files,
     changed_subtitles,
     media_snapshot,
     output_dir_lock,
+    output_snapshot,
     subtitle_snapshot,
 )
 from mediatools.core.fetch_resolution import (
@@ -163,6 +165,7 @@ def fetch_media(
     output_dir = normalize(options.output_dir)
     with output_dir_lock(output_dir):
         output_dir.mkdir(parents=True, exist_ok=True)
+        before_outputs = output_snapshot(output_dir)
         before_subtitles = subtitle_snapshot(output_dir)
         before_media = media_snapshot(output_dir)
         normalized_options = copy_options(options, output_dir=output_dir)
@@ -177,7 +180,14 @@ def fetch_media(
         if needs_transcode(normalized_options):
             for media_file in changed_media_files(output_dir, before_media):
                 transcode_if_needed(media_file, normalized_options, runner=runner)
-        return result
+        output_files = changed_output_files(output_dir, before_outputs)
+        return type(result)(
+            command=result.command,
+            stdout=result.stdout,
+            stderr=result.stderr,
+            returncode=result.returncode,
+            output_files=tuple(str(path) for path in output_files),
+        )
 
 
 def _fetch_one(
@@ -216,6 +226,7 @@ def _fetch_one(
             status="succeeded",
             output_dir=normalize(options.output_dir),
             command=result.command,
+            output_files=tuple(Path(path) for path in result.output_files),
         )
     except KeyboardInterrupt:
         return FetchItemResult(

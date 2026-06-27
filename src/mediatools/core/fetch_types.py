@@ -60,6 +60,7 @@ class FetchItemResult:
     output_dir: Path
     command: tuple[str, ...]
     error: str | None = None
+    output_files: tuple[Path, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serializable result payload."""
@@ -67,6 +68,7 @@ class FetchItemResult:
             "url": self.url,
             "status": self.status,
             "output_dir": str(self.output_dir),
+            "output_files": [str(path) for path in self.output_files],
             "command": list(self.command),
             "error": self.error,
         }

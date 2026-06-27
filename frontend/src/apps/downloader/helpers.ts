@@ -114,6 +114,13 @@ export function getTaskSubtitleFilePath(task: DownloadTask): string {
   return typeof p === 'string' && p.trim().length > 0 ? p.trim() : ''
 }
 
+export function getTaskDownloadFilePath(task: DownloadTask): string {
+  const files = Array.isArray(task.output_files) ? task.output_files : []
+  const firstFile = files.find((value) => typeof value === 'string' && value.trim())
+  if (firstFile) return firstFile.trim()
+  return getTaskVideoFilePath(task) || getTaskSubtitleFilePath(task)
+}
+
 /** 是否可向工作台跳转并做「AI 分析字幕」 */
 export function canWorkbenchAiAnalyze(task: DownloadTask): boolean {
   return task.status === 'completed' && Boolean(getTaskSubtitleFilePath(task))

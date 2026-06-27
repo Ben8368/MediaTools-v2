@@ -131,6 +131,29 @@ def test_fetch_many_collects_failures_and_continues(tmp_path, monkeypatch):
     assert result.items[1].error == "network failed"
 
 
+def test_fetch_many_records_changed_output_files(tmp_path, monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+
+    def runner(command, **kwargs):
+        if "--print" not in command:
+            (tmp_path / "video.mp4").write_bytes(b"media")
+            (tmp_path / "video.en.srt").write_text("subtitle", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    result = fetch_many(
+        [FetchOptions(url="https://example.com/video", output_dir=tmp_path)],
+        runner=runner,
+    )
+
+    assert result.succeeded == 1
+    assert result.items[0].output_files == (tmp_path / "video.mp4", tmp_path / "video.srt")
+    payload = result.to_dict()
+    assert payload["items"][0]["output_files"] == [
+        str(tmp_path / "video.mp4"),
+        str(tmp_path / "video.srt"),
+    ]
+
+
 def test_fetch_many_records_keyboard_interrupt(tmp_path, monkeypatch):
     monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
 

@@ -15,6 +15,7 @@ MEDIA_EXTENSIONS: frozenset[str] = frozenset({
     ".mp4", ".mkv", ".webm", ".avi", ".mov", ".flv", ".m4a",
     ".mp3", ".opus", ".ogg", ".wav", ".aac", ".flac",
 })
+OUTPUT_EXTENSIONS: frozenset[str] = MEDIA_EXTENSIONS | SUBTITLE_EXTS
 
 
 @contextlib.contextmanager
@@ -130,6 +131,40 @@ def changed_media_files(output_dir: Path, before: dict[str, tuple[int, int]]) ->
     return tuple(changed)
 
 
+def output_snapshot(output_dir: Path) -> dict[str, tuple[int, int]]:
+    """Record user-visible media/subtitle outputs before yt-dlp runs."""
+    snapshot: dict[str, tuple[int, int]] = {}
+    if not output_dir.is_dir():
+        return snapshot
+    for child in output_dir.iterdir():
+        if not is_output_file(child):
+            continue
+        try:
+            stat = child.stat()
+        except OSError:
+            continue
+        snapshot[child.name] = (stat.st_size, stat.st_mtime_ns)
+    return snapshot
+
+
+def changed_output_files(output_dir: Path, before: dict[str, tuple[int, int]]) -> tuple[Path, ...]:
+    """Return media/subtitle files created or changed by one fetch operation."""
+    changed: list[Path] = []
+    if not output_dir.is_dir():
+        return ()
+    for child in output_dir.iterdir():
+        if not is_output_file(child):
+            continue
+        try:
+            stat = child.stat()
+        except OSError:
+            continue
+        state = (stat.st_size, stat.st_mtime_ns)
+        if before.get(child.name) != state:
+            changed.append(child)
+    return tuple(sorted(changed, key=lambda path: path.name.lower()))
+
+
 def is_language_subtitle(path: Path) -> bool:
     """Return True for subtitle files with a language middle segment."""
     return path.is_file() and path.suffix.lower() in SUBTITLE_EXTS and bool(
@@ -140,3 +175,8 @@ def is_language_subtitle(path: Path) -> bool:
 def is_media_file(path: Path) -> bool:
     """Return True for ordinary media outputs that may need transcoding."""
     return path.is_file() and path.suffix.lower() in MEDIA_EXTENSIONS
+
+
+def is_output_file(path: Path) -> bool:
+    """Return True for user-visible download outputs."""
+    return path.is_file() and path.suffix.lower() in OUTPUT_EXTENSIONS

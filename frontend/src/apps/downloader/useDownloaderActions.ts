@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react'
 
-import { cancelTask, clearTaskRecords, deleteTaskRecord, submitFetch } from '@/api'
+import { cancelTask, clearTaskRecords, deleteTaskRecord, getFetchTaskFileUrl, submitFetch } from '@/api'
 import {
   buildRetryPayload,
   createOptimisticTask,
+  getTaskDownloadFilePath,
   getTaskSourceUrl,
   mergeTasks,
 } from '@/apps/downloader/helpers'
@@ -83,6 +84,14 @@ export function useDownloaderActions({
           return
         }
         await navigator.clipboard.writeText(url)
+      }
+      if (action === 'download_file') {
+        const path = getTaskDownloadFilePath(task)
+        if (!path) {
+          setActionError('此任务尚未记录可下载文件')
+          return
+        }
+        window.open(getFetchTaskFileUrl(task.id, path), '_blank', 'noopener')
       }
       if (action === 'retry') {
         const payload = buildRetryPayload(task)

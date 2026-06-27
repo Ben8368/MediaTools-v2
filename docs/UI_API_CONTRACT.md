@@ -47,6 +47,16 @@ the current host cannot provide a metric.
 }
 ```
 
+### `POST /api/system/shutdown`
+
+Requests a graceful shutdown of the local API server. When launched through
+`python scripts/start.py`, the parent launcher observes the API process exit and
+then stops the Vite frontend process.
+
+```json
+{ "ok": true, "message": "MediaTools shutdown requested" }
+```
+
 ### `GET /api/workspace`
 
 Returns the current project workspace used as the default starting point for
@@ -165,10 +175,18 @@ Returns active and recent task rows for the workbench list.
       "url": "https://example.com/video"
     },
     "result": {},
-    "output_files": []
+    "output_files": ["/Users/ben/Downloads/example.mp4"]
   }
 ]
 ```
+
+### `GET /api/fetch/tasks/{task_id}/files?path={absolute_output_path}`
+
+Downloads one file recorded in the task's `output_files` or result item
+`output_files`. The endpoint rejects paths that are not recorded outputs for
+the task.
+
+Response: binary file stream with `Content-Disposition: attachment`.
 
 ### `POST /api/fetch/tasks/{task_id}/cancel`
 

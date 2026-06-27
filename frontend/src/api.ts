@@ -145,6 +145,9 @@ export const getWorkspace = () => get('/api/workspace')
 export const fetchFilebrowserDisks = () => get('/api/filebrowser/disks')
 export const listFilebrowserDirectory = (payload: { directory: string }) => post('/api/filebrowser/list', payload)
 export const createFilebrowserDirectory = (path: string) => post('/api/filebrowser/directories', { path })
+export const shutdownSystem = () => post('/api/system/shutdown')
+export const getFetchTaskFileUrl = (taskId: string, path: string) =>
+  `/api/fetch/tasks/${encodeURIComponent(taskId)}/files?path=${encodeURIComponent(path)}`
 
 function normalizeTaskList(response: unknown): ApiTask[] {
   if (Array.isArray(response)) return response as ApiTask[]
@@ -338,7 +341,6 @@ const v2NotReady = (name: string) => async (..._args: any[]): Promise<any> => {
   throw new Error(name + ': 此功能需要旧版 MediaTools 后端，v2 尚未实现')
 }
 
-export function shutdownSystem() { return Promise.resolve({ success: true }) }
 export const restartSystem = v2NotReady('restartSystem')
 export const getSystemStatus = v2NotReady('getSystemStatus')
 export const getModules = v2NotReady('getModules')

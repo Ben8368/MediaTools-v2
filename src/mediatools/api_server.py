@@ -15,8 +15,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from socketserver import ThreadingMixIn
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
+from mediatools.api_downloads import download_file_response, task_allowed_output_paths
 from mediatools.api_filebrowser import (
     handle_create_directory_request,
     handle_list_directory_request,
@@ -168,8 +169,9 @@ def _run_download_task(
         output_files: list[str] = []
         for item in items:
             if isinstance(item, dict) and item.get("status") == "succeeded":
-                od = item.get("output_dir", "")
-                output_files.append(str(od))
+                raw_files = item.get("output_files", [])
+                if isinstance(raw_files, list):
+                    output_files.extend(str(path) for path in raw_files if path)
 
         if result.failed > 0 and result.succeeded > 0:
             status = "partial"
@@ -223,6 +225,8 @@ class APIRequestHandler(BaseHTTPRequestHandler):
             self._handle_doctor()
         elif path == "/api/system/metrics" and self.command == "GET":
             self._handle_system_metrics()
+        elif path == "/api/system/shutdown" and self.command == "POST":
+            self._handle_system_shutdown()
         elif path == "/api/workspace" and self.command == "GET":
             _json_response(self, workspace_payload())
         elif path == "/api/filebrowser/disks" and self.command == "GET":
@@ -252,6 +256,14 @@ class APIRequestHandler(BaseHTTPRequestHandler):
             and self.command == "POST"
         ):
             self._handle_fetch_cancel(parts[3])
+        elif (
+            len(parts) == 5
+            and parts[:3] == ["api", "fetch", "tasks"]
+            and parts[4] == "files"
+            and self.command == "GET"
+        ):
+            query = parse_qs(parsed.query)
+            self._handle_fetch_file(parts[3], query.get("path", [""])[0])
         else:
             _json_response(self, {"error": "Not Found"}, status=404)
 
@@ -290,6 +302,15 @@ class APIRequestHandler(BaseHTTPRequestHandler):
 
     def _handle_system_metrics(self) -> None:
         _json_response(self, build_system_metrics_snapshot())
+
+    def _handle_system_shutdown(self) -> None:
+        _json_response(self, {"ok": True, "message": "MediaTools shutdown requested"})
+
+        def stop_server() -> None:
+            time.sleep(0.1)
+            self.server.shutdown()
+
+        threading.Thread(target=stop_server, daemon=True).start()
 
     # ---- Fetch plan ----
 
@@ -400,6 +421,25 @@ class APIRequestHandler(BaseHTTPRequestHandler):
             _json_response(self, {"error": "Task not found"}, status=404)
             return
         _json_response(self, {"ok": True, "task": task.to_dict()})
+
+    def _handle_fetch_file(self, task_id: str, raw_path: str) -> None:
+        task = self.server.server_store.get(task_id)
+        if task is None:
+            _json_response(self, {"error": "Task not found"}, status=404)
+            return
+        if not raw_path:
+            _json_response(self, {"error": "Missing file path"}, status=400)
+            return
+
+        path = Path(raw_path).resolve()
+        if path not in task_allowed_output_paths(task):
+            _json_response(self, {"error": "File is not a recorded task output"}, status=403)
+            return
+        if not path.is_file():
+            _json_response(self, {"error": "File not found"}, status=404)
+            return
+
+        download_file_response(self, path)
 
     def _handle_fetch_delete(self, task_id: str) -> None:
         deleted = self.server.server_store.delete(task_id)

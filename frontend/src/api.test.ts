@@ -1,6 +1,14 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 
-import { clearLogs, clearNotifications, fetchLogMetadata, fetchLogs, getSystemMetrics, getUnreadNotificationCount } from '@/api'
+import {
+  clearLogs,
+  clearNotifications,
+  fetchLogMetadata,
+  fetchLogs,
+  getSystemMetrics,
+  getUnreadNotificationCount,
+  shutdownSystem,
+} from '@/api'
 
 function jsonResponse(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -75,6 +83,17 @@ describe('v2 API compatibility facade', () => {
     expect(metrics.tasks).toEqual([])
     expect(metrics.task_summary.active_downloads).toBe(0)
     expect(JSON.stringify(metrics)).not.toContain('旧版 MediaTools 后端')
+  })
+
+  it('sends shutdown requests to the v2 backend', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse({ ok: true })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(shutdownSystem()).resolves.toEqual({ ok: true })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/system/shutdown', expect.objectContaining({
+      method: 'POST',
+    }))
   })
 
   it('maps v2 task records into log rows for the log viewer', async () => {

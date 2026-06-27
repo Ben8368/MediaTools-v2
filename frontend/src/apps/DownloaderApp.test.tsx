@@ -8,6 +8,7 @@ const apiMocks = vi.hoisted(() => ({
   cancelTask: vi.fn(),
   clearTaskRecords: vi.fn(),
   deleteTaskRecord: vi.fn(),
+  getFetchTaskFileUrl: vi.fn(),
   getActiveTasks: vi.fn(),
   getWeeklyHistory: vi.fn(),
   submitFetch: vi.fn(),
@@ -71,6 +72,8 @@ describe('DownloaderApp interactions', () => {
     apiMocks.cancelTask.mockReset()
     apiMocks.clearTaskRecords.mockReset()
     apiMocks.deleteTaskRecord.mockReset()
+    apiMocks.getFetchTaskFileUrl.mockReset()
+    apiMocks.getFetchTaskFileUrl.mockImplementation((taskId: string, path: string) => `/download/${taskId}?path=${encodeURIComponent(path)}`)
     apiMocks.getWeeklyHistory.mockResolvedValue([])
     apiMocks.submitFetch.mockResolvedValue({ task_id: 'new-task', status: 'pending' })
     apiMocks.cancelTask.mockResolvedValue({ ok: true })
@@ -404,6 +407,33 @@ describe('DownloaderApp interactions', () => {
     await waitFor(() => {
       expect(apiMocks.deleteTaskRecord).toHaveBeenCalledWith('task-7')
     })
+  })
+
+  it('downloads a completed task output from the row menu', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    apiMocks.getActiveTasks.mockResolvedValue([])
+    apiMocks.getWeeklyHistory.mockResolvedValue([
+        {
+          id: 'task-file',
+          title: 'File ready',
+          status: 'completed',
+          progress: 100,
+          stage: 'completed',
+          output_files: ['/tmp/video.mp4'],
+        },
+      ],
+    )
+
+    render(<DownloaderApp />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /已完成/ }))
+    await screen.findByText('File ready')
+    fireEvent.click(screen.getByLabelText('更多操作'))
+    fireEvent.click(await screen.findByRole('menuitem', { name: '下载文件' }))
+
+    expect(apiMocks.getFetchTaskFileUrl).toHaveBeenCalledWith('task-file', '/tmp/video.mp4')
+    expect(openSpy).toHaveBeenCalledWith('/download/task-file?path=%2Ftmp%2Fvideo.mp4', '_blank', 'noopener')
+    openSpy.mockRestore()
   })
 
   it('renders task details for the focused row', async () => {

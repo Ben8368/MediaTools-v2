@@ -1,8 +1,8 @@
 ﻿# Current Context
 
-> **更新时间：** 2026-06-27 19:36:05 +0800
+> **更新时间：** 2026-06-27 19:48:37 +0800
 > **当前分支：** `refactor-v2`  
-> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、下载保存目录选择器、运行状态面板、统一启动脚本、前端规模门禁、fetch CLI 兼容和前端配置维护风险收口已接入并通过标准验证。
+> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、下载保存目录选择器、任务产物前端下载、运行状态面板、前端优雅关闭入口、统一启动脚本、前端规模门禁、fetch CLI 兼容和前端配置维护风险收口已接入并通过标准验证。
 > **完整历史：** `docs/archive/03_Context_2026-06-26_full.md`
 
 ## 1. 当前状态
@@ -29,19 +29,23 @@
 - 轻前端下载表单已显式暴露浏览器登录态来源（Chrome / Safari / Firefox）；YouTube 返回 “Sign in to confirm you’re not a bot” 时，可选择已登录浏览器并让 API 透传 `cookies_from_browser` 给 `yt-dlp`。
 - 标准验证已通过：Python 240 passed, 6 skipped；ruff 通过；frontend 59 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
 - 右侧运行状态面板已从 v2 `/api/system/metrics` 读取 CPU、内存、GPU、网络速率与后端累计运行时间；浏览器 smoke 显示 GPU 45%-51%，刷新前 0天0时1分29秒、刷新后 0天0时1分31秒，未再归零。
+- 下载任务结果会记录本次新增/变更的媒体和字幕文件；前端任务行更多菜单可通过 `/api/fetch/tasks/{task_id}/files` 下载已登记产物，后端拒绝未登记路径。
+- 左侧“退出 > 关闭”已从本地假成功改为调用 `/api/system/shutdown`；API 返回后异步停止自身，`python scripts/start.py` 会检测 API 子进程退出并收尾 Vite 前端。
+- 标准验证已通过：Python 244 passed, 6 skipped；ruff 通过；frontend 61 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
 
 ## 2. 当前阻断项
 
 - [x] 治理文档瘦身后运行 `python scripts/verify.py`。
 - [x] 验证通过后同步 `04_Features.md` 与 `05_Lessons.md` 当前状态。
 - [x] 下载保存目录选择器接入 v2 文件浏览端点，并通过 `python scripts/verify.py` 标准验证。
+- [x] 本轮修复后运行 `python scripts/verify.py` 标准验证。
 
 ## 3. 剩余黄灯
 
 - Legacy 前端隔离大文件仍需后续拆分或移出主源码路径。
 - 真实下载中断目前主要是任务层取消；若要硬杀 `yt-dlp` 子进程，需要重构外部进程封装。
 - WebSocket/SSE 推送需等任务进度模型进一步稳定。
-- 轻前端仍需用户主观验收：视觉密度、排版、停止/删除/重试交互和使用路径是否贴近 Legacy。
+- 轻前端仍需用户主观验收：视觉密度、排版、停止/删除/重试/下载文件/关闭服务交互和使用路径是否贴近 Legacy。
 
 ## 4. 下一步建议
 
