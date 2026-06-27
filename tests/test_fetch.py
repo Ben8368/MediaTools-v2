@@ -256,6 +256,39 @@ def test_fetch_many_subtitles_only_original_probe_failure_uses_orig_track(tmp_pa
     assert result.succeeded == 1
 
 
+def test_fetch_many_translates_locked_cookie_error(tmp_path, monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+
+    def runner(command, **kwargs):
+        if "--print" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="en\n", stderr="")
+        return subprocess.CompletedProcess(
+            command,
+            1,
+            stdout="",
+            stderr="ERROR: Could not copy Chrome cookie database. See https://...",
+        )
+
+    result = fetch_many(
+        [
+            FetchOptions(
+                url="https://example.com/video",
+                output_dir=tmp_path,
+                cookies_from_browser="chrome",
+            ),
+        ],
+        runner=runner,
+    )
+
+    assert result.failed == 1
+    error = str(result.items[0].error)
+    assert "chrome" in error.lower()
+    assert "退出" in error
+    assert "不使用浏览器登录态" in error
+    # Raw yt-dlp English text must be replaced, not appended.
+    assert "Could not copy" not in error
+
+
 def test_fetch_many_records_keyboard_interrupt(tmp_path, monkeypatch):
     monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
 

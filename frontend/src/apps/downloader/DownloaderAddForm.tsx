@@ -115,7 +115,9 @@ export function DownloaderAddForm({
             <option value="safari">Safari</option>
             <option value="firefox">Firefox</option>
           </select>
-          <small className="dl-field-hint">遇到 YouTube 登录或机器人验证时，选择已登录的浏览器。</small>
+          <small className="dl-field-hint">
+            遇到 YouTube 登录或机器人验证时，选择已登录的浏览器。使用浏览器登录态前需完全退出该浏览器，否则无法读取 Cookie；公开视频通常无需登录态。
+          </small>
         </div>
       </div>
 

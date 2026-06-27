@@ -295,8 +295,25 @@ def _fetch_one(
             status="failed",
             output_dir=normalize(options.output_dir),
             command=_safe_fetch_command(resolved),
-            error=exc.message,
+            error=_friendly_error(exc.message, options),
         )
+
+
+def _friendly_error(message: str, options: FetchOptions) -> str:
+    """Rewrite known cryptic yt-dlp failures into actionable guidance.
+
+    The browser-cookie copy failure is the common one: yt-dlp cannot read a
+    locked cookie database while the browser is running (yt-dlp#7271), and the
+    raw English message gives no hint about the fix.
+    """
+    if "could not copy" in message.lower() and "cookie" in message.lower():
+        browser = (options.cookies_from_browser or "浏览器").strip() or "浏览器"
+        return (
+            f"无法读取 {browser} 的 Cookie 数据库：该浏览器正在运行并锁定了 Cookie 文件。"
+            f"请完全退出 {browser} 后重试，或将“登录态”改为“不使用浏览器登录态”"
+            "（公开视频通常无需登录态）。"
+        )
+    return message
 
 
 def fetch_many(
