@@ -1,8 +1,8 @@
 ﻿# Current Context
 
-> **更新时间：** 2026-06-29 12:08:34 +0800
+> **更新时间：** 2026-06-29 12:32:35 +08:00
 > **当前分支：** `refactor-v2`  
-> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、下载保存目录选择器、任务产物前端下载、运行状态面板、前端优雅关闭入口、统一启动脚本、前端规模门禁、fetch CLI 兼容、前端配置维护风险收口和 YouTube 原语言字幕/视频优先下载硬化已接入并通过标准验证。
+> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、下载保存目录选择器、任务产物前端下载、运行状态面板、前端优雅关闭入口、统一启动脚本、前端规模门禁、fetch CLI 兼容、前端配置维护风险收口、YouTube 原语言字幕/视频优先下载硬化和下载任务可视进度修复已接入并通过标准验证。
 > **完整历史：** `docs/archive/03_Context_2026-06-26_full.md`
 
 ## 1. 当前状态
@@ -36,7 +36,11 @@
 - 原语言探测失败不再降级为 `all`；普通“视频 + 字幕”任务先下载视频，再 best-effort 下载字幕，避免字幕 429 或字幕探测失败导致视频文件缺失。
 - 已修复 YouTube `--print language` 返回 `NA`、但 JSON 元数据中存在唯一原语言字幕（如 `zh-CN`）时漏下字幕的问题；`original` 会二次探测字幕语言，并继续使用锚定正则避免下载翻译字幕。
 - 真实样本 `https://youtu.be/YIPPyDlBCZU?si=w8M11d-oZHvDX2fW` 已验证：输出 H264/AAC MP4（1080p）与原语言 `zh-CN` SRT。
-- 标准验证已通过：Python 253 passed, 6 skipped；ruff 通过；frontend 61 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
+- 下载工作台任务行进度已统一把后端 `0..1` 进度归一为百分比；任务启动后阶段显示为 `downloading`，避免真实下载中仍停留在 `connecting 0.1%`。
+- 下载工作台底部速率不再硬编码 `0 B/s`，改为轮询 `/api/system/metrics`；Windows `netstat -e` 网络字节行已兼容简体/繁体本地化标签。
+- GitHub Actions Windows 失败已定位为测试桩在 JSON 元数据探测阶段提前写出媒体文件，污染下载后处理快照；测试桩已修正为元数据探测不产出文件。
+- Chrome 登录态失败已定位为 Chrome 正在运行并锁定 Cookie 数据库；公开视频可使用“不使用浏览器登录态”，需要登录态时需完全退出 Chrome 后重试。
+- 标准验证已通过：Python 255 passed, 6 skipped；ruff 通过；frontend 63 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
 
 ## 2. 当前阻断项
 
@@ -47,6 +51,8 @@
 - [x] 修复 YouTube 原语言字幕 locale 匹配过宽导致大量翻译字幕和 429 失败。
 - [x] 修复原语言探测失败降级全字幕、字幕失败阻塞视频下载的问题。
 - [x] 修复 YouTube `language=NA` 但存在唯一原语言字幕时漏下 SRT 的问题。
+- [x] 修复下载工作台任务进度、阶段和网络速率显示不准确的问题。
+- [x] 修复上一轮 GitHub Actions Windows 测试失败。
 
 ## 3. 剩余黄灯
 

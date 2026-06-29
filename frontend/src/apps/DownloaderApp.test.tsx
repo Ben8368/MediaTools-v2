@@ -11,6 +11,7 @@ const apiMocks = vi.hoisted(() => ({
   getFetchTaskFileUrl: vi.fn(),
   getActiveTasks: vi.fn(),
   getWeeklyHistory: vi.fn(),
+  fetchSystemRuntimeMetrics: vi.fn(),
   submitFetch: vi.fn(),
 }))
 
@@ -68,6 +69,7 @@ describe('DownloaderApp interactions', () => {
   beforeEach(() => {
     apiMocks.getActiveTasks.mockReset()
     apiMocks.getWeeklyHistory.mockReset()
+    apiMocks.fetchSystemRuntimeMetrics.mockReset()
     apiMocks.submitFetch.mockReset()
     apiMocks.cancelTask.mockReset()
     apiMocks.clearTaskRecords.mockReset()
@@ -75,6 +77,12 @@ describe('DownloaderApp interactions', () => {
     apiMocks.getFetchTaskFileUrl.mockReset()
     apiMocks.getFetchTaskFileUrl.mockImplementation((taskId: string, path: string) => `/download/${taskId}?path=${encodeURIComponent(path)}`)
     apiMocks.getWeeklyHistory.mockResolvedValue([])
+    apiMocks.fetchSystemRuntimeMetrics.mockResolvedValue({
+      network: {
+        upload: { text: '4.0 KB/s' },
+        download: { text: '1.5 MB/s' },
+      },
+    })
     apiMocks.submitFetch.mockResolvedValue({ task_id: 'new-task', status: 'pending' })
     apiMocks.cancelTask.mockResolvedValue({ ok: true })
     apiMocks.clearTaskRecords.mockResolvedValue({ ok: true, deleted: 1 })

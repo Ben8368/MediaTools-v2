@@ -33,7 +33,7 @@ function mapApiTaskToDownloadTask(task: ApiTask): DownloadTask {
     source_url: task.source_url || '',
     type: 'download',
     status: task.status || 'pending',
-    progress: typeof task.progress === 'number' ? task.progress : 0,
+    progress: normalizeProgress(task.progress),
     stage: task.stage || 'queued',
     created_at: typeof task.created_at === 'number' ? task.created_at : 0,
     updated_at: typeof task.updated_at === 'number' ? task.updated_at : null,
@@ -52,6 +52,11 @@ function normalizeTaskList(response: unknown): ApiTask[] {
     return (response as { tasks: ApiTask[] }).tasks
   }
   return []
+}
+
+function normalizeProgress(value: unknown) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
+  return value <= 1 ? value * 100 : value
 }
 
 export function useDownloaderTaskData() {

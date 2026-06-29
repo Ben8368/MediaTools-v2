@@ -249,12 +249,34 @@ def _read_windows_network_counters() -> _NetworkCounters | None:
     output = _run_tool(["netstat", "-e"])
     for line in output.splitlines():
         parts = line.split()
-        if len(parts) >= 3 and parts[0].lower().startswith("bytes"):
-            try:
-                return _NetworkCounters(received=int(parts[1]), sent=int(parts[2]))
-            except ValueError:
-                return None
+        counters = _parse_windows_netstat_counter_line(parts)
+        if counters is not None:
+            return counters
     return None
+
+
+def _parse_windows_netstat_counter_line(parts: list[str]) -> _NetworkCounters | None:
+    """Parse the bytes row from ``netstat -e`` across localized Windows output."""
+    if len(parts) < 3:
+        return None
+    label = parts[0].lower()
+    if not label.startswith("bytes") and not _looks_like_counter_header(label):
+        return None
+    numeric_parts = [part for part in parts[1:] if part.isdigit()]
+    if len(numeric_parts) < 2:
+        return None
+    try:
+        return _NetworkCounters(received=int(numeric_parts[0]), sent=int(numeric_parts[1]))
+    except ValueError:
+        return None
+
+
+def _looks_like_counter_header(label: str) -> bool:
+    """Return True for localized byte labels while avoiding packet/error rows."""
+    packet_words = ("packet", "discard", "error", "unknown", "数据包", "丢弃", "错误", "未知")
+    if any(word in label for word in packet_words):
+        return False
+    return label in {"字节", "位元組"} or "byte" in label
 
 
 def _read_network_counters() -> _NetworkCounters | None:

@@ -210,6 +210,8 @@ def test_fetch_many_original_probe_failure_falls_back_to_orig_track(tmp_path, mo
         commands.append(list(command))
         if "--print" in command:
             return subprocess.CompletedProcess(command, 1, stdout="", stderr="language unavailable")
+        if "--dump-single-json" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
         (tmp_path / "video.mp4").write_bytes(b"media")
         return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 

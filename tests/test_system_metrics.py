@@ -58,3 +58,22 @@ def test_snapshot_reports_backend_uptime(monkeypatch) -> None:
         "gpu_available": True,
         "gpu_detail": "test",
     }
+
+
+def test_windows_netstat_parser_accepts_localized_bytes_row() -> None:
+    counters = system_metrics._parse_windows_netstat_counter_line(
+        ["字节", "2810178116", "712524367"],
+    )
+
+    assert counters == system_metrics._NetworkCounters(
+        received=2810178116,
+        sent=712524367,
+    )
+
+
+def test_windows_netstat_parser_ignores_packet_rows() -> None:
+    counters = system_metrics._parse_windows_netstat_counter_line(
+        ["Unicast", "packets", "151745495", "426215106"],
+    )
+
+    assert counters is None

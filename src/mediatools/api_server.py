@@ -156,7 +156,7 @@ def _run_download_task(
         store.update(
             task_id,
             status="running",
-            stage="connecting",
+            stage="downloading",
             started_at=time.time(),
             progress=0.05,
         )
