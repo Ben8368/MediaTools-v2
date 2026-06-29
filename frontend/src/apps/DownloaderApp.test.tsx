@@ -285,8 +285,8 @@ describe('DownloaderApp interactions', () => {
       )
     })
   })
-
   it('passes selected browser cookies for authenticated downloads', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
     apiMocks.getActiveTasks.mockResolvedValue([])
     apiMocks.submitFetch.mockResolvedValue({
       task_id: 'task-cookie',

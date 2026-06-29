@@ -1,8 +1,8 @@
 ﻿# Current Context
 
-> **更新时间：** 2026-06-29 12:32:35 +08:00
+> **更新时间：** 2026-06-29 16:56:10 +08:00
 > **当前分支：** `refactor-v2`  
-> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、下载保存目录选择器、任务产物前端下载、运行状态面板、前端优雅关闭入口、统一启动脚本、前端规模门禁、fetch CLI 兼容、前端配置维护风险收口、YouTube 原语言字幕/视频优先下载硬化和下载任务可视进度修复已接入并通过标准验证。
+> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、下载保存目录选择器、任务产物前端下载、运行状态面板、前端优雅关闭入口、统一启动脚本、前端规模门禁、fetch CLI 兼容、前端配置维护风险收口、YouTube 原语言字幕/视频优先下载硬化、下载任务可视进度和 Windows 网络速率修复已接入并通过标准验证。
 > **完整历史：** `docs/archive/03_Context_2026-06-26_full.md`
 
 ## 1. 当前状态
@@ -40,7 +40,9 @@
 - 下载工作台底部速率不再硬编码 `0 B/s`，改为轮询 `/api/system/metrics`；Windows `netstat -e` 网络字节行已兼容简体/繁体本地化标签。
 - GitHub Actions Windows 失败已定位为测试桩在 JSON 元数据探测阶段提前写出媒体文件，污染下载后处理快照；测试桩已修正为元数据探测不产出文件。
 - Chrome 登录态失败已定位为 Chrome 正在运行并锁定 Cookie 数据库；公开视频可使用“不使用浏览器登录态”，需要登录态时需完全退出 Chrome 后重试。
-- 标准验证已通过：Python 255 passed, 6 skipped；ruff 通过；frontend 63 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
+- Windows 网络速率采样已增加 IP Helper API 读取路径，不再只依赖服务进程执行 `netstat`；运行中 API 已验证返回 `network.available=true` 与非零上传/下载速率。
+- 选择 Chrome/Safari/Firefox 登录态时，前端会先弹确认，明确要求用户自行完全退出对应浏览器；MediaTools 不自动关闭用户已打开的浏览器。
+- 标准验证已通过：Python 256 passed, 6 skipped；ruff 通过；frontend 64 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
 
 ## 2. 当前阻断项
 
@@ -53,6 +55,7 @@
 - [x] 修复 YouTube `language=NA` 但存在唯一原语言字幕时漏下 SRT 的问题。
 - [x] 修复下载工作台任务进度、阶段和网络速率显示不准确的问题。
 - [x] 修复上一轮 GitHub Actions Windows 测试失败。
+- [x] 修复 Windows 服务进程网络速率仍显示不可用/0 B/s，并为浏览器登录态选择增加用户确认。
 
 ## 3. 剩余黄灯
 

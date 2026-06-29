@@ -28,6 +28,61 @@ class _NetworkCounters:
     sent: int
 
 
+class _Guid(ctypes.Structure):
+    _fields_ = [
+        ("data1", ctypes.c_ulong),
+        ("data2", ctypes.c_ushort),
+        ("data3", ctypes.c_ushort),
+        ("data4", ctypes.c_ubyte * 8),
+    ]
+
+
+class _MibIfRow2(ctypes.Structure):
+    _fields_ = [
+        ("interface_luid", ctypes.c_ulonglong),
+        ("interface_index", ctypes.c_ulong),
+        ("interface_guid", _Guid),
+        ("alias", ctypes.c_wchar * 257),
+        ("description", ctypes.c_wchar * 257),
+        ("physical_address_length", ctypes.c_ulong),
+        ("physical_address", ctypes.c_ubyte * 32),
+        ("permanent_physical_address", ctypes.c_ubyte * 32),
+        ("mtu", ctypes.c_ulong),
+        ("interface_type", ctypes.c_ulong),
+        ("tunnel_type", ctypes.c_int),
+        ("media_type", ctypes.c_int),
+        ("physical_medium_type", ctypes.c_int),
+        ("access_type", ctypes.c_int),
+        ("direction_type", ctypes.c_int),
+        ("interface_and_oper_status_flags", ctypes.c_ubyte),
+        ("oper_status", ctypes.c_int),
+        ("admin_status", ctypes.c_int),
+        ("media_connect_state", ctypes.c_int),
+        ("network_guid", _Guid),
+        ("connection_type", ctypes.c_int),
+        ("transmit_link_speed", ctypes.c_ulonglong),
+        ("receive_link_speed", ctypes.c_ulonglong),
+        ("in_octets", ctypes.c_ulonglong),
+        ("in_ucast_pkts", ctypes.c_ulonglong),
+        ("in_nucast_pkts", ctypes.c_ulonglong),
+        ("in_discards", ctypes.c_ulonglong),
+        ("in_errors", ctypes.c_ulonglong),
+        ("in_unknown_protos", ctypes.c_ulonglong),
+        ("in_ucast_octets", ctypes.c_ulonglong),
+        ("in_multicast_octets", ctypes.c_ulonglong),
+        ("in_broadcast_octets", ctypes.c_ulonglong),
+        ("out_octets", ctypes.c_ulonglong),
+        ("out_ucast_pkts", ctypes.c_ulonglong),
+        ("out_nucast_pkts", ctypes.c_ulonglong),
+        ("out_discards", ctypes.c_ulonglong),
+        ("out_errors", ctypes.c_ulonglong),
+        ("out_ucast_octets", ctypes.c_ulonglong),
+        ("out_multicast_octets", ctypes.c_ulonglong),
+        ("out_broadcast_octets", ctypes.c_ulonglong),
+        ("out_qlen", ctypes.c_ulonglong),
+    ]
+
+
 def _clamp_percent(value: float | None) -> float:
     if value is None:
         return 0.0
@@ -246,6 +301,9 @@ def _read_macos_network_counters() -> _NetworkCounters | None:
 
 
 def _read_windows_network_counters() -> _NetworkCounters | None:
+    counters = _read_windows_iphlpapi_network_counters()
+    if counters is not None:
+        return counters
     output = _run_tool(["netstat", "-e"])
     for line in output.splitlines():
         parts = line.split()
@@ -253,6 +311,51 @@ def _read_windows_network_counters() -> _NetworkCounters | None:
         if counters is not None:
             return counters
     return None
+
+
+def _read_windows_iphlpapi_network_counters() -> _NetworkCounters | None:
+    if platform.system() != "Windows":
+        return None
+    try:
+        iphlpapi = ctypes.windll.iphlpapi  # type: ignore[attr-defined]
+    except AttributeError:
+        return None
+
+    table = ctypes.c_void_p()
+    get_table = iphlpapi.GetIfTable2
+    get_table.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+    get_table.restype = ctypes.c_ulong
+    if get_table(ctypes.byref(table)) != 0 or not table.value:
+        return None
+
+    free_table = iphlpapi.FreeMibTable
+    free_table.argtypes = [ctypes.c_void_p]
+    try:
+        row_offset = _aligned_table_row_offset()
+        count = ctypes.c_ulong.from_address(table.value).value
+        rows_address = table.value + row_offset
+        rows = [
+            _MibIfRow2.from_address(rows_address + index * ctypes.sizeof(_MibIfRow2))
+            for index in range(count)
+        ]
+        active_rows = [
+            row
+            for row in rows
+            if row.oper_status == 1 and row.interface_type != 24
+        ]
+        selected_rows = active_rows or [row for row in rows if row.interface_type != 24]
+        if not selected_rows:
+            return None
+        return _NetworkCounters(
+            received=sum(int(row.in_octets) for row in selected_rows),
+            sent=sum(int(row.out_octets) for row in selected_rows),
+        )
+    finally:
+        free_table(table)
+
+
+def _aligned_table_row_offset() -> int:
+    return ((ctypes.sizeof(ctypes.c_ulong) + 7) // 8) * 8
 
 
 def _parse_windows_netstat_counter_line(parts: list[str]) -> _NetworkCounters | None:

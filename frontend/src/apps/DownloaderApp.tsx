@@ -19,6 +19,14 @@ import { useDownloaderForm } from '@/apps/downloader/useDownloaderForm'
 import { useDownloaderSelection } from '@/apps/downloader/useDownloaderSelection'
 import { useDownloaderTaskData } from '@/apps/downloader/useDownloaderTaskData'
 import { DirectoryPickerDialog } from '@/apps/FileManagerApp'
+import type { CookieBrowser } from '@/apps/downloader/types'
+
+const COOKIE_BROWSER_LABELS: Record<CookieBrowser, string> = {
+  none: '不使用浏览器登录态',
+  chrome: 'Chrome',
+  safari: 'Safari',
+  firefox: 'Firefox',
+}
 
 export function DownloaderApp() {
   const { historyTasks, queueTasks, mergedTasks, fetchHistoryTasks, refreshLists, setOptimisticTasks } = useDownloaderTaskData()
@@ -99,6 +107,23 @@ export function DownloaderApp() {
     }
   }, [form, submitTaskPayloads, actions])
 
+  const confirmCookieBrowserChange = useCallback(
+    (browser: CookieBrowser) => {
+      if (browser === 'none') {
+        form.setTaskCookieBrowser(browser)
+        return
+      }
+      const label = COOKIE_BROWSER_LABELS[browser]
+      const confirmed = window.confirm(
+        `使用 ${label} 登录态前，需要你先自行完全退出 ${label}。MediaTools 不会自动关闭已经打开的浏览器。确认使用 ${label} 登录态？`,
+      )
+      if (confirmed) {
+        form.setTaskCookieBrowser(browser)
+      }
+    },
+    [form],
+  )
+
   // Detail drawer derived data
   const detailRows = useMemo(() => (selection.selectedTask ? extractTaskDetailRows(selection.selectedTask) : []), [selection.selectedTask])
   const detailSnapshot = useMemo(() => {
@@ -167,7 +192,7 @@ export function DownloaderApp() {
               onTaskPlatformChange={form.setTaskPlatform}
               onTaskSubtitlesChange={form.setTaskSubtitles}
               onTaskOutputDirChange={form.setTaskOutputDir}
-              onTaskCookieBrowserChange={form.setTaskCookieBrowser}
+              onTaskCookieBrowserChange={confirmCookieBrowserChange}
               onOpenDirectoryPicker={() => form.setDirectoryPickerOpen(true)}
               onSubmit={submitNewTask}
               onClose={() => {
