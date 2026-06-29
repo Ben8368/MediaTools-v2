@@ -40,7 +40,7 @@ export function PathInput({
   const rootRef = useRef<HTMLDivElement>(null)
 
   function openPicker() {
-    const root = rootRef.current?.closest('.dl-app, .ps-app, .ae-app, .tool-app, .wb-app, .au-app, .fm-app')
+    const root = rootRef.current?.closest('.dl-app, .ps-app, .tool-app, .fm-app')
     setPortalContainer(root instanceof HTMLElement ? root : null)
     setOpen(true)
   }

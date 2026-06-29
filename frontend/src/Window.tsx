@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchAEStatus, fetchPhotoshopStatus } from '@/api'
+import { fetchPhotoshopStatus } from '@/api'
 import { WINDOW_CHROME } from '@/appPresentation'
 import { getAppIcon } from '@/icon-library'
 
@@ -12,9 +12,6 @@ type WindowStatus = {
 function adobeStatusConfig(appType?: string) {
   if (appType === 'ps' || appType === 'photoshop') {
     return { label: 'PS', fetcher: fetchPhotoshopStatus }
-  }
-  if (appType === 'ae') {
-    return { label: 'AE', fetcher: fetchAEStatus }
   }
   return null
 }

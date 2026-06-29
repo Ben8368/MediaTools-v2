@@ -1,14 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  AgentApp,
-  AssetsApp,
-  DashboardApp,
-  EncoderApp,
-  PhotoshopApp,
-  WorkspaceApp,
-} from '@/apps/MediaToolsApps'
+import { PhotoshopApp } from '@/apps/MediaToolsApps'
 
 const apiMocks = vi.hoisted(() => ({
   analyzeWorkbenchSubtitle: vi.fn(),
@@ -111,50 +104,6 @@ function resetApiMocks() {
   apiMocks.updatePhotoshopTicket.mockResolvedValue({ ok: true, ticket: { meta: {}, tasks: [] } })
   apiMocks.wsUrl.mockReturnValue('ws://localhost/ws/jobs')
 }
-
-describe('MediaTools utility apps', () => {
-  beforeEach(resetApiMocks)
-
-  it('renders the redesigned dashboard and loads module status', async () => {
-    render(<DashboardApp />)
-
-    expect(await screen.findByText('MediaTools Console')).toBeInTheDocument()
-    expect(apiMocks.getModules).toHaveBeenCalled()
-    expect(apiMocks.getWorkspace).toHaveBeenCalled()
-  })
-
-  it('renders Agent and submits a task through the API', async () => {
-    render(<AgentApp />)
-
-    expect(screen.getByRole('button', { name: '新建会话' })).toBeInTheDocument()
-    fireEvent.change(screen.getByPlaceholderText('例如：下载这个 YouTube 视频，转成 H.264，并把字幕转换成 SRT'), {
-      target: { value: '整理今天下载的视频' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: '发送' }))
-
-    await waitFor(() => {
-      expect(apiMocks.runAgent).toHaveBeenCalled()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: '新建会话' }))
-    expect(screen.getByLabelText('删除会话 会话 2')).toBeInTheDocument()
-    fireEvent.click(screen.getByLabelText('删除会话 会话 2'))
-    expect(screen.queryByText('会话 2')).not.toBeInTheDocument()
-  })
-
-  it('renders encoder, assets, and workspace consoles', async () => {
-    render(<EncoderApp />)
-    expect(screen.getByText('Video Encoder')).toBeInTheDocument()
-
-    render(<AssetsApp />)
-    expect(await screen.findByText('Asset Library')).toBeInTheDocument()
-    expect(apiMocks.fetchAssets).toHaveBeenCalled()
-
-    render(<WorkspaceApp />)
-    expect(await screen.findByText('工作区设置')).toBeInTheDocument()
-    expect(apiMocks.getWorkspace).toHaveBeenCalled()
-  })
-})
 
 describe('MediaTools workflow apps', () => {
   beforeEach(resetApiMocks)

@@ -68,14 +68,14 @@ describe('LeftNavbar shutdown flow', () => {
 
   it('focuses, minimizes, and restores running app windows from the sidebar', () => {
     useWindowStore.getState().openWindow('fetcher')
-    useWindowStore.getState().openWindow('agent')
+    useWindowStore.getState().openWindow('photoshop')
 
     render(<LeftNavbar />)
 
     fireEvent.click(screen.getByTitle('下载'))
     const focusedFetcher = useWindowStore.getState().getWindowByType('fetcher')
-    const agent = useWindowStore.getState().getWindowByType('agent')
-    expect(focusedFetcher?.zIndex).toBeGreaterThan(agent?.zIndex ?? 0)
+    const photoshop = useWindowStore.getState().getWindowByType('photoshop')
+    expect(focusedFetcher?.zIndex).toBeGreaterThan(photoshop?.zIndex ?? 0)
 
     fireEvent.click(screen.getByTitle('下载'))
     expect(useWindowStore.getState().getWindowByType('fetcher')?.isMinimized).toBe(true)

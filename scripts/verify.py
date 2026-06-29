@@ -21,7 +21,6 @@ FRONTEND_SOURCE_SUFFIXES = {".css", ".ts", ".tsx"}
 LEGACY_FRONTEND_OVERSIZED = {
     Path("frontend/src/apps/MediaToolsApps.test.tsx"),
     Path("frontend/src/apps/PhotoshopApp.tsx"),
-    Path("frontend/src/styles/mediatools/after-effects.css"),
     Path("frontend/src/styles/mediatools/photoshop.css"),
     Path("frontend/src/styles/mediatools/shared-tools.css"),
 }
