@@ -7,6 +7,7 @@ from mediatools.core.fetch import (
     _resolve_filename_language,
     _resolve_sub_langs,
     probe_language,
+    probe_original_subtitle_language,
 )
 
 
@@ -128,3 +129,44 @@ def test_probe_language_passes_cookie_source(monkeypatch):
     assert result == "zh-CN"
     assert "--cookies-from-browser" in commands[0]
     assert "safari" in commands[0]
+
+
+def test_probe_original_subtitle_language_uses_single_manual_subtitle(monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+
+    def runner(command, **kwargs):
+        payload = '{"subtitles": {"zh-CN": [{"ext": "vtt"}]}, "automatic_captions": {}}'
+        return subprocess.CompletedProcess(command, 0, stdout=payload, stderr="")
+
+    result = probe_original_subtitle_language("https://example.com/video", runner=runner)
+
+    assert result == "zh-CN"
+
+
+def test_probe_original_subtitle_language_ignores_multiple_manual_subtitles(monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+
+    def runner(command, **kwargs):
+        payload = '{"subtitles": {"en": [{"ext": "vtt"}], "zh-CN": [{"ext": "vtt"}]}}'
+        return subprocess.CompletedProcess(command, 0, stdout=payload, stderr="")
+
+    result = probe_original_subtitle_language("https://example.com/video", runner=runner)
+
+    assert result is None
+
+
+def test_probe_original_subtitle_language_uses_source_auto_caption_url(monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+
+    def runner(command, **kwargs):
+        payload = (
+            '{"automatic_captions": {'
+            '"zh-CN": [{"url": "https://example.test/caps%3DASR%26lang%3Dzh-CN"}],'
+            '"en-zh-CN": [{"url": "https://example.test/caps%3DASR%26lang%3Dzh-CN%26tlang%3Den"}]'
+            "}}"
+        )
+        return subprocess.CompletedProcess(command, 0, stdout=payload, stderr="")
+
+    result = probe_original_subtitle_language("https://example.com/video", runner=runner)
+
+    assert result == "zh-CN"

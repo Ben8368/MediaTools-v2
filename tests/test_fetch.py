@@ -14,6 +14,14 @@ from mediatools.core.fetch import (
 )
 
 
+def _download_commands(commands: list[list[str]]) -> list[list[str]]:
+    return [
+        command
+        for command in commands
+        if "--print" not in command and "--dump-single-json" not in command
+    ]
+
+
 def test_fetch_media_runs_ytdlp(tmp_path, monkeypatch):
     monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
 
@@ -185,7 +193,7 @@ def test_fetch_many_downloads_video_before_best_effort_subtitles(tmp_path, monke
         runner=runner,
     )
 
-    download_commands = [command for command in commands if "--print" not in command]
+    download_commands = _download_commands(commands)
     assert "--skip-download" not in download_commands[0]
     assert "--write-subs" not in download_commands[0]
     assert "--skip-download" in download_commands[1]
@@ -218,7 +226,7 @@ def test_fetch_many_original_probe_failure_falls_back_to_orig_track(tmp_path, mo
         runner=runner,
     )
 
-    download_commands = [command for command in commands if "--print" not in command]
+    download_commands = _download_commands(commands)
     # Media downloads first (no subtitle flags), then a best-effort subtitle pass.
     assert len(download_commands) == 2
     assert "--write-subs" not in download_commands[0]
@@ -227,6 +235,44 @@ def test_fetch_many_original_probe_failure_falls_back_to_orig_track(tmp_path, mo
     assert "^.*-orig$" in subtitle_command
     assert result.succeeded == 1
     assert result.items[0].output_files == (tmp_path / "video.mp4",)
+
+
+def test_fetch_many_original_probe_uses_single_subtitle_language(tmp_path, monkeypatch):
+    monkeypatch.setattr("mediatools.core.ffmpeg.shutil.which", lambda tool: f"/bin/{tool}")
+    commands: list[list[str]] = []
+
+    def runner(command, **kwargs):
+        commands.append(list(command))
+        if "--print" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="NA\n", stderr="")
+        if "--dump-single-json" in command:
+            payload = '{"subtitles": {"zh-CN": [{"ext": "vtt"}]}, "automatic_captions": {}}'
+            return subprocess.CompletedProcess(command, 0, stdout=payload, stderr="")
+        if "--skip-download" in command:
+            (tmp_path / "video.zh-CN.srt").write_text("subtitle", encoding="utf-8")
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        (tmp_path / "video.mp4").write_bytes(b"media")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    result = fetch_many(
+        [
+            FetchOptions(
+                url="https://example.com/video",
+                output_dir=tmp_path,
+                write_subtitles=True,
+                write_auto_subtitles=True,
+                subtitle_languages="original",
+            ),
+        ],
+        runner=runner,
+    )
+
+    subtitle_command = _download_commands(commands)[1]
+    subtitle_args = " ".join(subtitle_command)
+    assert "^zh\\-CN$" in subtitle_args
+    assert "^.*-orig$" not in subtitle_args
+    assert result.succeeded == 1
+    assert result.items[0].output_files == (tmp_path / "video.mp4", tmp_path / "video.srt")
 
 
 def test_fetch_many_subtitles_only_original_probe_failure_uses_orig_track(tmp_path, monkeypatch):
@@ -249,7 +295,7 @@ def test_fetch_many_subtitles_only_original_probe_failure_uses_orig_track(tmp_pa
         runner=runner,
     )
 
-    download_commands = [command for command in commands if "--print" not in command]
+    download_commands = _download_commands(commands)
     assert len(download_commands) == 1
     assert "--skip-download" in download_commands[0]
     assert "^.*-orig$" in download_commands[0]

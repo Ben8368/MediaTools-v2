@@ -23,6 +23,7 @@ from mediatools.core.fetch_postprocess import (
 )
 from mediatools.core.fetch_resolution import (
     probe_language,
+    probe_original_subtitle_language,
 )
 from mediatools.core.fetch_resolution import (
     resolve_filename_language as _resolve_filename_language,
@@ -266,6 +267,13 @@ def _fetch_one(
             cookies_from_browser=options.cookies_from_browser,
             runner=runner,
         )
+        if options.subtitle_languages == "original" and not probed_lang:
+            probed_lang = probe_original_subtitle_language(
+                options.url,
+                cookies=options.cookies,
+                cookies_from_browser=options.cookies_from_browser,
+                runner=runner,
+            )
         resolved = _resolve_sub_langs(options, probed_lang=probed_lang)
         resolved = _resolve_filename_language(resolved, probed_lang=probed_lang)
         result = fetch_media(

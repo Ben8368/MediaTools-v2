@@ -27,7 +27,7 @@ LEGACY_FRONTEND_OVERSIZED = {
 }
 MIN_PYTHON = (3, 11)
 FRONTEND_DIR = ROOT / "frontend"
-VERIFY_TMP_DIR = ROOT / ".tmp-verify"
+VERIFY_TMP_DIR = Path(os.environ.get("MEDIATOOLS_VERIFY_TMP", ROOT / ".tmp-verify"))
 
 
 if hasattr(sys.stdout, "reconfigure"):

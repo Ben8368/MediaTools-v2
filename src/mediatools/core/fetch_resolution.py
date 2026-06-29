@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -44,6 +45,74 @@ def probe_language(
         if lang and lang != "NA":
             return lang
     return None
+
+
+def probe_original_subtitle_language(
+    url: str,
+    *,
+    cookies: Path | None = None,
+    cookies_from_browser: str | None = None,
+    runner: ProcessRunner | None = None,
+) -> str | None:
+    """Return a likely source subtitle language when video language is unavailable."""
+    validate_url(url)
+    try:
+        kwargs = {"runner": runner} if runner is not None else {}
+        result = run_ytdlp(
+            [
+                *build_auth_args(cookies=cookies, cookies_from_browser=cookies_from_browser),
+                "--dump-single-json",
+                "--skip-download",
+                url,
+            ],
+            timeout=60,
+            **kwargs,
+        )
+    except ExternalToolError:
+        return None
+
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+
+    subtitles = payload.get("subtitles")
+    if isinstance(subtitles, dict):
+        subtitle_langs = _non_empty_language_keys(subtitles)
+        if len(subtitle_langs) == 1:
+            return subtitle_langs[0]
+
+    automatic = payload.get("automatic_captions")
+    if isinstance(automatic, dict):
+        source_langs = [
+            lang
+            for lang in _non_empty_language_keys(automatic)
+            if _has_source_caption_url(automatic[lang])
+        ]
+        if len(source_langs) == 1:
+            return source_langs[0]
+    return None
+
+
+def _non_empty_language_keys(captions: dict[object, object]) -> list[str]:
+    return [
+        str(lang)
+        for lang, formats in captions.items()
+        if str(lang).strip() and isinstance(formats, list) and formats
+    ]
+
+
+def _has_source_caption_url(formats: object) -> bool:
+    """Return True for YouTube's source auto-caption URL, excluding translations."""
+    if not isinstance(formats, list):
+        return False
+    for item in formats:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url", ""))
+        if url and "tlang%3D" not in url and "tlang=" not in url:
+            return True
+    return False
 
 
 #: yt-dlp sub-langs regex that matches only the original auto-caption track.
