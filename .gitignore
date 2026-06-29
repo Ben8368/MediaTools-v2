@@ -55,6 +55,7 @@ go.work
 .env.*.local
 
 # Project specific
+downloads/
 data/
 runtime/
 projects/
