@@ -12,13 +12,25 @@
 Co-Authored-By: <AI Tool Name> <email>
 ```
 
+### 语言规范
+
+**所有 commit message 必须使用英文**，包括 subject 和 body 部分。
+
+- ✅ 正确：`feat(psd): add PSD editor with ag-psd integration`
+- ❌ 错误：`feat(psd): 添加 PSD 编辑器`
+
+原因：
+- 保持代码仓库国际化标准
+- 确保 GitHub/GitLab 等平台正确显示和索引
+- 便于开源协作和团队协作
+
 ## AI 工具 Co-Author 列表
 
 当前标准以根目录 `AGENTS.md` 为准：
 
 | 工具 | Co-Authored-By 标记 |
 |------|---------------------|
-| Claude Code | `Co-Authored-By: claude <claude@noreply.anthropic.com>` |
+| Claude Code | `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` |
 | Cursor | `Co-authored-by: cursoragent <cursoragent@cursor.com>` |
 | Codex | `Co-Authored-By: codex <codex@openai.com>` |
 | OpenCode | `Co-Authored-By: opencode <opencode@noreply.local>` |

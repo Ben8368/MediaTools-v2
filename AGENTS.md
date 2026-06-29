@@ -63,11 +63,13 @@
 
 | AI 工具 | Co-Authored-By 标记 |
 | --- | --- |
-| Claude Code | `Co-Authored-By: claude <claude@noreply.anthropic.com>` |
+| Claude Code | `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>` |
 | Cursor | `Co-authored-by: cursoragent <cursoragent@cursor.com>` |
 | Codex | `Co-Authored-By: codex <codex@openai.com>` |
 | OpenCode | `Co-Authored-By: opencode <opencode@noreply.local>` |
 | OpenClaw | `Co-Authored-By: openclaw <openclaw@noreply.local>` |
+
+**语言要求**：所有 commit message（包括 subject 和 body）必须使用英文，以保持代码仓库国际化标准。
 
 自动化方式：
 - Windows：`.git-hooks/install.ps1`
