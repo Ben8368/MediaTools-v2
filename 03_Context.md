@@ -1,8 +1,8 @@
 ﻿# Current Context
 
-> **更新时间：** 2026-06-29 16:56:10 +08:00
+> **更新时间：** 2026-06-29 18:30:00 +08:00
 > **当前分支：** `refactor-v2`  
-> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、下载保存目录选择器、任务产物前端下载、运行状态面板、前端优雅关闭入口、统一启动脚本、前端规模门禁、fetch CLI 兼容、前端配置维护风险收口、YouTube 原语言字幕/视频优先下载硬化、下载任务可视进度和 Windows 网络速率修复已接入并通过标准验证。
+> **当前阶段：** Phase 3 - 下载工作流已验收；v2 轻前端下载工作台、本地 API 适配层、下载保存目录选择器、任务产物前端下载、运行状态面板、前端优雅关闭入口、统一启动脚本、前端规模门禁、fetch CLI 兼容、前端配置维护风险收口、YouTube 原语言字幕/视频优先下载硬化、下载任务可视进度和 Windows 网络速率修复已接入并通过标准验证；PSD 编辑器选型已收口（Feature 024 / ADR-008）。
 > **完整历史：** `docs/archive/03_Context_2026-06-26_full.md`
 
 ## 1. 当前状态
@@ -43,6 +43,7 @@
 - Windows 网络速率采样已增加 IP Helper API 读取路径，不再只依赖服务进程执行 `netstat`；运行中 API 已验证返回 `network.available=true` 与非零上传/下载速率。
 - 选择 Chrome/Safari/Firefox 登录态时，前端会先弹确认，明确要求用户自行完全退出对应浏览器；MediaTools 不自动关闭用户已打开的浏览器。
 - 标准验证已通过：Python 256 passed, 6 skipped；ruff 通过；frontend 64 passed, 3 skipped；build 通过；`npm ci` audit 0 vulnerabilities；doctor 找到 `ffmpeg`、`ffprobe`、`yt-dlp`。
+- PSD 编辑器（Feature 024）选型已确认为纯前端 ag-psd + fabric，后端零依赖增量；混合架构、Python psd-tools、Node.js 微服务三种方案已放弃并归档到 `docs/archive/psd-research/`。
 
 ## 2. 当前阻断项
 
@@ -68,7 +69,8 @@
 
 1. 进行轻前端主观验收；通过后再把用户可见轻前端功能标为完成。
 2. Legacy 前端隔离大文件仍需后续拆分或移出主源码路径。
-3. 下载与轻前端稳定后，再评估视频切片、资产扫描 / 搜索 / 统计。
+3. PSD 编辑器（Feature 024）选型已确认为纯前端 ag-psd，进入实施前先确认 MVP 范围。
+4. 下载与轻前端稳定后，再评估视频切片、资产扫描 / 搜索 / 统计。
 
 ## 5. 维护边界
 
